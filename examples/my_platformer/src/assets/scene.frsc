@@ -1,0 +1,293 @@
+---
+- class_name: Entity
+  fields:
+    entity_id: 1
+    name: Player
+    enabled: true
+    components:
+    - class_name: Translate2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            y: 2
+            x: -2
+    - class_name: Rotate2d
+      fields:
+        angle: 0.14
+    - class_name: Scale2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            y: 2.5
+            x: 10
+    - class_name: Sprite
+      fields:
+        z_index: 0
+        texture: ~
+        material:
+          class_name: ResourceReference
+          fields:
+            resource_name: "./examples/test/character.material"
+    - class_name: Move
+      fields:
+        velocity: 1.6
+    - class_name: Transform2d
+      fields:
+        transform:
+          class_name: Matrix3
+          fields: {}
+    - class_name: RectCollider
+      fields:
+        bottom_left:
+          class_name: Vector2d
+          fields:
+            x: -0.275
+            y: -0.375
+        top_right:
+          class_name: Vector2d
+          fields:
+            x: 0.235
+            y: 0.450
+    - class_name: RigidBody
+      fields: {}
+- class_name: Entity
+  fields:
+    entity_id: 3
+    name: Image 1
+    enabled: true
+    components:
+    - class_name: Parent
+      fields:
+        nested_level: 1
+        parent_id: 1
+    - class_name: Translate2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            y: 0.32
+            x: 0.63
+    - class_name: Scale2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            x: 0.5
+            y: 0.5
+    - class_name: Sprite
+      fields:
+        z_index: 1
+        material:
+          class_name: ResourceReference
+          fields:
+            resource_name: "./examples/test/material.material"
+        texture: ~
+    - class_name: TestVec
+      fields:
+        scale:
+          class_name: Vector2d
+          fields:
+            y: 0.5
+            x: 0.5
+    - class_name: Transform2d
+      fields:
+        transform:
+          class_name: Matrix3
+          fields: {}
+    - class_name: CircleCollider
+      fields:
+        radius: 0.5
+        center:
+          class_name: Vector2d
+          fields:
+            y: 0.0
+            x: 0.0
+    - class_name: CircleCollider
+      fields:
+        radius: 0.3
+        center:
+          class_name: Vector2d
+          fields:
+            y: 1.0
+            x: 0.0
+- class_name: Entity
+  fields:
+    entity_id: 5
+    name: Image 2
+    enabled: true
+    components:
+    - class_name: Parent
+      fields:
+        parent_id: 3
+        nested_level: 2
+    - class_name: RectCollider
+      fields:
+        bottom_left:
+          class_name: Vector2d
+          fields:
+            y: -0.5
+            x: -0.5
+        top_right:
+          class_name: Vector2d
+          fields:
+            y: 0.5
+            x: 0.5
+    - class_name: Translate2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            x: -0.15
+            y: 0.05
+    - class_name: Scale2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            y: 0.5
+            x: 0.5
+    - class_name: Sprite
+      fields:
+        material:
+          class_name: ResourceReference
+          fields:
+            resource_name: "./examples/test/material.material"
+        texture: ~
+        z_index: 2
+    - class_name: Transform2d
+      fields:
+        transform:
+          class_name: Matrix3
+          fields: {}
+- class_name: Entity
+  fields:
+    entity_id: 8
+    name: Image 3
+    enabled: true
+    components:
+    - class_name: Parent
+      fields:
+        parent_id: 3
+        nested_level: 2
+    - class_name: RectCollider
+      fields:
+        bottom_left:
+          class_name: Vector2d
+          fields:
+            y: -0.5
+            x: -0.5
+        top_right:
+          class_name: Vector2d
+          fields:
+            y: 0.5
+            x: 0.5
+    - class_name: Translate2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            x: 0.15
+            y: 0.05
+    - class_name: Scale2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            y: 0.5
+            x: 0.5
+    - class_name: Sprite
+      fields:
+        material:
+          class_name: ResourceReference
+          fields:
+            resource_name: "./examples/test/material.material"
+        texture: ~
+        z_index: 2
+    - class_name: Transform2d
+      fields:
+        transform:
+          class_name: Matrix3
+          fields: {}
+- class_name: Entity
+  fields:
+    entity_id: 7
+    name: Camera
+    enabled: true
+    components:
+    - class_name: Translate2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            y: 0
+            x: 0
+    - class_name: Scale2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            x: 3
+            y: 2
+    - class_name: Camera
+      fields:
+        far: 1
+        near: -1
+        background_color:
+          class_name: Color
+          fields:
+            r: 0.07
+            g: 0.09
+            b: 0.09
+            a: 1.0
+    - class_name: Transform2d
+      fields:
+        transform:
+          class_name: Matrix3
+          fields: {}
+- class_name: Entity
+  fields:
+    entity_id: 10
+    name: Ground
+    enabled: true
+    components:
+    - class_name: Translate2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            y: -4
+            x: 0
+    - class_name: Scale2d
+      fields:
+        vec:
+          class_name: Vector2d
+          fields:
+            x: 24
+            y: 0.5
+    - class_name: Sprite
+      fields:
+        z_index: 0
+        texture: ~
+        material:
+          class_name: ResourceReference
+          fields:
+            resource_name: "./examples/test/platform.material"
+    - class_name: Transform2d
+      fields:
+        transform:
+          class_name: Matrix3
+          fields: {}
+    - class_name: RectCollider
+      fields:
+        bottom_left:
+          class_name: Vector2d
+          fields:
+            y: -0.5
+            x: -0.5
+        top_right:
+          class_name: Vector2d
+          fields:
+            y: 0.5
+            x: 0.5
