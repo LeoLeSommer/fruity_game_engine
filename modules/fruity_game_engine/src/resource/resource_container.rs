@@ -4,9 +4,7 @@ use crate::resource::error::RemoveResourceError;
 use crate::resource::resource_reference::ResourceReference;
 use crate::resource::Resource;
 use crate::settings::Settings;
-use crate::shared::ResourceShared;
 use crate::RwLock;
-use napi_derive::napi;
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -20,7 +18,6 @@ pub type ResourceLoader = fn(&str, &mut dyn Read, Settings, ResourceContainer);
 
 /// The resource manager
 #[derive(FruityAny, Clone)]
-#[napi]
 pub struct ResourceContainer {
   pub(crate) inner: Arc<RwLock<InnerResourceContainer>>,
 }
@@ -35,7 +32,7 @@ impl Debug for ResourceContainer {
 }
 
 pub(crate) struct InnerResourceContainer {
-  resources: HashMap<String, ResourceShared<Box<dyn Resource>>>,
+  resources: HashMap<String, Arc<RwLock<Box<dyn Resource>>>>,
   identifier_by_type: HashMap<TypeId, String>,
   resource_loaders: HashMap<String, ResourceLoader>,
 }
@@ -66,7 +63,7 @@ impl ResourceContainer {
 
     match inner.identifier_by_type.get(&TypeId::of::<T>()) {
       Some(resource_name) => match inner.resources.get(resource_name) {
-        Some(resource) => match resource.clone().0.as_any_arc().downcast::<RwLock<Box<T>>>() {
+        Some(resource) => match resource.clone().as_any_arc().downcast::<RwLock<Box<T>>>() {
           Ok(resource) => ResourceReference::new(resource_name, resource, self.clone()),
           Err(_) => {
             panic!("Failed to get a required resource")
@@ -98,7 +95,7 @@ impl ResourceContainer {
       .get(identifier)
       .map(|resource| resource.clone())
     {
-      Some(resource) => match resource.0.as_any_arc().downcast::<RwLock<Box<T>>>() {
+      Some(resource) => match resource.as_any_arc().downcast::<RwLock<Box<T>>>() {
         Ok(resource) => Some(ResourceReference::new(identifier, resource, self.clone())),
         Err(_) => None,
       },
@@ -111,7 +108,7 @@ impl ResourceContainer {
   /// # Arguments
   /// * `identifier` - The resource identifier
   ///
-  pub fn get_untyped(&self, identifier: String) -> Option<RWShared<Box<dyn Resource>>> {
+  pub fn get_untyped(&self, identifier: String) -> Option<Arc<RwLock<Box<dyn Resource>>>> {
     let inner = self.inner.read();
 
     inner
@@ -139,7 +136,7 @@ impl ResourceContainer {
   pub fn add<T: Resource + ?Sized>(&self, identifier: &str, resource: Box<T>) {
     let mut inner = self.inner.write();
 
-    let shared: RWShared<Box<dyn Resource>> = RWShared::new(resource.as_resource_box());
+    let shared: Arc<RwLock<Box<dyn Resource>>> = Arc::new(RwLock::new(resource.as_resource_box()));
     inner
       .resources
       .insert(identifier.to_string(), shared.clone());

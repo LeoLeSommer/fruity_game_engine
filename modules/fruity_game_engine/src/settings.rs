@@ -1,19 +1,6 @@
 use crate::any::FruityAny;
 use crate::convert::FruityTryFrom;
 use crate::resource::Resource;
-use napi::bindgen_prelude::Array;
-use napi::bindgen_prelude::FromNapiValue;
-use napi::bindgen_prelude::ToNapiValue;
-use napi::Env;
-use napi::JsBoolean;
-use napi::JsNumber;
-use napi::JsObject;
-use napi::JsString;
-use napi::JsUnknown;
-use napi::NapiRaw;
-use napi::NapiValue;
-use napi::ValueType;
-use napi_derive::napi;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -85,7 +72,6 @@ impl Default for Settings {
 }
 
 /// Build a Settings by reading a yaml document
-#[napi]
 pub fn read_settings() -> Settings {
   let mut reader = File::open("examples/test/settings.yaml").unwrap();
 
@@ -224,75 +210,118 @@ impl<T: FruityTryFrom<Settings> + ?Sized> FruityTryFrom<Settings> for Option<T> 
   }
 }
 
-impl ToNapiValue for Settings {
-  unsafe fn to_napi_value(
-    raw_env: *mut napi_sys::napi_env__,
-    value: Self,
-  ) -> Result<*mut napi_sys::napi_value__, napi::Error> {
-    let env = Env::from(raw_env);
+impl crate::javascript::ToJavascript for Settings {
+  fn to_js<'a>(
+    self,
+    cx: &'a mut neon::prelude::FunctionContext,
+  ) -> neon::result::NeonResult<neon::handle::Handle<'a, neon::prelude::JsValue>> {
+    use neon::context::Context;
+    use neon::object::Object;
+    use neon::prelude::Value;
 
-    match value {
-      Settings::F64(value) => Ok(env.create_double(value)?.raw()),
-      Settings::Bool(value) => Ok(env.get_boolean(value)?.raw()),
-      Settings::String(value) => Ok(env.create_string_from_std(value)?.raw()),
-      Settings::Array(value) => Array::to_napi_value(raw_env, Array::from_vec(&env, value)?),
-      Settings::Object(value) => {
-        let mut object = env.create_object()?;
+    Ok(match self {
+      Settings::F64(value) => cx.number(value).as_value(cx),
+      Settings::Bool(value) => cx.boolean(value).as_value(cx),
+      Settings::String(value) => cx.string(value).as_value(cx),
+      Settings::Array(value) => {
+        let array = cx.empty_array();
 
-        value.into_iter().for_each(|(key, value)| {
-          object.set(key, value).unwrap();
-        });
+        // TODO: Find a way to remove this
+        let cx_2 = unsafe {
+          std::mem::transmute::<
+            &mut neon::prelude::FunctionContext,
+            &mut neon::prelude::FunctionContext,
+          >(cx)
+        };
 
-        Ok(object.raw())
+        for (index, elem) in value.into_iter().enumerate() {
+          array.set(cx, index as u32, elem.to_js(cx_2)?)?;
+        }
+
+        array.as_value(cx)
       }
-      Settings::Null => Ok(env.get_null()?.raw()),
-    }
+      Settings::Object(value) => {
+        let object = cx.empty_object();
+
+        // TODO: Find a way to remove this
+        let cx_2 = unsafe {
+          std::mem::transmute::<
+            &mut neon::prelude::FunctionContext,
+            &mut neon::prelude::FunctionContext,
+          >(cx)
+        };
+
+        for (key, elem) in value.into_iter() {
+          object.set(cx, key.as_str(), elem.to_js(cx_2)?)?;
+        }
+
+        object.as_value(cx)
+      }
+      Settings::Null => neon::prelude::JsNull::new(cx).as_value(cx),
+    })
   }
 }
 
-impl FromNapiValue for Settings {
-  unsafe fn from_napi_value(
-    raw_env: *mut napi_sys::napi_env__,
-    raw_value: *mut napi_sys::napi_value__,
-  ) -> Result<Self, napi::Error> {
-    let value = JsUnknown::from_raw(raw_env, raw_value)?;
+impl crate::javascript::FromJavascript for Settings {
+  fn from_js(
+    value: neon::handle::Handle<neon::prelude::JsValue>,
+    cx: &mut neon::prelude::FunctionContext,
+  ) -> neon::result::NeonResult<Self> {
+    use neon::object::Object;
 
-    Ok(match value.get_type()? {
-      ValueType::Number => {
-        let value = JsNumber::from_raw(raw_env, raw_value)?;
-        Settings::F64(value.get_double()?)
-      }
-      ValueType::Boolean => {
-        let value = JsBoolean::from_raw(raw_env, raw_value)?;
-        Settings::Bool(value.get_value()?)
-      }
-      ValueType::String => {
-        let value = JsString::from_raw(raw_env, raw_value)?;
-        Settings::String(value.into_utf8()?.into_owned()?)
-      }
-      ValueType::Object => {
-        let value = JsObject::from_raw(raw_env, raw_value)?;
+    Ok(
+      if let Ok(value) =
+        value.downcast::<neon::prelude::JsNumber, neon::prelude::FunctionContext>(cx)
+      {
+        Settings::F64(value.value(cx))
+      } else if let Ok(value) =
+        value.downcast::<neon::prelude::JsBoolean, neon::prelude::FunctionContext>(cx)
+      {
+        Settings::Bool(value.value(cx))
+      } else if let Ok(value) =
+        value.downcast::<neon::prelude::JsString, neon::prelude::FunctionContext>(cx)
+      {
+        Settings::String(value.value(cx))
+      } else if let Ok(value) =
+        value.downcast::<neon::prelude::JsArray, neon::prelude::FunctionContext>(cx)
+      {
+        let mut result = Vec::<Settings>::new();
 
-        if value.is_array()? {
-          let value = Array::from_napi_value(raw_env, raw_value)?;
-          let mut result = Vec::<Settings>::new();
-
-          [0, value.len()]
-            .into_iter()
-            .for_each(|index| result.push(value.get(index).unwrap().unwrap()));
-
-          Settings::Array(result)
-        } else {
-          let mut result = HashMap::<String, Settings>::new();
-
-          JsObject::keys(&value)?.into_iter().for_each(|key| {
-            result.insert(key.clone(), value.get(&key).unwrap().unwrap());
-          });
-
-          Settings::Object(result)
+        for index in [0, value.len(cx)] {
+          result.push(Self::from_js(value.get(cx, index.clone())?, cx)?);
         }
-      }
-      _ => Settings::default(),
-    })
+
+        Settings::Array(result)
+      } else if let Ok(value) =
+        value.downcast::<neon::prelude::JsObject, neon::prelude::FunctionContext>(cx)
+      {
+        let mut result = HashMap::<String, Settings>::new();
+
+        let js_keys = value.get_own_property_names(cx)?;
+        let keys = [0, js_keys.len(cx)]
+          .iter()
+          .map(|index| {
+            js_keys
+              .get::<neon::prelude::JsString, neon::prelude::FunctionContext, u32>(
+                cx,
+                index.clone(),
+              )
+              .unwrap()
+              .value(cx)
+          })
+          .collect::<Vec<_>>();
+
+        for key in keys.into_iter() {
+          result.insert(
+            key.clone(),
+            Self::from_js(value.get(cx, key.as_str())?, cx)?,
+          );
+        }
+
+        Settings::Object(result)
+      } else {
+        Settings::default()
+      },
+    )
   }
 }

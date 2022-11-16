@@ -11,7 +11,7 @@ use parking_lot::RwLock;
 use std::any::Any;
 use std::sync::Arc;
 
-pub use fruity_game_engine_derive::*;
+pub use fruity_game_engine_macro::FruityAny;
 
 /// The any trait
 pub trait FruityAny: Any + Send + Sync {

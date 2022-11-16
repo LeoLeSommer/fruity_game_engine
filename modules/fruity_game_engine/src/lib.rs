@@ -1,4 +1,5 @@
 #![warn(missing_docs)]
+#![feature(decl_macro)]
 
 //! ECS
 //!
@@ -10,9 +11,20 @@
 //! - Entities represent any object stored in the ecs, entities are composed of components, in a game engine, a game object for example
 //! - Components are structure where the datas are stored
 
+use crate::javascript::JavascriptContext;
+use crate::javascript::ToJavascript;
 use crate::module::modules_service::ModulesService;
 use crate::resource::resource_container::ResourceContainer;
+use crate::settings::read_settings;
 
+mod neon {
+    pub use ::neon::*;
+}
+
+pub use ::neon::main as javascript_module;
+pub use ::neon::result::NeonResult as ExportResult;
+pub use fruity_game_engine_macro::fruity_export_class;
+pub use fruity_game_engine_macro::fruity_module_export;
 pub use parking_lot::*;
 
 #[macro_use]
@@ -20,6 +32,9 @@ extern crate lazy_static;
 
 /// The any trait
 pub mod any;
+
+/// All related with interfacing with javascript
+pub mod javascript;
 
 /// Tools to load dynamicaly modules
 pub mod module;
@@ -36,9 +51,6 @@ pub mod convert;
 /// An observer pattern
 pub mod signal;
 
-/// Shared references that can be exposed to javascript
-pub mod shared;
-
 /// Provides a collection for settings
 pub mod settings;
 
@@ -50,3 +62,10 @@ pub mod world;
 
 /// A service for frame management
 pub mod frame_service;
+
+#[fruity_module_export]
+fn export(mut ctx: JavascriptContext) -> ExportResult<()> {
+    ctx.register_function("readSettings", &read_settings as &dyn Fn() -> _)?;
+
+    Ok(())
+}

@@ -1,11 +1,12 @@
 [package]
-name = "fruity_game_engine_derive"
+name = "fruity_game_engine_macro"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 syn = { version = "1.0", features = ["full"] }
 quote = "1.0"
+syn-mid = "0.5"
 proc-macro2 = "1.0"
 
 [lib]
