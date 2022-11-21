@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug My Platformer",
+      "program": "node",
+      "args": ["${workspaceFolder}/examples/my_platformer/dist/src/index.js"],
+      "cwd": "${workspaceFolder}/examples/my_platformer/",
+      "preLaunchTask": "Build Example My Platformer"
+    }
+  ]
+}

@@ -5,26 +5,17 @@ console.log("Hello world!");
 
 const settings = read_settings("./assets/settings.yaml");
 const world = new World(settings);
+const resourceContainer = world.get_resource_container();
+/*const frameService = resourceContainer.get_untyped("frame_service");
 
-console.log("World", world);
+frameService.set_delta(10);
+console.log("World", frameService.get_delta());*/
 
-console.log("register_module");
 world.register_module(myPlatformer);
-console.log("setup_modules");
+
 world.setup_modules();
-console.log("end");
-
-// world.registerModule(fruityEcs);
-
-/*console.log("run_setup");
-world.setup_modules((...args: any) => {
-  console.log("setup_end", args);
-})*/
-/*console.log("run_load_resources", test);
+console.log("run_1");
 world.load_resources();
-
-console.log("run_run");
+console.log("run_2");
 world.run();
-
-console.log("run_end");
-*/
+console.log("run_3");

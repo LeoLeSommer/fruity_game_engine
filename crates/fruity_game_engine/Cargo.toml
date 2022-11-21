@@ -11,12 +11,9 @@ napi = { version = "2.10.0", default-features = false, features = ["napi4", "nap
 log = "0.4.14"
 puffin = "0.12.1"
 pretty_env_logger = "0.4.0"
-rayon = "1.5"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 yaml-rust = "0.4"
-indicatif = "0.17.1"
 lazy_static = "1.4"
-libloading = "0.7.1"
 linked-hash-map = "0.5.3"
 fruity_game_engine_macro = { path = "../fruity_game_engine_macro" }
 

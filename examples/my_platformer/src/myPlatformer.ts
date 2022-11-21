@@ -13,7 +13,7 @@ export default {
     /*"fruity_ecs"*/
   ],
   setup: (resourceContainer: ResourceContainer, settings: Settings) => {
-    console.log("setup");
+    console.log("setup", resourceContainer, settings);
 
     /*resourceContainer.add_untyped("custom_service", new CustomService());
 

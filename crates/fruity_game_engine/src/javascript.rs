@@ -1,17 +1,27 @@
 use crate::{
+  any::FruityAny,
   any_value::{AnyValue, IntrospectObjectClone},
   convert::{FruityFrom, FruityInto},
   introspect::MethodCaller,
+  FruityError, FruityStatus,
 };
 use lazy_static::__Deref;
 use napi::{
+  bindgen_prelude::{External, FromNapiValue, ToNapiValue},
   threadsafe_function::{
     ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
   },
   Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, NapiRaw, NapiValue, Result,
   ValueType,
 };
-use std::{collections::HashMap, ops::DerefMut, sync::Arc};
+use std::{
+  collections::HashMap,
+  ops::DerefMut,
+  sync::{
+    mpsc::{channel, Receiver, Sender},
+    Arc,
+  },
+};
 
 /// Tool to export javascript modules
 pub struct ExportJavascript {
@@ -205,40 +215,79 @@ pub fn js_value_to_any_value(env: &Env, value: JsUnknown) -> Result<AnyValue> {
     ValueType::Function => {
       let js_func = unsafe { value.cast::<JsFunction>() };
 
-      js_func.call_without_args(None).unwrap();
+      // We wrap the function into a function that use a channel sender to return the callback result
+      let js_channel_func = env.create_function_from_closure("unknown", move |ctx| {
+        let mut args = ctx.get_all();
+
+        // Get the channel send that is used to return the callback result
+        let channel_arg = args.remove(0);
+        let channel_arg = unsafe {
+          <External<Sender<AnyValue>>>::from_napi_value(ctx.env.raw(), channel_arg.raw())?
+        };
+
+        // Execute the function
+        let result = js_func.call(None, &args)?;
+
+        // Returns the result trough the channel
+        let result = js_value_to_any_value(&ctx.env, result)?;
+        channel_arg.send(result).map_err(|_| {
+          FruityError::new(
+            FruityStatus::CallbackScopeMismatch,
+            format!("Channel error while executing a javascript callback"),
+          )
+        })?;
+
+        ctx.env.get_undefined()
+      })?;
 
       // TODO: think about a good number for max queue size
-      /*let ts_func: ThreadsafeFunction<Vec<AnyValue>, ErrorStrategy::Fatal> = js_func
-      .create_threadsafe_function(10, |ctx: ThreadSafeCallContext<Vec<AnyValue>>| {
-        let args = ctx
-          .value
-          .clone()
-          .into_iter()
-          .map(|elem| any_value_to_js_value(&ctx.env, elem))
-          .try_collect::<Vec<_>>()?;
+      let ts_func: ThreadsafeFunction<(Sender<AnyValue>, Vec<AnyValue>), ErrorStrategy::Fatal> =
+        js_channel_func.create_threadsafe_function(
+          0,
+          |ctx: ThreadSafeCallContext<(Sender<AnyValue>, Vec<AnyValue>)>| {
+            // Convert the channel sender into a JsUnknown value
+            let channel_arg = <External<Sender<AnyValue>>>::new(ctx.value.0);
+            let channel_arg =
+              unsafe { <External<Sender<AnyValue>>>::to_napi_value(ctx.env.raw(), channel_arg)? };
+            let channel_arg = unsafe { JsUnknown::from_napi_value(ctx.env.raw(), channel_arg)? };
 
-        Ok(args)
-      })?;*/
-      let ts_func: ThreadsafeFunction<Vec<AnyValue>> = env.create_threadsafe_function(
-        &js_func,
-        0,
-        |ctx: ThreadSafeCallContext<Vec<AnyValue>>| {
-          let args = ctx
-            .value
-            .clone()
-            .into_iter()
-            .map(|elem| any_value_to_js_value(&ctx.env, elem))
-            .try_collect::<Vec<_>>()?;
+            // Convert all the others args as a JsUnknown
+            let mut args = ctx
+              .value
+              .1
+              .clone()
+              .into_iter()
+              .map(|elem| any_value_to_js_value(&ctx.env, elem))
+              .try_collect::<Vec<_>>()?;
 
-          Ok(args)
-        },
-      )?;
+            // Send to the function the channel and then the other args
+            let mut all_args = Vec::new();
+            all_args.push(channel_arg);
+            all_args.append(&mut args);
+
+            Ok(all_args)
+          },
+        )?;
 
       AnyValue::Callback(Arc::new(move |args| {
-        println!("10");
-        let status = ts_func.call(Ok(args), ThreadsafeFunctionCallMode::Blocking);
-        println!("11 {}", status);
-        Ok(AnyValue::Undefined)
+        println!("call callback");
+        let (tx, rx): (Sender<AnyValue>, Receiver<AnyValue>) = channel();
+
+        let ts_func = ts_func.clone();
+        // std::thread::spawn(move || {
+        ts_func.call((tx, args), ThreadsafeFunctionCallMode::NonBlocking);
+        // });
+
+        println!("call callback 1");
+        let result = rx.recv().map_err(|_| {
+          FruityError::new(
+            FruityStatus::CallbackScopeMismatch,
+            format!("Channel error while executing a javascript callback"),
+          )
+        })?;
+        println!("call callback 2");
+
+        Ok(result)
       }))
     }
     ValueType::External => todo!(),

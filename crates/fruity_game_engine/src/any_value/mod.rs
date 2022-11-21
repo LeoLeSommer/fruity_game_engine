@@ -29,7 +29,6 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 /// An any value
-#[derive(Clone)]
 pub enum AnyValue {
   /// i8 value
   I8(i8),
@@ -187,8 +186,33 @@ impl<T: Clone + IntrospectObject> IntrospectObjectClone for T {
   }
 }
 
-impl Clone for Box<dyn IntrospectObjectClone> {
+impl Clone for AnyValue {
   fn clone(&self) -> Self {
-    self.duplicate()
+    match self {
+      Self::I8(value) => Self::I8(value.clone()),
+      Self::I16(value) => Self::I16(value.clone()),
+      Self::I32(value) => Self::I32(value.clone()),
+      Self::I64(value) => Self::I64(value.clone()),
+      Self::ISize(value) => Self::ISize(value.clone()),
+      Self::U8(value) => Self::U8(value.clone()),
+      Self::U16(value) => Self::U16(value.clone()),
+      Self::U32(value) => Self::U32(value.clone()),
+      Self::U64(value) => Self::U64(value.clone()),
+      Self::USize(value) => Self::USize(value.clone()),
+      Self::F32(value) => Self::F32(value.clone()),
+      Self::F64(value) => Self::F64(value.clone()),
+      Self::Bool(value) => Self::Bool(value.clone()),
+      Self::String(value) => Self::String(value.clone()),
+      Self::Array(value) => Self::Array(value.clone()),
+      Self::Null => Self::Null,
+      Self::Undefined => Self::Undefined,
+      Self::Iterator(value) => Self::Iterator(value.clone()),
+      Self::Callback(value) => Self::Callback(value.clone()),
+      Self::Object { class_name, fields } => Self::Object {
+        class_name: class_name.clone(),
+        fields: fields.clone(),
+      },
+      Self::NativeObject(value) => Self::NativeObject(value.duplicate()),
+    }
   }
 }

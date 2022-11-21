@@ -92,19 +92,14 @@ fruity_export! {
         /// Load the modules
         #[export]
         pub fn setup_modules(&self) {
-            println!("1");
-
             let module_service = self.resource_container.require::<ModulesService>();
             let module_service_reader = module_service.read();
 
             module_service_reader.traverse_modules_by_dependencies(&Box::new(|module: Module| {
                 if let Some(setup) = module.setup {
-                    println!("setup {}", module.name);
                     setup(self.resource_container.clone(), self.settings.clone());
                 }
             }));
-
-            println!("2");
         }
 
         /// Load the resources
@@ -221,6 +216,12 @@ fruity_export! {
                 middleware(resource_container, settings, &Box::new(|| {}));
             } else {
             }
+        }
+
+        /// Get resource container
+        #[export]
+        pub fn get_resource_container(&self) -> ResourceContainer {
+            self.resource_container.clone()
         }
     }
 }

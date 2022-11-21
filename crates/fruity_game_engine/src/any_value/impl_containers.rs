@@ -65,12 +65,10 @@ impl<T: FruityInto<AnyValue>> FruityInto<AnyValue> for Vec<T> {
 
 impl<T: FruityInto<AnyValue>> FruityInto<AnyValue> for Option<T> {
   fn fruity_into(self) -> FruityResult<AnyValue> {
-    Ok(AnyValue::Array(
-      self
-        .into_iter()
-        .map(|elem| elem.fruity_into().unwrap())
-        .collect::<Vec<_>>(),
-    ))
+    match self {
+      Some(value) => value.fruity_into(),
+      None => Ok(AnyValue::Null),
+    }
   }
 }
 
