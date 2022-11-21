@@ -1,35 +1,35 @@
-use super::AnyValue;
+use super::ScriptValue;
 use crate::convert::FruityFrom;
 use crate::convert::FruityInto;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
 
-impl FruityInto<AnyValue> for () {
-  fn fruity_into(self) -> FruityResult<AnyValue> {
-    Ok(AnyValue::Undefined)
+impl FruityInto<ScriptValue> for () {
+  fn fruity_into(self) -> FruityResult<ScriptValue> {
+    Ok(ScriptValue::Undefined)
   }
 }
 
-impl FruityFrom<AnyValue> for () {
-  fn fruity_try_from(_value: AnyValue) -> FruityResult<Self> {
+impl FruityFrom<ScriptValue> for () {
+  fn fruity_try_from(_value: ScriptValue) -> FruityResult<Self> {
     Ok(())
   }
 }
 
-impl<T: FruityInto<AnyValue>, U: FruityInto<AnyValue>> FruityInto<AnyValue> for (T, U) {
-  fn fruity_into(self) -> FruityResult<AnyValue> {
-    Ok(AnyValue::Array(vec![
+impl<T: FruityInto<ScriptValue>, U: FruityInto<ScriptValue>> FruityInto<ScriptValue> for (T, U) {
+  fn fruity_into(self) -> FruityResult<ScriptValue> {
+    Ok(ScriptValue::Array(vec![
       self.0.fruity_into()?,
       self.1.fruity_into()?,
     ]))
   }
 }
 
-impl<T: FruityFrom<AnyValue>, U: FruityFrom<AnyValue>> FruityFrom<AnyValue> for (T, U) {
-  fn fruity_try_from(value: AnyValue) -> FruityResult<Self> {
+impl<T: FruityFrom<ScriptValue>, U: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for (T, U) {
+  fn fruity_try_from(value: ScriptValue) -> FruityResult<Self> {
     match value {
-      AnyValue::Array(mut value) => {
+      ScriptValue::Array(mut value) => {
         if value.len() < 2 {
           return Err(FruityError::new(
             FruityStatus::ArrayExpected,

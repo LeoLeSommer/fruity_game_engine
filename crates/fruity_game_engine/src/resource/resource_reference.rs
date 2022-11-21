@@ -1,5 +1,4 @@
 use crate::any::FruityAny;
-use crate::any_value::AnyValue;
 use crate::convert::FruityFrom;
 use crate::introspect::FieldInfo;
 use crate::introspect::IntrospectObject;
@@ -7,6 +6,7 @@ use crate::introspect::MethodCaller;
 use crate::introspect::MethodInfo;
 use crate::introspect::SetterCaller;
 use crate::resource::Resource;
+use crate::script_value::ScriptValue;
 use crate::utils::introspect::cast_introspect_mut;
 use crate::utils::introspect::cast_introspect_ref;
 use crate::RwLock;
@@ -14,6 +14,7 @@ use crate::RwLockReadGuard;
 use crate::RwLockWriteGuard;
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// A reference over an any resource that is supposed to be used by components
@@ -23,7 +24,7 @@ pub struct AnyResourceReference {
   pub name: String,
 
   /// The resource reference
-  pub resource: Arc<dyn IntrospectObject>,
+  pub resource: Arc<dyn Resource>,
 }
 
 impl AnyResourceReference {
@@ -67,19 +68,16 @@ impl IntrospectObject for AnyResourceReference {
 
         FieldInfo {
           name: field_info.name.clone(),
-          getter: Arc::new(move |this| {
+          getter: Rc::new(move |this| {
             let this = cast_introspect_ref::<AnyResourceReference>(this)?;
-            (field_info.getter)(this.resource.as_any_ref())
+            (field_info.getter)(this.resource.deref().as_fruity_any_ref())
           }),
           setter: match field_info_2.setter {
-            SetterCaller::Const(call) => SetterCaller::Const(Arc::new(move |this, args| {
+            SetterCaller::Const(call) => SetterCaller::Const(Rc::new(move |this, args| {
               let this = cast_introspect_ref::<AnyResourceReference>(this)?;
-              call(this.resource.as_any_ref(), args)
+              call(this.resource.deref().as_fruity_any_ref(), args)
             })),
-            SetterCaller::Mut(call) => SetterCaller::Mut(Arc::new(move |this, args| {
-              let this = cast_introspect_mut::<AnyResourceReference>(this)?;
-              call(this.resource.as_any_mut(), args)
-            })),
+            SetterCaller::Mut(_) => SetterCaller::Mut(Rc::new(move |_, _| unimplemented!())),
             SetterCaller::None => SetterCaller::None,
           },
         }
@@ -88,11 +86,11 @@ impl IntrospectObject for AnyResourceReference {
 
     fields_infos.append(&mut vec![FieldInfo {
       name: "resource_name".to_string(),
-      getter: Arc::new(move |this| {
+      getter: Rc::new(move |this| {
         let this = cast_introspect_ref::<AnyResourceReference>(this)?;
-        Ok(AnyValue::String(this.name.clone()))
+        Ok(ScriptValue::String(this.name.clone()))
       }),
-      setter: SetterCaller::Mut(Arc::new(move |this, value| {
+      setter: SetterCaller::Mut(Rc::new(move |this, value| {
         let mut this = cast_introspect_mut::<AnyResourceReference>(this)?;
         let value = String::fruity_try_from(value)?;
         this.name = value;
@@ -112,14 +110,11 @@ impl IntrospectObject for AnyResourceReference {
       .map(|method_info| MethodInfo {
         name: method_info.name,
         call: match method_info.call {
-          MethodCaller::Const(call) => MethodCaller::Const(Arc::new(move |this, args| {
+          MethodCaller::Const(call) => MethodCaller::Const(Rc::new(move |this, args| {
             let this = cast_introspect_ref::<AnyResourceReference>(this)?;
-            call(this.resource.as_any_ref(), args)
+            call(this.resource.deref().as_fruity_any_ref(), args)
           })),
-          MethodCaller::Mut(call) => MethodCaller::Mut(Arc::new(move |this, args| {
-            let this = cast_introspect_mut::<AnyResourceReference>(this)?;
-            call(this.resource.as_any_mut(), args)
-          })),
+          MethodCaller::Mut(_) => MethodCaller::Mut(Rc::new(move |_, _| unimplemented!())),
         },
       })
       .collect::<Vec<_>>()

@@ -1,7 +1,7 @@
 use crate::any::FruityAny;
-use crate::any_value::AnyValue;
 use crate::convert::FruityFrom;
 use crate::convert::FruityInto;
+use crate::script_value::ScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
@@ -75,64 +75,66 @@ impl Default for Settings {
   }
 }
 
-impl FruityInto<AnyValue> for Settings {
-  fn fruity_into(self) -> FruityResult<AnyValue> {
+impl FruityInto<ScriptValue> for Settings {
+  fn fruity_into(self) -> FruityResult<ScriptValue> {
     Ok(match self {
-      Settings::F64(value) => AnyValue::F64(value),
-      Settings::Bool(value) => AnyValue::Bool(value),
-      Settings::String(value) => AnyValue::String(value),
-      Settings::Array(value) => AnyValue::Array(
+      Settings::F64(value) => ScriptValue::F64(value),
+      Settings::Bool(value) => ScriptValue::Bool(value),
+      Settings::String(value) => ScriptValue::String(value),
+      Settings::Array(value) => ScriptValue::Array(
         value
           .into_iter()
           .map(|elem| elem.fruity_into())
           .try_collect::<Vec<_>>()?,
       ),
-      Settings::Object(value) => AnyValue::Object {
+      Settings::Object(value) => ScriptValue::Object {
         class_name: "unknown".to_string(),
         fields: value
           .into_iter()
-          .map(|(key, elem)| Ok((key, elem.fruity_into()?)) as FruityResult<(String, AnyValue)>)
+          .map(|(key, elem)| Ok((key, elem.fruity_into()?)) as FruityResult<(String, ScriptValue)>)
           .try_collect::<HashMap<_, _>>()?,
       },
-      Settings::Null => AnyValue::Null,
+      Settings::Null => ScriptValue::Null,
     })
   }
 }
 
-impl FruityFrom<AnyValue> for Settings {
-  fn fruity_try_from(value: AnyValue) -> FruityResult<Self> {
+impl FruityFrom<ScriptValue> for Settings {
+  fn fruity_try_from(value: ScriptValue) -> FruityResult<Self> {
     Ok(match value {
-      AnyValue::I8(value) => Settings::F64(value as f64),
-      AnyValue::I16(value) => Settings::F64(value as f64),
-      AnyValue::I32(value) => Settings::F64(value as f64),
-      AnyValue::I64(value) => Settings::F64(value as f64),
-      AnyValue::ISize(value) => Settings::F64(value as f64),
-      AnyValue::U8(value) => Settings::F64(value as f64),
-      AnyValue::U16(value) => Settings::F64(value as f64),
-      AnyValue::U32(value) => Settings::F64(value as f64),
-      AnyValue::U64(value) => Settings::F64(value as f64),
-      AnyValue::USize(value) => Settings::F64(value as f64),
-      AnyValue::F32(value) => Settings::F64(value as f64),
-      AnyValue::F64(value) => Settings::F64(value as f64),
-      AnyValue::Bool(value) => Settings::Bool(value),
-      AnyValue::String(value) => Settings::String(value),
-      AnyValue::Array(value) => Settings::Array(
+      ScriptValue::I8(value) => Settings::F64(value as f64),
+      ScriptValue::I16(value) => Settings::F64(value as f64),
+      ScriptValue::I32(value) => Settings::F64(value as f64),
+      ScriptValue::I64(value) => Settings::F64(value as f64),
+      ScriptValue::ISize(value) => Settings::F64(value as f64),
+      ScriptValue::U8(value) => Settings::F64(value as f64),
+      ScriptValue::U16(value) => Settings::F64(value as f64),
+      ScriptValue::U32(value) => Settings::F64(value as f64),
+      ScriptValue::U64(value) => Settings::F64(value as f64),
+      ScriptValue::USize(value) => Settings::F64(value as f64),
+      ScriptValue::F32(value) => Settings::F64(value as f64),
+      ScriptValue::F64(value) => Settings::F64(value as f64),
+      ScriptValue::Bool(value) => Settings::Bool(value),
+      ScriptValue::String(value) => Settings::String(value),
+      ScriptValue::Array(value) => Settings::Array(
         value
           .into_iter()
-          .map(|elem| FruityFrom::<AnyValue>::fruity_try_from(elem).unwrap())
-          .collect::<Vec<_>>(),
+          .map(|elem| FruityFrom::<ScriptValue>::fruity_try_from(elem))
+          .try_collect::<Vec<_>>()?,
       ),
-      AnyValue::Null => Settings::Null,
-      AnyValue::Undefined => Settings::Null,
-      AnyValue::Iterator(_) => unimplemented!(),
-      AnyValue::Callback(_) => unimplemented!(),
-      AnyValue::Object { fields, .. } => Settings::Object(
+      ScriptValue::Null => Settings::Null,
+      ScriptValue::Undefined => Settings::Null,
+      ScriptValue::Iterator(_) => unimplemented!(),
+      ScriptValue::Callback(_) => unimplemented!(),
+      ScriptValue::Object { fields, .. } => Settings::Object(
         fields
           .into_iter()
-          .map(|(key, elem)| (key, FruityFrom::<AnyValue>::fruity_try_from(elem).unwrap()))
-          .collect::<HashMap<_, _>>(),
+          .map(|(key, elem)| {
+            FruityFrom::<ScriptValue>::fruity_try_from(elem).map(|value| (key, value))
+          })
+          .try_collect::<HashMap<_, _>>()?,
       ),
-      AnyValue::NativeObject(_) => unimplemented!(),
+      ScriptValue::NativeObject(_) => unimplemented!(),
     })
   }
 }

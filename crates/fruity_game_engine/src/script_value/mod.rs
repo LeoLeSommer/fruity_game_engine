@@ -1,21 +1,21 @@
 #![warn(missing_docs)]
 
-//! AnyValue
+//! ScriptValue
 //!
 //! Provide a structure that will be used all over the application to send data to scripting
 //! Will be used to make a bridge between the rust ecosystem and the scripting language and by the
 //! data storage
 
-/// Implementation of any value conversions for primitives
+/// Implementation of script value conversions for primitives
 pub mod impl_primitives;
 
-/// Implementation of any value conversions for functions
+/// Implementation of script value conversions for functions
 pub mod impl_functions;
 
-/// Implementation of any value conversions for containers (like Vec, Box ...)
+/// Implementation of script value conversions for containers (like Vec, Box ...)
 pub mod impl_containers;
 
-/// Implementation of any value conversions for tuples
+/// Implementation of script value conversions for tuples
 pub mod impl_tuples;
 
 use crate::convert::FruityFrom;
@@ -26,10 +26,10 @@ use crate::FruityStatus;
 use crate::RwLock;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::rc::Rc;
 
-/// An any value
-pub enum AnyValue {
+/// a script value
+pub enum ScriptValue {
   /// i8 value
   I8(i8),
 
@@ -73,7 +73,7 @@ pub enum AnyValue {
   String(String),
 
   /// Array of values
-  Array(Vec<AnyValue>),
+  Array(Vec<ScriptValue>),
 
   /// A null value, correspond to [’Option::None’]
   Null,
@@ -82,10 +82,10 @@ pub enum AnyValue {
   Undefined,
 
   /// Iterator over values
-  Iterator(Arc<RwLock<dyn Iterator<Item = AnyValue> + Send + Sync>>),
+  Iterator(Rc<RwLock<dyn Iterator<Item = ScriptValue>>>),
 
   /// A callback
-  Callback(Arc<dyn Fn(Vec<AnyValue>) -> FruityResult<AnyValue> + Sync + Send + 'static>),
+  Callback(Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
 
   /// An object stored as an hashmap, mostly used to grab objects from the scripting runtime
   Object {
@@ -93,17 +93,17 @@ pub enum AnyValue {
     class_name: String,
 
     /// The object fields
-    fields: HashMap<String, AnyValue>,
+    fields: HashMap<String, ScriptValue>,
   },
 
   /// An object created by rust
   NativeObject(Box<dyn IntrospectObjectClone>),
 }
 
-impl<T: FruityFrom<AnyValue> + ?Sized> FruityFrom<AnyValue> for Vec<T> {
-  fn fruity_try_from(value: AnyValue) -> FruityResult<Self> {
+impl<T: FruityFrom<ScriptValue> + ?Sized> FruityFrom<ScriptValue> for Vec<T> {
+  fn fruity_try_from(value: ScriptValue) -> FruityResult<Self> {
     match value {
-      AnyValue::Array(value) => Ok(
+      ScriptValue::Array(value) => Ok(
         value
           .into_iter()
           .filter_map(|elem| T::fruity_try_from(elem).ok())
@@ -117,12 +117,10 @@ impl<T: FruityFrom<AnyValue> + ?Sized> FruityFrom<AnyValue> for Vec<T> {
   }
 }
 
-impl FruityFrom<AnyValue>
-  for Arc<dyn Fn(Vec<AnyValue>) -> FruityResult<AnyValue> + Sync + Send + 'static>
-{
-  fn fruity_try_from(value: AnyValue) -> FruityResult<Self> {
+impl FruityFrom<ScriptValue> for Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>> {
+  fn fruity_try_from(value: ScriptValue) -> FruityResult<Self> {
     match value {
-      AnyValue::Callback(value) => Ok(value.clone()),
+      ScriptValue::Callback(value) => Ok(value.clone()),
       _ => Err(FruityError::new(
         FruityStatus::FunctionExpected,
         format!("Couldn't convert {:?} to callback", value),
@@ -131,10 +129,10 @@ impl FruityFrom<AnyValue>
   }
 }
 
-impl FruityFrom<AnyValue> for Box<dyn IntrospectObjectClone> {
-  fn fruity_try_from(value: AnyValue) -> FruityResult<Self> {
+impl FruityFrom<ScriptValue> for Box<dyn IntrospectObjectClone> {
+  fn fruity_try_from(value: ScriptValue) -> FruityResult<Self> {
     match value {
-      AnyValue::NativeObject(value) => Ok(value),
+      ScriptValue::NativeObject(value) => Ok(value),
       _ => Err(FruityError::new(
         FruityStatus::InvalidArg,
         format!("Couldn't convert {:?} to native object", value),
@@ -143,33 +141,33 @@ impl FruityFrom<AnyValue> for Box<dyn IntrospectObjectClone> {
   }
 }
 
-impl Debug for AnyValue {
+impl Debug for ScriptValue {
   fn fmt(
     &self,
     formatter: &mut std::fmt::Formatter<'_>,
   ) -> std::result::Result<(), std::fmt::Error> {
     match self {
-      AnyValue::I8(value) => value.fmt(formatter),
-      AnyValue::I16(value) => value.fmt(formatter),
-      AnyValue::I32(value) => value.fmt(formatter),
-      AnyValue::I64(value) => value.fmt(formatter),
-      AnyValue::ISize(value) => value.fmt(formatter),
-      AnyValue::U8(value) => value.fmt(formatter),
-      AnyValue::U16(value) => value.fmt(formatter),
-      AnyValue::U32(value) => value.fmt(formatter),
-      AnyValue::U64(value) => value.fmt(formatter),
-      AnyValue::USize(value) => value.fmt(formatter),
-      AnyValue::F32(value) => value.fmt(formatter),
-      AnyValue::F64(value) => value.fmt(formatter),
-      AnyValue::Bool(value) => value.fmt(formatter),
-      AnyValue::String(value) => value.fmt(formatter),
-      AnyValue::Array(value) => value.fmt(formatter),
-      AnyValue::Null => formatter.write_str("null"),
-      AnyValue::Undefined => formatter.write_str("undefined"),
-      AnyValue::Iterator(_) => formatter.write_str("iterator"),
-      AnyValue::Callback(_) => formatter.write_str("function"),
-      AnyValue::Object { fields, .. } => fields.fmt(formatter),
-      AnyValue::NativeObject(value) => value.fmt(formatter),
+      ScriptValue::I8(value) => value.fmt(formatter),
+      ScriptValue::I16(value) => value.fmt(formatter),
+      ScriptValue::I32(value) => value.fmt(formatter),
+      ScriptValue::I64(value) => value.fmt(formatter),
+      ScriptValue::ISize(value) => value.fmt(formatter),
+      ScriptValue::U8(value) => value.fmt(formatter),
+      ScriptValue::U16(value) => value.fmt(formatter),
+      ScriptValue::U32(value) => value.fmt(formatter),
+      ScriptValue::U64(value) => value.fmt(formatter),
+      ScriptValue::USize(value) => value.fmt(formatter),
+      ScriptValue::F32(value) => value.fmt(formatter),
+      ScriptValue::F64(value) => value.fmt(formatter),
+      ScriptValue::Bool(value) => value.fmt(formatter),
+      ScriptValue::String(value) => value.fmt(formatter),
+      ScriptValue::Array(value) => value.fmt(formatter),
+      ScriptValue::Null => formatter.write_str("null"),
+      ScriptValue::Undefined => formatter.write_str("undefined"),
+      ScriptValue::Iterator(_) => formatter.write_str("iterator"),
+      ScriptValue::Callback(_) => formatter.write_str("function"),
+      ScriptValue::Object { fields, .. } => fields.fmt(formatter),
+      ScriptValue::NativeObject(value) => value.fmt(formatter),
     }
   }
 }
@@ -186,7 +184,7 @@ impl<T: Clone + IntrospectObject> IntrospectObjectClone for T {
   }
 }
 
-impl Clone for AnyValue {
+impl Clone for ScriptValue {
   fn clone(&self) -> Self {
     match self {
       Self::I8(value) => Self::I8(value.clone()),

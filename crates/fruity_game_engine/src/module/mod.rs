@@ -1,7 +1,7 @@
 use crate::convert::FruityFrom;
 use crate::settings::Settings;
 use crate::ResourceContainer;
-use std::sync::Arc;
+use std::rc::Rc;
 
 /// A service to manage modules loading
 pub mod modules_service;
@@ -16,11 +16,11 @@ pub struct Module {
   pub dependencies: Vec<String>,
 
   /// A function that initialize the module
-  pub setup: Option<Arc<dyn Fn(ResourceContainer, Settings) + Sync + Send>>,
+  pub setup: Option<Rc<dyn Fn(ResourceContainer, Settings)>>,
 
   /// A function that initialize the module resources
-  pub load_resources: Option<Arc<dyn Fn(ResourceContainer, Settings) + Sync + Send>>,
+  pub load_resources: Option<Rc<dyn Fn(ResourceContainer, Settings)>>,
 
   /// A function that is called when the world enter into the loop
-  pub run: Option<Arc<dyn Fn(ResourceContainer, Settings) + Sync + Send>>,
+  pub run: Option<Rc<dyn Fn(ResourceContainer, Settings)>>,
 }

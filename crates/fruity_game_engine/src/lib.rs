@@ -34,8 +34,8 @@ pub mod any;
 /// Add introspection into the types exported to the scripting
 pub mod introspect;
 
-/// An any value
-pub mod any_value;
+/// a script value
+pub mod script_value;
 
 /// Tools to export javascript modules
 pub mod javascript;

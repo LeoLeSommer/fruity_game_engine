@@ -8,31 +8,20 @@ use crate::ResourceContainer;
 use fruity_game_engine_macro::fruity_export;
 use pretty_env_logger::formatted_builder;
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::rc::Rc;
 
 /// A middleware that occurs when entering into the loop
-pub type StartMiddleware =
-  Arc<dyn Fn(ResourceContainer, Settings, &(dyn Fn() + Sync + Send)) + Sync + Send>;
+pub type StartMiddleware = Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()))>;
 
 /// A middleware that occurs when rendering the loop
-pub type FrameMiddleware =
-  Arc<dyn Fn(ResourceContainer, Settings, &(dyn Fn() + Sync + Send)) + Sync + Send>;
+pub type FrameMiddleware = Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()))>;
 
 /// A middleware that occurs when leaving the loop
-pub type EndMiddleware =
-  Arc<dyn Fn(ResourceContainer, Settings, &(dyn Fn() + Sync + Send)) + Sync + Send>;
+pub type EndMiddleware = Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()))>;
 
 /// A middleware that occurs when the world runs
-pub type RunMiddleware = Arc<
-  dyn Fn(
-      ResourceContainer,
-      Settings,
-      &(dyn Fn() + Sync + Send),
-      &(dyn Fn() + Sync + Send),
-      &(dyn Fn() + Sync + Send),
-    ) + Send
-    + Sync,
->;
+pub type RunMiddleware =
+  Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()), &(dyn Fn()), &(dyn Fn())) + Send + Sync>;
 
 fruity_export! {
     /// The main container of the ECS
@@ -45,6 +34,7 @@ fruity_export! {
         frame_middleware: Option<FrameMiddleware>,
         end_middleware: Option<EndMiddleware>,
         run_middleware: Option<RunMiddleware>,
+        module_service: ModulesService,
     }
 
     impl World {
@@ -52,6 +42,7 @@ fruity_export! {
         pub fn new(settings: Settings) -> World {
             let resource_container = ResourceContainer::new();
             Self::initialize(resource_container.clone(), &settings);
+            let module_service = ModulesService::new(resource_container.clone());
 
             World {
                 resource_container,
@@ -60,6 +51,7 @@ fruity_export! {
                 frame_middleware: None,
                 end_middleware: None,
                 run_middleware: None,
+                module_service,
             }
         }
 
@@ -75,27 +67,19 @@ fruity_export! {
             builder.try_init().unwrap();
 
             let frame_service = FrameService::new(resource_container.clone());
-            let module_service = ModulesService::new(resource_container.clone());
-
             resource_container.add::<FrameService>("frame_service", Box::new(frame_service));
-            resource_container.add::<ModulesService>("module_service", Box::new(module_service));
         }
 
         /// Register a module
         #[export]
-        pub fn register_module(&self, module: Module) {
-            let module_service = self.resource_container.require::<ModulesService>();
-            let mut module_service_writer = module_service.write();
-            module_service_writer.register_module(module);
+        pub fn register_module(&mut self, module: Module) {
+            self.module_service.register_module(module);
         }
 
         /// Load the modules
         #[export]
         pub fn setup_modules(&self) {
-            let module_service = self.resource_container.require::<ModulesService>();
-            let module_service_reader = module_service.read();
-
-            module_service_reader.traverse_modules_by_dependencies(&Box::new(|module: Module| {
+            self.module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
                 if let Some(setup) = module.setup {
                     setup(self.resource_container.clone(), self.settings.clone());
                 }
@@ -105,10 +89,7 @@ fruity_export! {
         /// Load the resources
         #[export]
         pub fn load_resources(&self) {
-            let module_service = self.resource_container.require::<ModulesService>();
-            let module_service_reader = module_service.read();
-
-            module_service_reader.traverse_modules_by_dependencies(&Box::new(|module: Module| {
+            self.module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
                 if let Some(load_resources) = module.load_resources {
                     load_resources(self.resource_container.clone(), self.settings.clone());
                 }

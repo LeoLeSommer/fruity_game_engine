@@ -30,9 +30,14 @@ pub fn derive_fruity_any(input: TokenStream) -> TokenStream {
     } = parse_macro_input!(input);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let current_crate = current_crate();
+    let ident_string = ident.to_string();
 
     let output = quote! {
         impl #impl_generics #current_crate::any::FruityAny for #ident #ty_generics #where_clause {
+            fn get_type_name(&self) -> &'static str {
+                #ident_string
+            }
+
             fn as_any_ref(&self) -> &dyn std::any::Any {
                 self
             }
@@ -45,7 +50,23 @@ pub fn derive_fruity_any(input: TokenStream) -> TokenStream {
                 self
             }
 
-            fn as_any_arc(self: std::sync::Arc<Self>) -> std::sync::Arc<dyn std::any::Any + Send + Sync> {
+            fn as_any_rc(self: std::rc::Rc<Self>) -> std::rc::Rc<dyn std::any::Any> {
+                self
+            }
+
+            fn as_fruity_any_ref(&self) -> &dyn #current_crate::any::FruityAny {
+                self
+            }
+
+            fn as_fruity_any_mut(&mut self) -> &mut dyn #current_crate::any::FruityAny {
+                self
+            }
+
+            fn as_fruity_any_box(self: Box<Self>) -> Box<dyn #current_crate::any::FruityAny> {
+                self
+            }
+
+            fn as_fruity_any_rc(self: std::rc::Rc<Self>) -> std::rc::Rc<dyn #current_crate::any::FruityAny> {
                 self
             }
         }
@@ -66,6 +87,10 @@ pub fn derive_resource(input: TokenStream) -> TokenStream {
         impl #impl_generics #current_crate::resource::Resource for #ident #ty_generics #where_clause {
             fn as_resource_box(self: Box<Self>) -> Box<dyn #current_crate::resource::Resource> {
                 self
+            }
+
+            fn as_any_arc(self: std::sync::Arc<Self>) -> std::sync::Arc<dyn std::any::Any + Send + Sync> {
+              self
             }
         }
     };
@@ -91,7 +116,7 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
                         #name: <#ty>::fruity_try_from(
                             fields
                                 .remove(#name_as_string)
-                                .unwrap_or(#current_crate::any_value::AnyValue::Undefined),
+                                .unwrap_or(#current_crate::script_value::ScriptValue::Undefined),
                         )?,
                     })
                 } else {
@@ -100,10 +125,10 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
             });
 
             quote! {
-                impl #current_crate::convert::FruityFrom<#current_crate::any_value::AnyValue> for #ident {
-                    fn fruity_try_from(value: #current_crate::any_value::AnyValue) -> #current_crate::FruityResult<Self> {
+                impl #current_crate::convert::FruityFrom<#current_crate::script_value::ScriptValue> for #ident {
+                    fn fruity_try_from(value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<Self> {
                         match value {
-                            #current_crate::any_value::AnyValue::NativeObject(value) => {
+                            #current_crate::script_value::ScriptValue::NativeObject(value) => {
                                 match value.as_any_box().downcast::<Self>() {
                                     Ok(value) => Ok(*value),
                                     Err(_) => Err(#current_crate::FruityError::new(
@@ -112,7 +137,7 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
                                       )),
                                 }
                             }
-                            #current_crate::any_value::AnyValue::Object { mut fields, .. } => Ok(Self {
+                            #current_crate::script_value::ScriptValue::Object { mut fields, .. } => Ok(Self {
                                 #(#convert_args)*
                             }),
                             _ => Err(#current_crate::FruityError::new(
@@ -218,7 +243,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
             quote! {
                 #current_crate::introspect::FieldInfo {
                     name: #name_as_string.to_string(),
-                    getter: std::sync::Arc::new(|__this| {
+                    getter: std::rc::Rc::new(|__this| {
                         use #current_crate::convert::FruityInto;
                         let __this = #current_crate::utils::introspect::cast_introspect_ref::<#struct_name>(__this)?;
                         __this.#name.fruity_into()
@@ -262,7 +287,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
             quote! {
                 #current_crate::introspect::MethodInfo {
                     name: #name_as_string.to_string(),
-                    call: #current_crate::introspect::MethodCaller::Mut(std::sync::Arc::new(|__this, __args| {
+                    call: #current_crate::introspect::MethodCaller::Mut(std::rc::Rc::new(|__this, __args| {
                         use #current_crate::convert::FruityInto;
                         let __this = #current_crate::utils::introspect::cast_introspect_mut::<#struct_name>(__this)?;
         
