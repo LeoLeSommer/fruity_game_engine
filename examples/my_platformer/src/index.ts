@@ -1,14 +1,30 @@
+import { World, read_settings } from "fruity_game_engine";
 import myPlatformer from "./myPlatformer";
 
 console.log("Hello world!");
 
-const settings = readSettings("examples/test/settings.yaml");
+const settings = read_settings("./assets/settings.yaml");
 const world = new World(settings);
 
-world.registerModule(myPlatformer);
-world.registerModule(fruityEcs);
+console.log("World", world);
 
-world.setupModules();
-world.loadResources();
+console.log("register_module");
+world.register_module(myPlatformer);
+console.log("setup_modules");
+world.setup_modules();
+console.log("end");
 
+// world.registerModule(fruityEcs);
+
+/*console.log("run_setup");
+world.setup_modules((...args: any) => {
+  console.log("setup_end", args);
+})*/
+/*console.log("run_load_resources", test);
+world.load_resources();
+
+console.log("run_run");
 world.run();
+
+console.log("run_end");
+*/

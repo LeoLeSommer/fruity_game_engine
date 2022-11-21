@@ -1,0 +1,14 @@
+shader: "./examples/test/shader.wgsl"
+bindings:
+- type: texture
+  value: "./examples/test/platform.png"
+  bind_group: 0
+- type: camera
+  bind_group: 1
+instance_attributes:
+- type: matrix4
+  name: transform
+  vec0_location: 5
+  vec1_location: 6
+  vec2_location: 7
+  vec3_location: 8

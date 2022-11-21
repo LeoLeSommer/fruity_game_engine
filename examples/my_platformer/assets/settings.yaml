@@ -1,0 +1,78 @@
+core:
+  hot_reload: true
+  modules:
+    - ./target/debug/libfruity_ecs
+    - ./target/debug/libfruity_editor_graphic_2d
+    - ./target/debug/libfruity_editor_graphic
+    - ./target/debug/libfruity_editor_hierarchy
+    - ./target/debug/libfruity_editor_physic_2d
+    - ./target/debug/libfruity_editor
+    - ./target/debug/libfruity_egui_editor
+    - ./target/debug/libfruity_graphic_2d
+    - ./target/debug/libfruity_graphic
+    - ./target/debug/libfruity_hierarchy_2d
+    - ./target/debug/libfruity_hierarchy
+    - ./target/debug/libfruity_input
+    - ./target/debug/libfruity_physic_2d
+    - ./target/debug/libfruity_physic_parry_2d
+    - ./target/debug/libfruity_javascript
+    - ./target/debug/libfruity_wgpu_graphic
+    - ./target/debug/libfruity_windows
+    - ./target/debug/libfruity_winit_input
+    - ./target/debug/libfruity_winit_windows
+window:
+  title: "Fruity Example"
+  width: 1200
+  height: 800
+  resizable: true
+input:
+  "Jump":
+    - "Keyboard/Up"
+  "Run Right":
+    - "Keyboard/Right"
+  "Run Left":
+    - "Keyboard/Left"
+  "Down":
+    - "Keyboard/Down"
+  "Rotate":
+    - "Keyboard/A"
+  "Action 1":
+    - "Keyboard/E"
+resources:
+  - name: "./examples/test/platform.png"
+    path: "./examples/test/platform.png"
+    type: texture
+  - name: "./examples/test/ball.png"
+    path: "./examples/test/ball.png"
+    type: texture
+  - name: "./examples/test/character.png"
+    path: "./examples/test/character.png"
+    type: texture
+  - name: "./examples/test/shader.wgsl"
+    path: "./examples/test/shader.wgsl"
+    binding_groups:
+      - - visibility: fragment
+          type: texture
+        - visibility: fragment
+          type: sampler
+      - - visibility: vertex
+          type: uniform
+    instance_attributes:
+      - location: 5
+        type: vec4
+      - location: 6
+        type: vec4
+      - location: 7
+        type: vec4
+      - location: 8
+        type: vec4
+  #  - location: 9
+  #    type: vec2
+  #  - location: 10
+  #    type: vec2
+  - name: "./examples/test/character.material"
+    path: "./examples/test/character.material"
+  - name: "./examples/test/material.material"
+    path: "./examples/test/material.material"
+  - name: "./examples/test/platform.material"
+    path: "./examples/test/platform.material"
