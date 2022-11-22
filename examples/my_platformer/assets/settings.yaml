@@ -1,25 +1,3 @@
-core:
-  hot_reload: true
-  modules:
-    - ./target/debug/libfruity_ecs
-    - ./target/debug/libfruity_editor_graphic_2d
-    - ./target/debug/libfruity_editor_graphic
-    - ./target/debug/libfruity_editor_hierarchy
-    - ./target/debug/libfruity_editor_physic_2d
-    - ./target/debug/libfruity_editor
-    - ./target/debug/libfruity_egui_editor
-    - ./target/debug/libfruity_graphic_2d
-    - ./target/debug/libfruity_graphic
-    - ./target/debug/libfruity_hierarchy_2d
-    - ./target/debug/libfruity_hierarchy
-    - ./target/debug/libfruity_input
-    - ./target/debug/libfruity_physic_2d
-    - ./target/debug/libfruity_physic_parry_2d
-    - ./target/debug/libfruity_javascript
-    - ./target/debug/libfruity_wgpu_graphic
-    - ./target/debug/libfruity_windows
-    - ./target/debug/libfruity_winit_input
-    - ./target/debug/libfruity_winit_windows
 window:
   title: "Fruity Example"
   width: 1200
@@ -39,17 +17,17 @@ input:
   "Action 1":
     - "Keyboard/E"
 resources:
-  - name: "./examples/test/platform.png"
-    path: "./examples/test/platform.png"
+  - name: "./assets/platform.png"
+    path: "./assets/platform.png"
     type: texture
-  - name: "./examples/test/ball.png"
-    path: "./examples/test/ball.png"
+  - name: "./assets/ball.png"
+    path: "./assets/ball.png"
     type: texture
-  - name: "./examples/test/character.png"
-    path: "./examples/test/character.png"
+  - name: "./assets/character.png"
+    path: "./assets/character.png"
     type: texture
-  - name: "./examples/test/shader.wgsl"
-    path: "./examples/test/shader.wgsl"
+  - name: "./assets/shader.wgsl"
+    path: "./assets/shader.wgsl"
     binding_groups:
       - - visibility: fragment
           type: texture
@@ -70,9 +48,9 @@ resources:
   #    type: vec2
   #  - location: 10
   #    type: vec2
-  - name: "./examples/test/character.material"
-    path: "./examples/test/character.material"
-  - name: "./examples/test/material.material"
-    path: "./examples/test/material.material"
-  - name: "./examples/test/platform.material"
-    path: "./examples/test/platform.material"
+  - name: "./assets/character.material"
+    path: "./assets/character.material"
+  - name: "./assets/material.material"
+    path: "./assets/material.material"
+  - name: "./assets/platform.material"
+    path: "./assets/platform.material"

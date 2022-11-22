@@ -22,7 +22,8 @@ pub use napi::Error as FruityError;
 pub use napi::Result as FruityResult;
 pub use napi::Status as FruityStatus;
 pub use parking_lot::*;
-use settings::read_settings_from_path;
+pub use puffin;
+use settings::read_settings;
 use world::World;
 
 #[macro_use]
@@ -52,6 +53,10 @@ pub mod inject;
 /// Traits similar to into and from but without some limitations
 pub mod convert;
 
+/// Provides a factory for the introspect object
+/// This will be used by to do the snapshots
+pub mod object_factory_service;
+
 /// An observer pattern
 pub mod signal;
 
@@ -69,11 +74,11 @@ pub mod frame_service;
 
 #[fruity_module_exports]
 fn module_export(mut exports: ExportJavascript) -> FruityResult<()> {
-  exports.export_value(
-    "read_settings",
-    &read_settings_from_path as &(dyn Fn(_) -> _ + Send + Sync),
-  )?;
-  exports.export_value("World", &World::new as &(dyn Fn(_) -> _ + Send + Sync))?;
+    exports.export_value(
+        "read_settings",
+        &read_settings as &(dyn Fn(_) -> _ + Send + Sync),
+    )?;
+    exports.export_constructor("World", &World::new as &(dyn Fn(_) -> _ + Send + Sync))?;
 
-  Ok(())
+    Ok(())
 }

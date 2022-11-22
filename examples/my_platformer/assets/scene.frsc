@@ -29,7 +29,7 @@
         material:
           class_name: ResourceReference
           fields:
-            resource_name: "./examples/test/character.material"
+            resource_name: "./assets/character.material"
     - class_name: Move
       fields:
         velocity: 1.6
@@ -82,7 +82,7 @@
         material:
           class_name: ResourceReference
           fields:
-            resource_name: "./examples/test/material.material"
+            resource_name: "./assets/material.material"
         texture: ~
     - class_name: TestVec
       fields:
@@ -153,7 +153,7 @@
         material:
           class_name: ResourceReference
           fields:
-            resource_name: "./examples/test/material.material"
+            resource_name: "./assets/material.material"
         texture: ~
         z_index: 2
     - class_name: Transform2d
@@ -202,7 +202,7 @@
         material:
           class_name: ResourceReference
           fields:
-            resource_name: "./examples/test/material.material"
+            resource_name: "./assets/material.material"
         texture: ~
         z_index: 2
     - class_name: Transform2d
@@ -273,7 +273,7 @@
         material:
           class_name: ResourceReference
           fields:
-            resource_name: "./examples/test/platform.material"
+            resource_name: "./assets/platform.material"
     - class_name: Transform2d
       fields:
         transform:

@@ -113,7 +113,7 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
                     let name_as_string = name.to_string();
     
                     Some(quote! {
-                        #name: <#ty>::fruity_try_from(
+                        #name: <#ty>::fruity_from(
                             fields
                                 .remove(#name_as_string)
                                 .unwrap_or(#current_crate::script_value::ScriptValue::Undefined),
@@ -126,7 +126,7 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
 
             quote! {
                 impl #current_crate::convert::FruityFrom<#current_crate::script_value::ScriptValue> for #ident {
-                    fn fruity_try_from(value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<Self> {
+                    fn fruity_from(value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<Self> {
                         match value {
                             #current_crate::script_value::ScriptValue::NativeObject(value) => {
                                 match value.as_any_box().downcast::<Self>() {
@@ -257,11 +257,20 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
     // Generate the method wrappers
     let export_methods = methods
         .into_iter()
-        .filter(|method| matches!(method.attrs.iter().filter_map(|attr| attr.path.get_ident()).find(|attr_ident| attr_ident.to_string() == "export"), Some(..)))
-        .map(|method| {
+        .filter_map(|method| {
+            method.attrs.iter()
+                .find(|attr| attr.ident.to_string() == "export")
+                .map(|export_attr| (method.clone(), export_attr.clone()))
+        })
+        .map(|(method, export_attr)| {
             let name = method.name.clone();
             let name_as_string = method.name.to_string();
 
+            let export_function_name = export_attr.params
+                .get("name")
+                .map(|name| name.to_string().replace("\"", ""))
+                .unwrap_or(name_as_string);
+            
             let type_cast = match method.args.len() {
                 0 => None,
                 _ => {
@@ -286,7 +295,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
             let arg_names = method.args.iter().map(|arg| arg.name.clone()).collect::<Vec<_>>();
             quote! {
                 #current_crate::introspect::MethodInfo {
-                    name: #name_as_string.to_string(),
+                    name: #export_function_name.to_string(),
                     call: #current_crate::introspect::MethodCaller::Mut(std::rc::Rc::new(|__this, __args| {
                         use #current_crate::convert::FruityInto;
                         let __this = #current_crate::utils::introspect::cast_introspect_mut::<#struct_name>(__this)?;

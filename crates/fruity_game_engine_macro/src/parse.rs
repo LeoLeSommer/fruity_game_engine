@@ -1,19 +1,33 @@
-use proc_macro2::Span;
+use itertools::Itertools;
+use proc_macro2::{Ident, Span};
+use proc_macro2::{TokenStream, TokenTree};
 use quote::quote;
+use std::collections::HashMap;
 use syn::__private::TokenStream2;
-use syn::{AttrStyle, Attribute, Fields, FnArg, ImplItemMethod, Index, ReturnType};
+use syn::{AttrStyle, Fields, FnArg, ImplItemMethod, Index, ReturnType};
 
+#[derive(Clone, Debug)]
 pub struct ParsedArg {
     pub name: TokenStream2,
     pub ty: TokenStream2,
 }
 
+#[derive(Clone, Debug)]
 pub enum ParsedReceiver {
     None,
     Const,
     Mut,
 }
 
+#[derive(Clone, Debug)]
+pub struct Attribute {
+    pub ident: Ident,
+    pub params: AttributeParameters,
+}
+
+pub type AttributeParameters = HashMap<String, TokenStream>;
+
+#[derive(Clone, Debug)]
 pub struct ParsedMethod {
     pub attrs: Vec<Attribute>,
     pub name: TokenStream2,
@@ -22,6 +36,7 @@ pub struct ParsedMethod {
     pub return_ty: Option<TokenStream2>,
 }
 
+#[derive(Clone, Debug)]
 pub struct ParsedField {
     pub public: bool,
     pub name: TokenStream2,
@@ -67,6 +82,45 @@ pub fn parse_impl_method(method: &ImplItemMethod) -> ParsedMethod {
         ReturnType::Default => None,
         ReturnType::Type(_, return_ty) => Some(quote! { #return_ty }),
     };
+
+    let attrs = attrs
+        .into_iter()
+        .filter_map(|attr| {
+            attr.clone().path.get_ident().map(|attr_ident| Attribute {
+                ident: attr_ident.clone(),
+                params: attr
+                    .clone()
+                    .tokens
+                    .into_iter()
+                    .filter_map(|e| match e {
+                        TokenTree::Group(group) => Some(group),
+                        _ => None,
+                    })
+                    .find(|_| true)
+                    .map(|e| e.stream())
+                    .map(|e| {
+                        e.into_iter()
+                            .enumerate()
+                            .group_by(|(index, _)| index / 3)
+                            .into_iter()
+                            .map(|(_, metas)| {
+                                metas
+                                    .into_iter()
+                                    .map(|(_, metas)| metas.into())
+                                    .collect::<Vec<TokenStream>>()
+                            })
+                            .filter(|metas| metas.len() == 3)
+                            .filter(|metas| metas[1].to_string() == "=")
+                            .map(|metas| (metas[0].to_string(), metas[2].clone()))
+                            .collect::<HashMap<String, TokenStream>>()
+                    })
+                    .unwrap_or(HashMap::new()),
+            })
+        })
+        .collect_vec();
+
+    /*let attrs = attr_params
+    .*/
 
     ParsedMethod {
         attrs,

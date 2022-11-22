@@ -1,4 +1,7 @@
-use crate::serialize::ScriptValue;
+use super::ScriptValue;
+use crate::FruityError;
+use crate::FruityResult;
+use crate::FruityStatus;
 use linked_hash_map::LinkedHashMap;
 use std::collections::HashMap;
 use std::io::Read;
@@ -12,18 +15,20 @@ use yaml_rust::YamlLoader;
 /// # Arguments
 /// * `reader` - The read io stream
 ///
-pub fn serialize_yaml(
-  writer: &mut dyn Write,
-  serialized: &ScriptValue,
-) -> Result<(), std::io::Error> {
-  let yaml = intern_serialize_yaml(serialized);
+pub fn serialize_yaml(writer: &mut dyn Write, serialized: &ScriptValue) -> FruityResult<()> {
+    let yaml = intern_serialize_yaml(serialized);
 
-  let mut write_buf = String::new();
-  let mut emitter = YamlEmitter::new(&mut write_buf);
-  emitter.dump(&yaml).unwrap();
+    let mut write_buf = String::new();
+    let mut emitter = YamlEmitter::new(&mut write_buf);
+    emitter.dump(&yaml).map_err(|_| {
+        FruityError::new(
+            FruityStatus::GenericFailure,
+            format!("Failed to write a yaml file"),
+        )
+    })?;
 
-  writer.write_all(write_buf.as_bytes())?;
-  Ok(())
+    writer.write_all(write_buf.as_bytes())?;
+    Ok(())
 }
 
 /// Deserialize a [’ScriptValue’] from a yaml file
@@ -31,124 +36,137 @@ pub fn serialize_yaml(
 /// # Arguments
 /// * `reader` - The read io stream
 ///
-pub fn deserialize_yaml(reader: &mut dyn Read) -> Option<ScriptValue> {
-  let mut buffer = String::new();
-  if let Err(err) = reader.read_to_string(&mut buffer) {
-    log::error!("{}", err.to_string());
-    return None;
-  }
+pub fn deserialize_yaml(reader: &mut dyn Read) -> FruityResult<ScriptValue> {
+    let mut buffer = String::new();
 
-  let docs = YamlLoader::load_from_str(&buffer).unwrap();
-  let yaml = &docs[0];
+    reader.read_to_string(&mut buffer).map_err(|_| {
+        FruityError::new(
+            FruityStatus::GenericFailure,
+            format!("File couldn't be read"),
+        )
+    })?;
 
-  intern_deserialize_yaml(yaml)
+    let docs = YamlLoader::load_from_str(&buffer).map_err(|_| {
+        FruityError::new(FruityStatus::GenericFailure, format!("Incorrect Yaml file"))
+    })?;
+
+    let yaml = &docs[0];
+
+    match intern_deserialize_yaml(yaml) {
+        Some(result) => Ok(result),
+        None => Err(FruityError::new(
+            FruityStatus::GenericFailure,
+            format!("Incorrect Yaml file"),
+        )),
+    }
 }
 
 fn intern_serialize_yaml(serialized: &ScriptValue) -> Yaml {
-  match serialized {
-    ScriptValue::I8(value) => Yaml::Integer(*value as i64),
-    ScriptValue::I16(value) => Yaml::Integer(*value as i64),
-    ScriptValue::I32(value) => Yaml::Integer(*value as i64),
-    ScriptValue::I64(value) => Yaml::Integer(*value as i64),
-    ScriptValue::ISize(value) => Yaml::Integer(*value as i64),
-    ScriptValue::U8(value) => Yaml::Integer(*value as i64),
-    ScriptValue::U16(value) => Yaml::Integer(*value as i64),
-    ScriptValue::U32(value) => Yaml::Integer(*value as i64),
-    ScriptValue::U64(value) => Yaml::Integer(*value as i64),
-    ScriptValue::USize(value) => Yaml::Integer(*value as i64),
-    ScriptValue::F32(value) => Yaml::Real(value.to_string()),
-    ScriptValue::F64(value) => Yaml::Real(value.to_string()),
-    ScriptValue::Bool(value) => Yaml::Boolean(*value),
-    ScriptValue::String(value) => Yaml::String(value.to_string()),
-    ScriptValue::Array(value) => {
-      let elements = value
-        .iter()
-        .map(|elem| intern_serialize_yaml(elem))
-        .collect::<Vec<_>>();
+    match serialized {
+        ScriptValue::I8(value) => Yaml::Integer(*value as i64),
+        ScriptValue::I16(value) => Yaml::Integer(*value as i64),
+        ScriptValue::I32(value) => Yaml::Integer(*value as i64),
+        ScriptValue::I64(value) => Yaml::Integer(*value as i64),
+        ScriptValue::ISize(value) => Yaml::Integer(*value as i64),
+        ScriptValue::U8(value) => Yaml::Integer(*value as i64),
+        ScriptValue::U16(value) => Yaml::Integer(*value as i64),
+        ScriptValue::U32(value) => Yaml::Integer(*value as i64),
+        ScriptValue::U64(value) => Yaml::Integer(*value as i64),
+        ScriptValue::USize(value) => Yaml::Integer(*value as i64),
+        ScriptValue::F32(value) => Yaml::Real(value.to_string()),
+        ScriptValue::F64(value) => Yaml::Real(value.to_string()),
+        ScriptValue::Bool(value) => Yaml::Boolean(*value),
+        ScriptValue::String(value) => Yaml::String(value.to_string()),
+        ScriptValue::Array(value) => {
+            let elements = value
+                .iter()
+                .map(|elem| intern_serialize_yaml(elem))
+                .collect::<Vec<_>>();
 
-      Yaml::Array(elements)
+            Yaml::Array(elements)
+        }
+        ScriptValue::Null => Yaml::Null,
+        ScriptValue::Undefined => Yaml::Null,
+        ScriptValue::Iterator(_) => Yaml::BadValue,
+        ScriptValue::Callback(_) => Yaml::BadValue,
+        ScriptValue::Object { class_name, fields } => {
+            let mut hashmap = LinkedHashMap::<Yaml, Yaml>::new();
+            let field_hashmap = {
+                let mut hashmap = LinkedHashMap::<Yaml, Yaml>::new();
+
+                fields.iter().for_each(|(key, value)| {
+                    let key = Yaml::String(key.clone());
+                    hashmap.insert(key, intern_serialize_yaml(value));
+                });
+
+                hashmap
+            };
+
+            hashmap.insert(
+                Yaml::String("class_name".to_string()),
+                Yaml::String(class_name.clone()),
+            );
+
+            hashmap.insert(
+                Yaml::String("fields".to_string()),
+                Yaml::Hash(field_hashmap),
+            );
+
+            Yaml::Hash(hashmap)
+        }
+        ScriptValue::NativeObject(_) => Yaml::BadValue,
     }
-    ScriptValue::Null => Yaml::Null,
-    ScriptValue::Iterator(_) => Yaml::BadValue,
-    ScriptValue::Closure(_) => Yaml::BadValue,
-    ScriptValue::Object { class_name, fields } => {
-      let mut hashmap = LinkedHashMap::<Yaml, Yaml>::new();
-      let field_hashmap = {
-        let mut hashmap = LinkedHashMap::<Yaml, Yaml>::new();
-
-        fields.iter().for_each(|(key, value)| {
-          let key = Yaml::String(key.clone());
-          hashmap.insert(key, intern_serialize_yaml(value));
-        });
-
-        hashmap
-      };
-
-      hashmap.insert(
-        Yaml::String("class_name".to_string()),
-        Yaml::String(class_name.clone()),
-      );
-
-      hashmap.insert(
-        Yaml::String("fields".to_string()),
-        Yaml::Hash(field_hashmap),
-      );
-
-      Yaml::Hash(hashmap)
-    }
-    ScriptValue::NativeObject(_) => Yaml::BadValue,
-  }
 }
 
 fn intern_deserialize_yaml(yaml: &Yaml) -> Option<ScriptValue> {
-  match yaml {
-    Yaml::Real(string) => match string.parse::<f64>() {
-      Ok(value) => Some(ScriptValue::F64(value)),
-      Err(_) => None,
-    },
-    Yaml::Integer(value) => Some(ScriptValue::I64(*value)),
-    Yaml::String(value) => Some(ScriptValue::String(value.clone())),
-    Yaml::Boolean(value) => Some(ScriptValue::Bool(*value)),
-    Yaml::Array(array) => {
-      let settings_array = array
-        .iter()
-        .filter_map(|elem| intern_deserialize_yaml(elem))
-        .collect::<Vec<_>>();
+    match yaml {
+        Yaml::Real(string) => match string.parse::<f64>() {
+            Ok(value) => Some(ScriptValue::F64(value)),
+            Err(_) => None,
+        },
+        Yaml::Integer(value) => Some(ScriptValue::I64(*value)),
+        Yaml::String(value) => Some(ScriptValue::String(value.clone())),
+        Yaml::Boolean(value) => Some(ScriptValue::Bool(*value)),
+        Yaml::Array(array) => {
+            let settings_array = array
+                .iter()
+                .filter_map(|elem| intern_deserialize_yaml(elem))
+                .collect::<Vec<_>>();
 
-      Some(ScriptValue::Array(settings_array))
-    }
-    Yaml::Hash(hashmap) => {
-      let class_name_key = Yaml::String("class_name".to_string());
-      let class_name = hashmap.get(&class_name_key)?;
-
-      let fields_key = Yaml::String("fields".to_string());
-      let fields = hashmap.get(&fields_key)?;
-
-      if let Yaml::String(class_name) = class_name {
-        if let Yaml::Hash(hashmap) = fields {
-          let mut fields = HashMap::new();
-
-          for (key, value) in hashmap {
-            if let Yaml::String(key) = key {
-              if let Some(settings) = intern_deserialize_yaml(value) {
-                fields.insert(key.clone(), settings);
-              }
-            }
-          }
-
-          Some(ScriptValue::Object {
-            class_name: class_name.to_string(),
-            fields,
-          })
-        } else {
-          return None;
+            Some(ScriptValue::Array(settings_array))
         }
-      } else {
-        return None;
-      }
+        Yaml::Hash(hashmap) => {
+            let class_name_key = Yaml::String("class_name".to_string());
+            let class_name = hashmap.get(&class_name_key)?;
+
+            let fields_key = Yaml::String("fields".to_string());
+            let fields = hashmap.get(&fields_key)?;
+
+            if let Yaml::String(class_name) = class_name {
+                if let Yaml::Hash(hashmap) = fields {
+                    let mut fields = HashMap::new();
+
+                    for (key, value) in hashmap {
+                        if let Yaml::String(key) = key {
+                            if let Some(settings) = intern_deserialize_yaml(value) {
+                                fields.insert(key.clone(), settings);
+                            }
+                        }
+                    }
+
+                    Some(ScriptValue::Object {
+                        class_name: class_name.to_string(),
+                        fields,
+                    })
+                } else {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        }
+        Yaml::Alias(_) => None,
+        Yaml::Null => None,
+        Yaml::BadValue => None,
     }
-    Yaml::Alias(_) => None,
-    Yaml::Null => None,
-    Yaml::BadValue => None,
-  }
 }

@@ -2,11 +2,12 @@ use crate::any::FruityAny;
 use crate::export;
 use crate::frame_service::FrameService;
 use crate::module::Module;
+use crate::object_factory_service::ObjectFactoryService;
 use crate::settings::Settings;
+use crate::FruityResult;
 use crate::ModulesService;
 use crate::ResourceContainer;
 use fruity_game_engine_macro::fruity_export;
-use pretty_env_logger::formatted_builder;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -21,7 +22,7 @@ pub type EndMiddleware = Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()))>;
 
 /// A middleware that occurs when the world runs
 pub type RunMiddleware =
-  Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()), &(dyn Fn()), &(dyn Fn())) + Send + Sync>;
+    Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()), &(dyn Fn()), &(dyn Fn())) + Send + Sync>;
 
 fruity_export! {
     /// The main container of the ECS
@@ -57,49 +58,57 @@ fruity_export! {
 
         /// Initialize the world
         pub fn initialize(resource_container: ResourceContainer, _settings: &Settings) {
-            let mut builder = formatted_builder();
-            builder.parse_filters("trace");
-            builder.filter_module("naga", log::LevelFilter::Off);
-            builder.filter_module("winit", log::LevelFilter::Off);
-            builder.filter_module("mio", log::LevelFilter::Off);
-            builder.filter_module("wgpu_core", log::LevelFilter::Off);
-            builder.filter_module("wgpu_hal", log::LevelFilter::Off);
-            builder.try_init().unwrap();
-
             let frame_service = FrameService::new(resource_container.clone());
             resource_container.add::<FrameService>("frame_service", Box::new(frame_service));
+
+            let object_factory_service = ObjectFactoryService::new(resource_container.clone());
+            resource_container.add::<ObjectFactoryService>("object_factory_service", Box::new(object_factory_service));
         }
 
         /// Register a module
         #[export]
-        pub fn register_module(&mut self, module: Module) {
+        pub fn register_module(&mut self, module: Module) -> FruityResult<()> {
             self.module_service.register_module(module);
+
+            Ok(())
         }
 
         /// Load the modules
         #[export]
-        pub fn setup_modules(&self) {
+        pub fn setup_modules(&self) -> FruityResult<()> {
             self.module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
                 if let Some(setup) = module.setup {
-                    setup(self.resource_container.clone(), self.settings.clone());
+                    setup(self.resource_container.clone(), self.settings.clone())?;
                 }
-            }));
+
+                Ok(())
+            }))
         }
 
         /// Load the resources
         #[export]
-        pub fn load_resources(&self) {
+        pub fn load_resources(&self) -> FruityResult<()> {
             self.module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
                 if let Some(load_resources) = module.load_resources {
-                    load_resources(self.resource_container.clone(), self.settings.clone());
+                    load_resources(self.resource_container.clone(), self.settings.clone())?;
                 }
-            }));
+
+                Ok(())
+            }))
         }
 
         /// Run the world
         #[export]
-        pub fn run(&self) {
+        pub fn run(&self) -> FruityResult<()> {
             puffin::profile_function!();
+
+            self.module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
+                if let Some(run) = module.run {
+                    run(self.resource_container.clone(), self.settings.clone())?;
+                }
+
+                Ok(())
+            }))?;
 
             if let Some(run_middleware) = &self.run_middleware {
                 let resource_container_1 = self.resource_container.clone();
@@ -155,6 +164,8 @@ fruity_export! {
                     self.settings.clone(),
                 );
             }
+
+            Ok(())
         }
 
         /// Run the world on start
@@ -208,10 +219,10 @@ fruity_export! {
 }
 
 impl Debug for World {
-  fn fmt(
-    &self,
-    formatter: &mut std::fmt::Formatter<'_>,
-  ) -> std::result::Result<(), std::fmt::Error> {
-    self.resource_container.fmt(formatter)
-  }
+    fn fmt(
+        &self,
+        formatter: &mut std::fmt::Formatter<'_>,
+    ) -> std::result::Result<(), std::fmt::Error> {
+        self.resource_container.fmt(formatter)
+    }
 }

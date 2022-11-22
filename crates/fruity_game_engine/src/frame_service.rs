@@ -8,11 +8,10 @@ use std::time::Instant;
 
 fruity_export! {
     /// A service for frame management
-    #[derive(FruityAny, Resource)]
+    #[derive(FruityAny, Resource, Debug)]
     pub struct FrameService {
         last_frame_instant: Instant,
-        /// delelelel
-        pub delta: f32,
+        delta: f32,
     }
 
     impl FrameService {
@@ -38,17 +37,5 @@ fruity_export! {
         pub fn get_delta(&self) -> f32 {
             self.delta
         }
-
-        /// Get the time before the previous frame
-        #[export(name = "patate")]
-        pub fn set_delta(&mut self, value: f32) {
-            self.delta = value;
-        }
     }
-}
-
-impl Debug for FrameService {
-  fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-    Ok(())
-  }
 }

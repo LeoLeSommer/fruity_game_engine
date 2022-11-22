@@ -12,8 +12,8 @@ export default {
   dependencies: [
     /*"fruity_ecs"*/
   ],
-  setup: (resourceContainer: ResourceContainer, settings: Settings) => {
-    console.log("setup", resourceContainer, settings);
+  setup: (resourceContainer: ResourceContainer) => {
+    console.log("setup", resourceContainer);
 
     /*resourceContainer.add_untyped("custom_service", new CustomService());
 

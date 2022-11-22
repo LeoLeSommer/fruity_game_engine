@@ -2,11 +2,12 @@ use super::resource_reference::AnyResourceReference;
 use crate::any::FruityAny;
 use crate::export;
 use crate::fruity_export;
-use crate::resource::error::LoadResourceError;
-use crate::resource::error::RemoveResourceError;
 use crate::resource::resource_reference::ResourceReference;
 use crate::resource::Resource;
 use crate::settings::Settings;
+use crate::FruityError;
+use crate::FruityResult;
+use crate::FruityStatus;
 use crate::RwLock;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -20,9 +21,9 @@ use std::sync::Arc;
 pub type ResourceLoader = fn(&str, &mut dyn Read, Settings, ResourceContainer);
 
 pub(crate) struct InnerResourceContainer {
-  resources: HashMap<String, AnyResourceReference>,
-  identifier_by_type: HashMap<TypeId, String>,
-  resource_loaders: HashMap<String, ResourceLoader>,
+    resources: HashMap<String, AnyResourceReference>,
+    identifier_by_type: HashMap<TypeId, String>,
+    resource_loaders: HashMap<String, ResourceLoader>,
 }
 
 fruity_export! {
@@ -174,7 +175,7 @@ fruity_export! {
         /// # Arguments
         /// * `identifier` - The resource identifier
         ///
-        pub fn remove(&self, identifier: &str) -> Result<(), RemoveResourceError> {
+        pub fn remove(&self, identifier: &str) -> FruityResult<()> {
             let mut inner = self.inner.write();
 
             if inner.resources.contains_key(identifier) {
@@ -182,8 +183,9 @@ fruity_export! {
 
                 Ok(())
             } else {
-                Err(RemoveResourceError::ResourceNotFound(
-                    identifier.to_string(),
+                Err(FruityError::new(
+                    FruityStatus::GenericFailure,
+                    format!("Resource {} doesn't exists", identifier),
                 ))
             }
         }
@@ -194,9 +196,9 @@ fruity_export! {
         /// # Arguments
         /// * `identifier` - The resource identifier
         ///
-        #[export(name = "contains")]
-        pub fn remove_by_string(&self, identifier: String) {
-            self.remove(&identifier).unwrap();
+        #[export(name = "remove")]
+        pub fn remove_by_string(&self, identifier: String) -> FruityResult<()> {
+            self.remove(&identifier)
         }
 
         /// Add a resource loader that will be used to load resources
@@ -222,8 +224,14 @@ fruity_export! {
             &self,
             path: &str,
             resource_type: &str,
-        ) -> Result<(), LoadResourceError> {
-            let mut file = File::open(path).unwrap();
+        ) -> FruityResult<()> {
+            let mut file = File::open(path).map_err(|_| {
+                FruityError::new(
+                    FruityStatus::GenericFailure,
+                    format!("File couldn't be opened: {:?}", path),
+                )
+            })?;
+
             Self::load_resource(self, path, resource_type, &mut file, Settings::default())?;
 
             Ok(())
@@ -242,15 +250,16 @@ fruity_export! {
             resource_type: &str,
             reader: &mut dyn Read,
             settings: Settings,
-        ) -> Result<(), LoadResourceError> {
+        ) -> FruityResult<()> {
             let resource_loader = {
                 let inner_reader = self.inner.read();
 
                 if let Some(resource_loader) = inner_reader.resource_loaders.get(resource_type) {
                     Ok(resource_loader.clone())
                 } else {
-                    Err(LoadResourceError::ResourceTypeNotKnown(
-                        resource_type.to_string(),
+                    Err(FruityError::new(
+                        FruityStatus::GenericFailure,
+                        format!("Resource type {} is not registered", resource_type),
                     ))
                 }?
             };
@@ -322,10 +331,10 @@ fruity_export! {
 }
 
 impl Debug for ResourceContainer {
-  fn fmt(
-    &self,
-    _formatter: &mut std::fmt::Formatter<'_>,
-  ) -> std::result::Result<(), std::fmt::Error> {
-    Ok(())
-  }
+    fn fmt(
+        &self,
+        _formatter: &mut std::fmt::Formatter<'_>,
+    ) -> std::result::Result<(), std::fmt::Error> {
+        Ok(())
+    }
 }
