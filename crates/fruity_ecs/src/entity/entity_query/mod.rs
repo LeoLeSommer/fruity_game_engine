@@ -144,7 +144,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
                     )
                 };
 
-                T::iter_entity_components(entity.clone(), &entity_guard).for_each(|param| {
+                T::iter_entity_components(entity.clone(), &entity_guard).try_for_each(|param| {
                     let dispose_callback = callback(param);
 
                     if let Some(dispose_callback) = dispose_callback {
@@ -154,10 +154,16 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
                                     dispose_callback();
                                     handler.dispose_by_ref();
                                 }
+
+                                Ok(())
                             },
                         )
                     }
+
+                    Ok(())
                 })
+            } else {
+                Ok(())
             }
         })
     }

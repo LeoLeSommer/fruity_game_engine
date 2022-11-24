@@ -11,14 +11,11 @@ use crate::entity::entity_reference::EntityReference;
 use crate::ExtensionComponentService;
 use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::convert::FruityFrom;
 use fruity_game_engine::export;
 use fruity_game_engine::fruity_export;
 use fruity_game_engine::introspect::IntrospectObject;
-use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
-use fruity_game_engine::script_value::yaml::deserialize_yaml;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
@@ -26,12 +23,9 @@ use fruity_game_engine::FruityResult;
 use fruity_game_engine::FruityStatus;
 use fruity_game_engine::Mutex;
 use fruity_game_engine::RwLock;
-use maplit::hashmap;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs::File;
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::sync::Arc;
 
 /// A save for the entities stored in an [’EntityService’]
@@ -44,7 +38,6 @@ fruity_export! {
         id_incrementer: Mutex<u64>,
         index_map: RwLock<HashMap<EntityId, (usize, usize)>>,
         archetypes: Arc<RwLock<Vec<ArchetypeArcRwLock>>>,
-        object_factory_service: ResourceReference<ObjectFactoryService>,
         extension_component_service: ResourceReference<ExtensionComponentService>,
 
         /// Signal notified when an entity is created
@@ -61,7 +54,6 @@ fruity_export! {
                 id_incrementer: Mutex::new(0),
                 index_map: RwLock::new(HashMap::new()),
                 archetypes: Arc::new(RwLock::new(Vec::new())),
-                object_factory_service: resource_container.require::<ObjectFactoryService>(),
                 extension_component_service: resource_container.require::<ExtensionComponentService>(),
                 on_created: Signal::new(),
                 on_deleted: Signal::new(),
@@ -121,12 +113,12 @@ fruity_export! {
         ///
         #[export(name = "query")]
         pub fn script_query(&self) -> ScriptQuery {
-            let query = ScriptQuery {
+            ScriptQuery {
                 archetypes: self.archetypes.clone(),
                 on_entity_created: self.on_created.clone(),
                 on_entity_deleted: self.on_deleted.clone(),
                 params: vec![],
-            };
+            }
         }
 
         /// Add a new entity in the storage
@@ -139,7 +131,7 @@ fruity_export! {
         /// * `components` - The components that will be added
         ///
         #[export]
-        pub fn create(&self, name: &str, enabled: bool, components: Vec<AnyComponent>) -> EntityId {
+        pub fn create(&self, name: String, enabled: bool, components: Vec<AnyComponent>) -> FruityResult<EntityId> {
             let entity_id = {
                 let mut id_incrementer = self.id_incrementer.lock();
                 *id_incrementer += 1;
@@ -159,13 +151,14 @@ fruity_export! {
         /// * `enabled` - Is the entity active
         /// * `components` - The components that will be added
         ///
+        #[export]
         pub fn create_with_id(
             &self,
             entity_id: EntityId,
-            name: &str,
+            name: String,
             enabled: bool,
             mut components: Vec<AnyComponent>,
-        ) -> EntityId {
+        ) -> FruityResult<EntityId> {
             // Generate an id for the entity
             let entity_id = {
                 let mut id_incrementer = self.id_incrementer.lock();
@@ -181,7 +174,7 @@ fruity_export! {
             let indexes = match self.archetype_by_identifier(archetype_identifier) {
                 Some((archetype_index, archetype)) => {
                     let archetype_entity_id = archetype.read().len();
-                    archetype.write().add(entity_id, name, enabled, components);
+                    archetype.write().add(entity_id, &name, enabled, components);
 
                     (archetype_index, archetype_entity_id)
                 }
@@ -191,7 +184,7 @@ fruity_export! {
                     let archetype = Archetype::new(
                         self.extension_component_service.clone(),
                         entity_id,
-                        name,
+                        &name,
                         enabled,
                         components,
                     );
@@ -215,9 +208,9 @@ fruity_export! {
                 },
             };
 
-            self.on_created.notify(entity_reference);
+            self.on_created.notify(entity_reference)?;
 
-            entity_id
+            Ok(entity_id)
         }
 
         /// Remove an entity based on its id
@@ -226,7 +219,7 @@ fruity_export! {
         /// * `entity_id` - The entity id
         ///
         #[export]
-        pub fn remove(&self, entity_id: EntityId) -> Result<(), RemoveEntityError> {
+        pub fn remove(&self, entity_id: EntityId) -> FruityResult<()> {
             let indexes = {
                 let mut index_map = self.index_map.write();
                 index_map.remove(&entity_id)
@@ -241,11 +234,14 @@ fruity_export! {
                 }
 
                 // Propagate the deleted signal
-                self.on_deleted.notify(entity_id);
+                self.on_deleted.notify(entity_id)?;
 
                 Ok(())
             } else {
-                Err(RemoveEntityError::NotFound)
+                Err(FruityError::new(
+                    FruityStatus::GenericFailure,
+                    format!("Entity with the id {} not found", entity_id)
+                ))
             }
         }
 
@@ -260,7 +256,7 @@ fruity_export! {
             &self,
             entity_id: EntityId,
             mut components: Vec<AnyComponent>,
-        ) -> Result<(), RemoveEntityError> {
+        ) -> FruityResult<()> {
             let indexes = {
                 let mut index_map = self.index_map.write();
                 index_map.remove(&entity_id)
@@ -283,14 +279,17 @@ fruity_export! {
 
                 self.create_with_id(
                     entity_id,
-                    &old_entity.name,
+                    old_entity.name,
                     old_entity.enabled,
                     old_components,
-                );
+                )?;
 
                 Ok(())
             } else {
-                Err(RemoveEntityError::NotFound)
+                Err(FruityError::new(
+                    FruityStatus::GenericFailure,
+                    format!("Entity with the id {} not found", entity_id)
+                ))
             }
         }
 
@@ -305,7 +304,7 @@ fruity_export! {
             &self,
             entity_id: EntityId,
             component_index: usize,
-        ) -> Result<(), RemoveEntityError> {
+        ) -> FruityResult<()> {
             let indexes = {
                 let mut index_map = self.index_map.write();
                 index_map.remove(&entity_id)
@@ -328,14 +327,17 @@ fruity_export! {
 
                 self.create_with_id(
                     entity_id,
-                    &old_entity.name,
+                    old_entity.name,
                     old_entity.enabled,
                     old_components,
-                );
+                )?;
 
                 Ok(())
             } else {
-                Err(RemoveEntityError::NotFound)
+                Err(FruityError::new(
+                    FruityStatus::GenericFailure,
+                    format!("Entity with the id {} not found", entity_id)
+                ))
             }
         }
 
@@ -355,7 +357,7 @@ fruity_export! {
 
         /// Clear all the entities
         #[export]
-        pub fn clear(&self) {
+        pub fn clear(&self) -> FruityResult<()> {
             // Raise all entity deleted events
             let entity_ids = {
                 let index_map = self.index_map.read();
@@ -367,7 +369,7 @@ fruity_export! {
 
             entity_ids
                 .into_iter()
-                .for_each(|entity_id| self.on_deleted.notify(entity_id));
+                .try_for_each(|entity_id| self.on_deleted.notify(entity_id))?;
 
             // Get the writers
             let mut index_map = self.index_map.write();
@@ -378,8 +380,12 @@ fruity_export! {
             index_map.clear();
             *id_incrementer = 0;
             archetypes.clear();
+
+            Ok(())
         }
 
+        // TODO: Reimplement the save system in a proper way
+        /*
         /// Create a snapshot over all the entities
         #[export]
         pub fn snapshot(&self) -> EntityServiceSnapshot {
@@ -409,7 +415,7 @@ fruity_export! {
                 })
                 .collect::<Vec<_>>();
 
-            EntityServiceSnapshot(ScriptValue::Array(serialized_entities))
+            ScriptValue::Array(serialized_entities)
         }
 
         /// Restore an entity snapshot from a file
@@ -418,7 +424,7 @@ fruity_export! {
         /// * `filepath` - The file path
         ///
         #[export]
-        pub fn restore_from_file(&self, filepath: &str) -> FruityResult<ScriptValue> {
+        pub fn restore_from_file(&self, filepath: String) -> FruityResult<ScriptValue> {
             let mut reader = File::open(&filepath).map_err(|_| {
                 FruityError::new(
                     FruityStatus::GenericFailure,
@@ -435,10 +441,10 @@ fruity_export! {
         /// * `snapshot` - The snapshot
         ///
         #[export]
-        pub fn restore(&self, snapshot: &EntityServiceSnapshot) {
+        pub fn restore(&self, snapshot: EntityServiceSnapshot) {
             self.clear();
 
-            if let ScriptValue::Array(entities) = &snapshot.0 {
+            if let ScriptValue::Array(entities) = &snapshot {
                 entities
                     .iter()
                     .for_each(|serialized_entity| self.restore_entity(serialized_entity));
@@ -450,19 +456,19 @@ fruity_export! {
 
             if let ScriptValue::Object { fields, .. } = serialized_entity {
                 let entity_id =
-                    if let Ok(entity_id) = EntityId::fruity_from(fields.get("entity_id")) {
+                    if let Ok(entity_id) = EntityId::fruity_from(fields.get("entity_id").unwrap().clone()) {
                         entity_id
                     } else {
                         return;
                     };
 
-                let name = if let Ok(name) = String::fruity_from(fields.get("name")) {
+                let name = if let Ok(name) = String::fruity_from(fields.get("name").unwrap().clone()) {
                     name
                 } else {
                     return;
                 };
 
-                let enabled = if let Ok(enabled) = bool::fruity_from(fields.get("enabled")) {
+                let enabled = if let Ok(enabled) = bool::fruity_from(fields.get("enabled").unwrap().clone()) {
                     enabled
                 } else {
                     return;
@@ -480,9 +486,9 @@ fruity_export! {
                     return;
                 };
 
-                self.create_with_id(entity_id, &name, enabled, components);
+                self.create_with_id(entity_id, name, enabled, components);
             }
-        }
+        } */
     }
 }
 

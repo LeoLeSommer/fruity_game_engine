@@ -1,5 +1,6 @@
 type ResourceContainer = any;
 type Settings = any;
+type World = any;
 
 class CustomService {
   hello(str: string) {
@@ -9,11 +10,10 @@ class CustomService {
 
 export default {
   name: "my_platformer",
-  dependencies: [
-    /*"fruity_ecs"*/
-  ],
-  setup: (resourceContainer: ResourceContainer) => {
-    console.log("setup", resourceContainer);
+  dependencies: ["fruity_ecs"],
+  setup: (world: World) => {
+    console.log("setup", world);
+    const resourceContainer = world.getResourceContainer();
 
     /*resourceContainer.add_untyped("custom_service", new CustomService());
 
@@ -22,30 +22,32 @@ export default {
     );
     customService.hello("Frame");*/
 
-    /*const systemService = resourceContainer.get("system_service");
+    const systemService = resourceContainer.get("system_service");
 
-    systemService.addStartupSystem("test startup 1", () => {
-      console.log("Je commence");
+    systemService.addStartupSystem(
+      "test startup 1",
+      () => {
+        console.log("The engine has been turned on");
 
-      return () => {
-        console.log("Je finis");
-      };
-    });
+        return () => {
+          console.log("The engine will be turned off");
+        };
+      },
+      {
+        ignorePause: true,
+      }
+    );
 
     systemService.addSystem("test 1", () => {
-      const customService = resourceContainer.get("custom_service");
-      customService.hello("Frame");
-    });*/
+      console.log("A frame is rendered");
+      /*const customService = resourceContainer.get("custom_service");
+      customService.hello("Frame");*/
+    });
   },
   load_resources: (
     resourceContainer: ResourceContainer,
     settings: Settings
   ) => {
     console.log("loadResources");
-  },
-  run: (resourceContainer: ResourceContainer, settings: Settings) => {
-    console.log("run");
-    /*const entityService = resourceContainer.get("entity_service");
-    entityService.loadScene("./assets/scene.frsc");*/
   },
 };

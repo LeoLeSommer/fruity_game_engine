@@ -1,15 +1,21 @@
 [package]
-name = "fruity_ecs"
-version = "0.1.0"
 edition = "2021"
+name = "fruity_ecs"
+version = "0.0.0"
 
 [lib]
-crate-type = ["rlib", "dylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 log = "0.4.14"
 rayon = "1.5"
 itertools = "0.10.1"
 maplit = "1.0.2"
-fruity_ecs_derive = { path = "../fruity_ecs_derive" }
+fruity_ecs_macro = { path = "../fruity_ecs_macro" }
 fruity_game_engine = { path = "../fruity_game_engine" }
+
+[build-dependencies]
+napi-build = "2.0.1"
+
+[profile.release]
+lto = true

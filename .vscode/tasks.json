@@ -1,13 +1,13 @@
 {
   "tasks": [
     {
-      "label": "Build Example My Platformer",
+      "label": "Build my_platformer",
       "command": "npm",
       "args": ["run", "build"],
       "options": {
         "cwd": "${workspaceFolder}/examples/my_platformer"
       },
-      "dependsOn": ["Build fruity_game_engine"]
+      "dependsOn": ["Build fruity_game_engine", "Build fruity_ecs"]
     },
     {
       "label": "Build fruity_game_engine",
@@ -15,6 +15,14 @@
       "args": ["run", "build:debug"],
       "options": {
         "cwd": "${workspaceFolder}/crates/fruity_game_engine"
+      }
+    },
+    {
+      "label": "Build fruity_ecs",
+      "command": "npm",
+      "args": ["run", "build:debug"],
+      "options": {
+        "cwd": "${workspaceFolder}/crates/fruity_ecs"
       }
     }
   ]

@@ -1,20 +1,25 @@
 use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::convert::FruityFrom;
+use fruity_game_engine::convert::FruityInto;
 use fruity_game_engine::export;
 use fruity_game_engine::fruity_export;
 use fruity_game_engine::inject::Inject;
 use fruity_game_engine::puffin::are_scopes_on;
 use fruity_game_engine::puffin::ProfilerScope;
 use fruity_game_engine::resource::Resource;
-use fruity_game_engine::utils::collection::drain_filter;
+use fruity_game_engine::script_value::ScriptCallback;
+use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::thread;
 
 /// A callback for a system called every frame
 pub type SystemCallback = dyn Fn(ResourceContainer) + Sync + Send + 'static;
@@ -63,29 +68,91 @@ impl Default for StartupSystemParams {
 #[derive(Clone)]
 struct StartupSystem {
     identifier: String,
-    origin: String,
     callback: Arc<StartupSystemCallback>,
     ignore_pause: bool,
 }
 
 struct StartupDisposeSystem {
     identifier: String,
-    origin: String,
     callback: Box<dyn FnOnce() + Sync + Send + 'static>,
 }
 
 #[derive(Clone)]
+struct ScriptFrameSystem {
+    identifier: String,
+    callback: Rc<dyn ScriptCallback>,
+    ignore_pause: bool,
+}
+
+// All the functions that use ScriptFrameSystem should be wrapped into
+// an unsafe call
+//
+// If we want to keep SystemService as a resource, we need it to store it as Send + Sync
+// The only calls to the run functions are made in the middleware
+// The only calls to add a ScriptFrameSystem are unsafe or called by the scripting language
+// which is mono-threaded
+//
+// TODO: Find a safer way to do that, for example by splitting system service into a multi threads
+// service for native systems and a single threaded service for scripting systems
+//
+unsafe impl Sync for ScriptFrameSystem {}
+unsafe impl Send for ScriptFrameSystem {}
+
+#[derive(Clone)]
+struct ScriptStartupSystem {
+    identifier: String,
+    callback: Rc<dyn ScriptCallback>,
+    ignore_pause: bool,
+}
+
+// All the functions that use ScriptStartupSystem should be wrapped into
+// an unsafe call
+//
+// If we want to keep SystemService as a resource, we need it to store it as Send + Sync
+// The only calls to the run functions are made in the middleware
+// The only calls to add a ScriptStartupSystem are unsafe or called by the scripting language
+// which is mono-threaded
+//
+// TODO: Find a safer way to do that, for example by splitting system service into a multi threads
+// service for native systems and a single threaded service for scripting systems
+//
+unsafe impl Sync for ScriptStartupSystem {}
+unsafe impl Send for ScriptStartupSystem {}
+
+pub(crate) struct ScriptStartupDisposeSystem {
+    identifier: String,
+    callback: Rc<dyn ScriptCallback>,
+}
+
+// All the functions that use ScriptStartupDisposeSystem should be wrapped into
+// an unsafe call
+//
+// If we want to keep SystemService as a resource, we need it to store it as Send + Sync
+// The only calls to the run functions are made in the middleware
+// The only calls to add a ScriptStartupDisposeSystem are unsafe or called by the scripting language
+// which is mono-threaded
+//
+// TODO: Find a safer way to do that, for example by splitting system service into a multi threads
+// service for native systems and a single threaded service for scripting systems
+//
+unsafe impl Sync for ScriptStartupDisposeSystem {}
+unsafe impl Send for ScriptStartupDisposeSystem {}
+
+#[derive(Clone)]
 struct FrameSystem {
     identifier: String,
-    origin: String,
     callback: Arc<SystemCallback>,
     ignore_pause: bool,
 }
 
 /// A system pool, see [‘SystemService‘] for more informations
-pub struct SystemPool<T> {
+#[derive(Clone)]
+pub struct FrameSystemPool {
     /// Systems of the pool
-    systems: Vec<T>,
+    systems: Vec<FrameSystem>,
+
+    /// Script systems of the pool
+    script_systems: Vec<ScriptFrameSystem>,
 
     /// Is the pool enabled
     enabled: bool,
@@ -108,10 +175,12 @@ fruity_export! {
     #[derive(FruityAny, Resource)]
     pub struct SystemService {
         pause: AtomicBool,
-        system_pools: BTreeMap<usize, SystemPool<FrameSystem>>,
+        system_pools: BTreeMap<usize, FrameSystemPool>,
         startup_systems: Vec<StartupSystem>,
         startup_dispose_callbacks: Mutex<Vec<StartupDisposeSystem>>,
         startup_pause_dispose_callbacks: Mutex<Vec<StartupDisposeSystem>>,
+        script_startup_systems: Vec<ScriptStartupSystem>,
+        script_startup_dispose_callbacks: Vec<ScriptStartupDisposeSystem>,
         resource_container: ResourceContainer,
     }
 
@@ -125,32 +194,32 @@ fruity_export! {
         /// Returns a SystemService
         pub fn new(resource_container: ResourceContainer) -> SystemService {
             SystemService {
-                pause: AtomicBool::new(true),
+                pause: AtomicBool::new(false),
                 system_pools: BTreeMap::new(),
                 startup_systems: Vec::new(),
                 startup_dispose_callbacks: Mutex::new(Vec::new()),
                 startup_pause_dispose_callbacks: Mutex::new(Vec::new()),
-                resource_container: resource_container.clone(),
+                script_startup_systems: Vec::new(),
+                script_startup_dispose_callbacks: Vec::new(),
+                resource_container,
             }
         }
 
         /// Add a system to the collection
         ///
         /// # Arguments
-        /// * `origin` - An identifier for the origin of the system, used for hot reload
         /// * `system` - A function that will compute the world
         /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
         ///
         pub fn add_system<T: Inject<()>>(
             &mut self,
             identifier: &str,
-            origin: &str,
             callback: T,
-            params: SystemParams,
+            params: Option<SystemParams>,
         ) {
+            let params = params.unwrap_or_default();
             let system = FrameSystem {
                 identifier: identifier.to_string(),
-                origin: origin.to_string(),
                 callback: callback.inject().into(),
                 ignore_pause: params.ignore_pause,
             };
@@ -162,8 +231,9 @@ fruity_export! {
                 let systems = vec![system];
                 self.system_pools.insert(
                     params.pool_index,
-                    SystemPool {
+                    FrameSystemPool {
                         systems,
+                        script_systems: vec![],
                         enabled: true,
                     },
                 );
@@ -173,20 +243,18 @@ fruity_export! {
         /// Add a startup system
         ///
         /// # Arguments
-        /// * `origin` - An identifier for the origin of the system, used for hot reload
         /// * `system` - A function that will compute the world
         /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
         ///
         pub fn add_startup_system<T: Inject<StartupDisposeSystemCallback>>(
             &mut self,
             identifier: &str,
-            origin: &str,
             callback: T,
-            params: StartupSystemParams,
+            params: Option<StartupSystemParams>,
         ) {
+            let params = params.unwrap_or_default();
             let system = StartupSystem {
                 identifier: identifier.to_string(),
-                origin: origin.to_string(),
                 callback: callback.inject().into(),
                 ignore_pause: params.ignore_pause,
             };
@@ -194,51 +262,96 @@ fruity_export! {
             self.startup_systems.push(system);
         }
 
-        /// Remove all systems with the given origin
+        /// Add a system to the collection
         ///
         /// # Arguments
-        /// * `origin` - An identifier for the origin of the system, used for hot reload
+        /// * `system` - A function that will compute the world
+        /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
         ///
-        pub fn unload_origin(&mut self, origin: &str) {
-            self.system_pools.values_mut().for_each(|pool| {
-                drain_filter(&mut pool.systems, |system| system.origin == origin);
-            });
+        #[export(name = "add_system")]
+        /*unsafe */pub fn add_script_system(
+            &mut self,
+            identifier: String,
+            callback: Rc<dyn ScriptCallback>,
+            params: Option<SystemParams>,
+        ) {
+            let params = params.unwrap_or_default();
+            let system = ScriptFrameSystem {
+                identifier: identifier.to_string(),
+                callback: callback,
+                ignore_pause: params.ignore_pause,
+            };
 
-            {
-                let mut startup_dispose_callbacks = self.startup_pause_dispose_callbacks.lock();
+            if let Some(pool) = self.system_pools.get_mut(&params.pool_index) {
+                pool.script_systems.push(system)
+            } else {
+                // If the pool not exists, we create it
+                let script_systems = vec![system];
+                self.system_pools.insert(
+                    params.pool_index,
+                    FrameSystemPool {
+                        systems: vec![],
+                        script_systems,
+                        enabled: true,
+                    },
+                );
+            };
+        }
 
-                drain_filter(&mut startup_dispose_callbacks, |system| {
-                    system.origin == origin
-                })
-                .into_iter()
-                .for_each(|system| {
-                    let _profiler_scope = if are_scopes_on() {
-                        // Safe cause identifier don't need to be static (from the doc)
-                        let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                        Some(ProfilerScope::new(identifier, "dispose system", ""))
-                    } else {
-                        None
-                    };
+        /// Add a startup system
+        ///
+        /// # Arguments
+        /// * `system` - A function that will compute the world
+        /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
+        ///
+        #[export(name = "add_startup_system")]
+        /*unsafe */pub fn add_script_startup_system(
+            &mut self,
+            identifier: String,
+            callback: Rc<dyn ScriptCallback>,
+            params: Option<StartupSystemParams>,
+        ) {
+            let params = params.unwrap_or_default();
+            let system = ScriptStartupSystem {
+                identifier: identifier.to_string(),
+                callback: callback,
+                ignore_pause: params.ignore_pause,
+            };
 
-                    (system.callback)()
-                });
-            }
+            self.script_startup_systems.push(system);
         }
 
         /// Iter over all the systems pools
-        fn iter_system_pools(&self) -> impl Iterator<Item = &SystemPool<FrameSystem>> {
+        fn iter_system_pools(&self) -> impl Iterator<Item = &FrameSystemPool> {
             self.system_pools.iter().map(|pool| pool.1)
         }
 
         /// Run all the stored systems
-        #[export]
-        pub fn run(&self) {
-            let resource_container = self.resource_container.clone();
+        pub(crate) fn run_frame(&self) -> FruityResult<()> {
             let is_paused = self.is_paused();
 
-            self.iter_system_pools().for_each(|pool| {
+            self.iter_system_pools().map(|pool| pool.clone()).try_for_each(|pool| {
                 if pool.enabled {
-                    pool.systems.iter().par_bridge().for_each(|system| {
+                    // Run the threaded systems
+                    let resource_container = self.resource_container.clone();
+                    let handler = thread::spawn(move || {
+                        pool.systems.iter().par_bridge().for_each(|system| {
+                            if !is_paused || system.ignore_pause {
+                                let _profiler_scope = if are_scopes_on() {
+                                    // Safe cause identifier don't need to be static (from the doc)
+                                    let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
+                                    Some(ProfilerScope::new(identifier, "system", ""))
+                                } else {
+                                    None
+                                };
+                                (system.callback)(resource_container.clone());
+                            }
+                        });
+                    });
+
+                    // Run the script systems
+                    let resource_container = self.resource_container.clone();
+                    pool.script_systems.iter().try_for_each(|system| {
                         if !is_paused || system.ignore_pause {
                             let _profiler_scope = if are_scopes_on() {
                                 // Safe cause identifier don't need to be static (from the doc)
@@ -247,18 +360,25 @@ fruity_export! {
                             } else {
                                 None
                             };
-                            (system.callback)(resource_container.clone());
+                            system.callback.call(vec![resource_container.clone().fruity_into()?])?;
                         }
-                    });
+
+                        FruityResult::Ok(())
+                    })?;
+
+                    // Wait all the threaded systems
+                    handler.join().unwrap();
                 }
-            });
+
+                FruityResult::Ok(())
+            })
         }
 
         /// Run all the startup systems
-        #[export]
-        pub fn run_start(&self) {
+        pub(crate) fn run_start(&mut self) -> FruityResult<()> {
+            // Run the threaded systems
             self.startup_systems
-                .iter()
+                .par_iter()
                 .filter(|system| system.ignore_pause)
                 .for_each(|system| {
                     let _profiler_scope = if are_scopes_on() {
@@ -275,26 +395,52 @@ fruity_export! {
                         let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
                         startup_dispose_callbacks.push(StartupDisposeSystem {
                             identifier: system.identifier.clone(),
-                            origin: system.origin.clone(),
                             callback: dispose_callback,
                         });
                     }
                 });
 
+            // Run the script systems
+            self.script_startup_systems
+                .iter()
+                .filter(|system| system.ignore_pause)
+                .try_for_each(|system| {
+                    let _profiler_scope = if are_scopes_on() {
+                        // Safe cause identifier don't need to be static (from the doc)
+                        let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
+                        Some(ProfilerScope::new(identifier, "system", ""))
+                    } else {
+                        None
+                    };
+
+                    let dispose_callback = system.callback.call(vec![self.resource_container.clone().fruity_into()?])?;
+
+                    if let ScriptValue::Callback(dispose_callback) = dispose_callback {
+                        self.script_startup_dispose_callbacks.push(ScriptStartupDisposeSystem {
+                            identifier: system.identifier.clone(),
+                            callback: dispose_callback,
+                        });
+                    }
+
+                    FruityResult::Ok(())
+                })?;
+
             if !self.is_paused() {
                 self.run_unpause_start();
             }
+
+            Result::Ok(())
         }
 
         /// Run all startup dispose callbacks
-        #[export]
-        pub fn run_end(&self) {
+        pub(crate) fn run_end(&mut self) -> FruityResult<()> {
             if !self.is_paused() {
                 self.run_unpause_end();
             }
 
+            // Run the threaded systems
             let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
-            startup_dispose_callbacks.drain(..).for_each(|system| {
+            startup_dispose_callbacks.drain(..).par_bridge().for_each(|system| {
                 let _profiler_scope = if are_scopes_on() {
                     // Safe cause identifier don't need to be static (from the doc)
                     let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
@@ -305,11 +451,25 @@ fruity_export! {
 
                 (system.callback)()
             });
+
+            // Run the script systems
+            self.script_startup_dispose_callbacks.drain(..).try_for_each(|system| {
+                let _profiler_scope = if are_scopes_on() {
+                    // Safe cause identifier don't need to be static (from the doc)
+                    let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
+                    Some(ProfilerScope::new(identifier, "dispose system", ""))
+                } else {
+                    None
+                };
+
+                system.callback.call(vec![]).map(|_| ())
+            })?;
+
+            FruityResult::Ok(())
         }
 
         /// Run all the startup systems that start when pause is stopped
-        #[export]
-        pub fn run_unpause_start(&self) {
+        fn run_unpause_start(&self) {
             self.startup_systems
                 .iter()
                 .filter(|system| !system.ignore_pause)
@@ -328,7 +488,6 @@ fruity_export! {
                         let mut startup_dispose_callbacks = self.startup_pause_dispose_callbacks.lock();
                         startup_dispose_callbacks.push(StartupDisposeSystem {
                             identifier: system.identifier.clone(),
-                            origin: system.origin.clone(),
                             callback: dispose_callback,
                         });
                     }
@@ -336,8 +495,7 @@ fruity_export! {
         }
 
         /// Run all the startup dispose callbacks of systems that start when pause is stopped
-        #[export]
-        pub fn run_unpause_end(&self) {
+        fn run_unpause_end(&self) {
             let mut startup_dispose_callbacks = self.startup_pause_dispose_callbacks.lock();
             startup_dispose_callbacks.drain(..).for_each(|system| {
                 let _profiler_scope = if are_scopes_on() {
@@ -353,8 +511,7 @@ fruity_export! {
         }
 
         /// Run all the systems contained in a pool
-        #[export]
-        pub fn run_pool(&self, index: usize) {
+        fn run_pool(&self, index: usize) {
             if let Some(pool) = self.system_pools.get(&index) {
                 pool.systems
                     .iter()
@@ -364,7 +521,6 @@ fruity_export! {
         }
 
         /// Enable a pool
-        #[export]
         pub fn enable_pool(&mut self, index: usize) {
             if let Some(pool) = self.system_pools.get_mut(&index) {
                 pool.enabled = true;
@@ -372,7 +528,6 @@ fruity_export! {
         }
 
         /// Disable a pool
-        #[export]
         pub fn disable_pool(&mut self, index: usize) {
             if let Some(pool) = self.system_pools.get_mut(&index) {
                 pool.enabled = false;
@@ -390,6 +545,7 @@ fruity_export! {
         /// # Arguments
         /// * `paused` - The paused value
         ///
+        #[export]
         pub fn set_paused(&self, paused: bool) {
             if !paused && self.is_paused() {
                 self.run_unpause_start();
@@ -403,69 +559,3 @@ fruity_export! {
         }
     }
 }
-
-/*
-    MethodInfo {
-        name: "add_system".to_string(),
-        call: MethodCaller::Mut(Arc::new(|this, args| {
-            let this = cast_introspect_mut::<SystemService>(this);
-
-            let mut caster = ArgumentCaster::new(args);
-            let arg1 = caster.cast_next::<String>()?;
-            let arg2 = caster.cast_next::<Callback>()?;
-            let arg3 = caster.cast_next_optional::<SystemParams>();
-
-            let callback = arg2.callback;
-            this.add_system(
-                &arg1,
-                &arg2.origin,
-                Inject0::new(move || {
-                    match callback(vec![]) {
-                        Ok(_) => (),
-                        Err(err) => log_introspect_error(&err),
-                    };
-                }),
-                arg3.unwrap_or_default(),
-            );
-
-            Ok(None)
-        })),
-    },
-    MethodInfo {
-        name: "add_startup_system".to_string(),
-        call: MethodCaller::Mut(Arc::new(|this, args| {
-            let this = cast_introspect_mut::<SystemService>(this);
-
-            let mut caster = ArgumentCaster::new(args);
-            let arg1 = caster.cast_next::<String>()?;
-            let arg2 = caster.cast_next::<Callback>()?;
-            let arg3 = caster.cast_next_optional::<StartupSystemParams>();
-
-            let callback = arg2.callback;
-            this.add_startup_system(
-                &arg1,
-                &arg2.origin,
-                Inject0::<StartupDisposeSystemCallback>::new(move || {
-                    match callback(vec![]) {
-                        Ok(result) => {
-                            if let Some(ScriptValue::Callback(callback)) = result {
-                                Some(Box::new(move || {
-                                    (callback.callback)(vec![]).ok();
-                                }))
-                            } else {
-                                None
-                            }
-                        }
-                        Err(err) => {
-                            log_introspect_error(&err);
-                            None
-                        }
-                    }
-                }),
-                arg3.unwrap_or_default(),
-            );
-
-            Ok(None)
-        })),
-    },
-*/

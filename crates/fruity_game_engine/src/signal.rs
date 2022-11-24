@@ -1,10 +1,15 @@
 use crate::any::FruityAny;
+use crate::convert::FruityInto;
 use crate::introspect::FieldInfo;
 use crate::introspect::IntrospectObject;
 use crate::introspect::MethodCaller;
 use crate::introspect::MethodInfo;
+use crate::script_value::ScriptCallback;
 use crate::script_value::ScriptValue;
+use crate::utils::introspect::cast_introspect_mut;
 use crate::utils::introspect::cast_introspect_ref;
+use crate::utils::introspect::ArgumentCaster;
+use crate::FruityResult;
 use crate::Mutex;
 use crate::RwLock;
 use std::fmt::Debug;
@@ -39,11 +44,14 @@ pub struct ObserverIdentifier(usize);
 
 #[derive(FruityAny)]
 struct InternSignal<T: 'static> {
-    observers: Vec<(ObserverIdentifier, Arc<dyn Fn(&T) + Sync + Send>)>,
+    observers: Vec<(
+        ObserverIdentifier,
+        Arc<dyn Fn(&T) -> FruityResult<()> + Sync + Send>,
+    )>,
 }
 
 /// An observer pattern
-#[derive(FruityAny)]
+#[derive(FruityAny, Clone)]
 pub struct Signal<T: 'static> {
     intern: Arc<RwLock<InternSignal<T>>>,
 }
@@ -60,7 +68,7 @@ impl<T> Signal<T> {
 
     /// Add an observer to the signal
     /// An observer is a closure that will be called when the signal will be sent
-    pub fn add_observer<F: Fn(&T) + Sync + Send + 'static>(
+    pub fn add_observer<F: Fn(&T) -> FruityResult<()> + Sync + Send + 'static>(
         &self,
         observer: F,
     ) -> ObserverHandler<T> {
@@ -80,7 +88,9 @@ impl<T> Signal<T> {
 
     /// Add an observer to the signal that can dispose itself
     /// An observer is a closure that will be called when the signal will be sent
-    pub fn add_self_dispose_observer<F: Fn(&T, &ObserverHandler<T>) + Sync + Send + 'static>(
+    pub fn add_self_dispose_observer<
+        F: Fn(&T, &ObserverHandler<T>) -> FruityResult<()> + Sync + Send + 'static,
+    >(
         &self,
         observer: F,
     ) {
@@ -94,23 +104,22 @@ impl<T> Signal<T> {
             intern: self.intern.clone(),
         };
 
-        intern_writer.observers.push((
-            observer_id,
-            Arc::new(move |data| {
-                observer(data, &handler);
-            }),
-        ));
+        intern_writer
+            .observers
+            .push((observer_id, Arc::new(move |data| observer(data, &handler))));
     }
 
     /// Notify that the event happened
     /// This will launch all the observers that are registered for this signal
-    pub fn notify(&self, event: T) {
+    pub fn notify(&self, event: T) -> FruityResult<()> {
         let observers = {
             let intern = self.intern.read();
             intern.observers.clone()
         };
 
-        observers.iter().for_each(|(_, observer)| observer(&event));
+        observers
+            .iter()
+            .try_for_each(|(_, observer)| observer(&event))
     }
 }
 
@@ -120,24 +129,13 @@ impl<T> Default for Signal<T> {
     }
 }
 
-impl<T> Clone for Signal<T> {
-    fn clone(&self) -> Self {
-        Self {
-            intern: self.intern.clone(),
-        }
-    }
-}
-
 impl<T> Debug for Signal<T> {
     fn fmt(&self, _: &mut Formatter) -> Result<(), std::fmt::Error> {
         Ok(())
     }
 }
 
-impl<T> IntrospectObject for Signal<T>
-where
-    T: IntrospectObject,
-{
+impl<T> IntrospectObject for Signal<T> {
     fn get_class_name(&self) -> String {
         "ResourceReference".to_string()
     }
@@ -158,7 +156,10 @@ pub struct SignalWriteGuard<'a, T: Send + Sync + Clone + 'static> {
 
 impl<'a, T: Send + Sync + Clone> Drop for SignalWriteGuard<'a, T> {
     fn drop(&mut self) {
-        self.target.on_updated.notify(self.target.value.clone())
+        self.target
+            .on_updated
+            .notify(self.target.value.clone())
+            .unwrap();
     }
 }
 
@@ -233,24 +234,25 @@ where
     }
 
     fn get_method_infos(&self) -> Vec<MethodInfo> {
-        // TODO: Expose property
-        vec![/*MethodInfo {
+        vec![MethodInfo {
             name: "add_observer".to_string(),
             call: MethodCaller::Mut(Rc::new(|this, args| {
                 let this = cast_introspect_mut::<Signal<T>>(this)?;
 
                 let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster
-                    .cast_next::<Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>>()?;
+                let arg1 = caster.cast_next::<Rc<dyn ScriptCallback>>()?;
 
+                let callback = arg1.create_thread_safe_callback()?;
                 let handle = this.add_observer(move |arg| {
-                    let arg: ScriptValue = arg.clone().fruity_into().unwrap();
-                    arg1(vec![arg]).unwrap();
+                    let arg: ScriptValue = arg.clone().fruity_into()?;
+                    callback(vec![arg]);
+
+                    Ok(())
                 });
 
                 handle.fruity_into()
             })),
-        }*/]
+        }]
     }
 }
 

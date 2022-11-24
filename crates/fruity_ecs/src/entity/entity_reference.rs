@@ -83,19 +83,19 @@ fruity_export! {
         /// Get entity id
         #[export]
         pub fn get_entity_id(&self) -> EntityId {
-            self.archetype.clone().get_entity_components(self.entity_id)
+            self.read().get_entity_id()
         }
 
         /// Get entity name
         #[export]
         pub fn get_name(&self) -> String {
-            self.archetype.clone().get_entity_components(self.entity_id)
+            self.read().get_name()
         }
 
         /// Get entity enabled
         #[export]
         pub fn is_enabled(&self) -> bool {
-            self.archetype.clone().get_entity_components(self.entity_id)
+            self.read().is_enabled()
         }
     }
 }

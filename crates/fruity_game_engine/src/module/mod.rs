@@ -1,5 +1,6 @@
 use crate::convert::FruityFrom;
 use crate::settings::Settings;
+use crate::world::World;
 use crate::FruityResult;
 use crate::ResourceContainer;
 use std::rc::Rc;
@@ -17,11 +18,8 @@ pub struct Module {
     pub dependencies: Vec<String>,
 
     /// A function that initialize the module
-    pub setup: Option<Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>>,
+    pub setup: Option<Rc<dyn Fn(World, Settings) -> FruityResult<()>>>,
 
     /// A function that initialize the module resources
     pub load_resources: Option<Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>>,
-
-    /// A function that is called when the world enter into the loop
-    pub run: Option<Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>>,
 }

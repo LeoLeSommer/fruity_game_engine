@@ -13,15 +13,16 @@
 
 use crate::entity::entity_service::EntityService;
 use crate::extension_component_service::ExtensionComponentService;
-use crate::system_service::StartupSystemParams;
-use crate::system_service::SystemParams;
 use crate::system_service::SystemService;
-use fruity_game_engine::object_factory_service::ObjectFactoryService;
+use fruity_game_engine::fruity_module_exports;
+use fruity_game_engine::javascript::ExportJavascript;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::FruityResult;
 
-pub use fruity_ecs_derive::Component;
-pub use fruity_ecs_derive::IntrospectObject;
-pub use fruity_ecs_derive::SerializableObject;
+pub use fruity_ecs_macro::Component;
+pub use fruity_ecs_macro::IntrospectObject;
+pub use fruity_ecs_macro::SerializableObject;
+use fruity_game_engine::world::World;
 
 /// All related with components
 pub mod component;
@@ -44,21 +45,46 @@ macro_rules! entity_type {
 }
 
 /// Identifier of this extension
-#[no_mangle]
-pub fn module_identifier() -> &'static str {
+pub fn name() -> &'static str {
     "fruity_ecs"
 }
 
 /// List all the dependencies of this extension
-#[no_mangle]
 pub fn dependencies() -> &'static [&'static str] {
     &[]
 }
 
-/// Initialize this extension
-#[no_mangle]
-pub fn initialize(resource_container: ResourceContainer) {
+/// Setup this extension
+pub fn setup(world: World) {
+    let resource_container = world.get_resource_container();
+
     let system_service = SystemService::new(resource_container.clone());
+    resource_container.add::<SystemService>("system_service", Box::new(system_service));
+
+    // Register system middleware
+    let system_service = resource_container.require::<SystemService>();
+    world.add_run_start_middleware(move |next, resource_container, settings| {
+        let mut system_service_writer = system_service.write();
+        system_service_writer.run_start()?;
+
+        next(resource_container.clone(), settings.clone())
+    });
+
+    let system_service = resource_container.require::<SystemService>();
+    world.add_run_frame_middleware(move |next, resource_container, settings| {
+        let system_service_reader = system_service.read();
+        system_service_reader.run_frame()?;
+
+        next(resource_container.clone(), settings.clone())
+    });
+
+    let system_service = resource_container.require::<SystemService>();
+    world.add_run_end_middleware(move |next, resource_container, settings| {
+        let mut system_service_writer = system_service.write();
+        system_service_writer.run_end()?;
+
+        next(resource_container.clone(), settings.clone())
+    });
 
     let extension_component_service = ExtensionComponentService::new(resource_container.clone());
     resource_container.add::<ExtensionComponentService>(
@@ -67,13 +93,14 @@ pub fn initialize(resource_container: ResourceContainer) {
     );
 
     let entity_service = EntityService::new(resource_container.clone());
-
-    resource_container.add::<SystemService>("system_service", Box::new(system_service));
     resource_container.add::<EntityService>("entity_service", Box::new(entity_service));
+}
 
-    let object_factory_service = resource_container.require::<ObjectFactoryService>();
-    let mut object_factory_service = object_factory_service.write();
+#[fruity_module_exports]
+fn module_export(mut exports: ExportJavascript) -> FruityResult<()> {
+    exports.export_value("name", name())?;
+    exports.export_value("dependencies", dependencies())?;
+    exports.export_value("setup", &setup as &(dyn Fn(_) -> _))?;
 
-    object_factory_service.register::<SystemParams>("SystemParams");
-    object_factory_service.register::<StartupSystemParams>("StartupSystemParams");
+    Ok(())
 }

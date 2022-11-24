@@ -8,51 +8,71 @@ use crate::FruityResult;
 use crate::ModulesService;
 use crate::ResourceContainer;
 use fruity_game_engine_macro::fruity_export;
+use std::cell::RefCell;
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::rc::Rc;
 
 /// A middleware that occurs when entering into the loop
-pub type StartMiddleware = Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()))>;
+pub type StartMiddleware = Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>;
 
 /// A middleware that occurs when rendering the loop
-pub type FrameMiddleware = Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()))>;
+pub type FrameMiddleware = Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>;
 
 /// A middleware that occurs when leaving the loop
-pub type EndMiddleware = Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()))>;
+pub type EndMiddleware = Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>;
 
 /// A middleware that occurs when the world runs
-pub type RunMiddleware =
-    Rc<dyn Fn(ResourceContainer, Settings, &(dyn Fn()), &(dyn Fn()), &(dyn Fn())) + Send + Sync>;
+pub type RunMiddleware = Rc<
+    dyn Fn(
+        ResourceContainer,
+        Settings,
+        &(dyn Fn(ResourceContainer, Settings) -> FruityResult<()>),
+        &(dyn Fn(ResourceContainer, Settings) -> FruityResult<()>),
+        &(dyn Fn(ResourceContainer, Settings) -> FruityResult<()>),
+    ) -> FruityResult<()>,
+>;
+
+struct InnerWorld {
+    resource_container: ResourceContainer,
+    settings: Settings,
+    start_middleware: StartMiddleware,
+    frame_middleware: FrameMiddleware,
+    end_middleware: EndMiddleware,
+    run_middleware: RunMiddleware,
+}
 
 fruity_export! {
     /// The main container of the ECS
     #[derive(FruityAny, Clone)]
     pub struct World {
-        /// The resource container
-        resource_container: ResourceContainer,
-        settings: Settings,
-        start_middleware: Option<StartMiddleware>,
-        frame_middleware: Option<FrameMiddleware>,
-        end_middleware: Option<EndMiddleware>,
-        run_middleware: Option<RunMiddleware>,
-        module_service: ModulesService,
+        inner: Rc<RefCell<InnerWorld>>,
+        module_service: Rc<RefCell<ModulesService>>,
     }
 
     impl World {
         /// Returns a World
-        pub fn new(settings: Settings) -> World {
+        pub fn new(settings: Settings) -> Self {
             let resource_container = ResourceContainer::new();
             Self::initialize(resource_container.clone(), &settings);
             let module_service = ModulesService::new(resource_container.clone());
 
             World {
-                resource_container,
-                settings,
-                start_middleware: None,
-                frame_middleware: None,
-                end_middleware: None,
-                run_middleware: None,
-                module_service,
+                inner: Rc::new(RefCell::new(InnerWorld {
+                    resource_container,
+                    settings,
+                    start_middleware: Rc::new(|_, _| Ok(())),
+                    frame_middleware: Rc::new(|_, _| Ok(())),
+                    end_middleware: Rc::new(|_, _| Ok(())),
+                    run_middleware: Rc::new(|resource_container, settings, start, frame, end| {
+                        start(resource_container.clone(), settings.clone())?;
+                        frame(resource_container.clone(), settings.clone())?;
+                        end(resource_container.clone(), settings.clone())?;
+
+                        FruityResult::Ok(())
+                    }),
+                })),
+                module_service: Rc::new(RefCell::new(module_service)),
             }
         }
 
@@ -67,8 +87,8 @@ fruity_export! {
 
         /// Register a module
         #[export]
-        pub fn register_module(&mut self, module: Module) -> FruityResult<()> {
-            self.module_service.register_module(module);
+        pub fn register_module(&self, module: Module) -> FruityResult<()> {
+            self.module_service.deref().borrow_mut().register_module(module);
 
             Ok(())
         }
@@ -76,9 +96,12 @@ fruity_export! {
         /// Load the modules
         #[export]
         pub fn setup_modules(&self) -> FruityResult<()> {
-            self.module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
+            let settings = self.inner.deref().borrow().settings.clone();
+            let module_service = self.module_service.deref().borrow();
+
+            module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
                 if let Some(setup) = module.setup {
-                    setup(self.resource_container.clone(), self.settings.clone())?;
+                    setup(self.clone(), settings.clone())?;
                 }
 
                 Ok(())
@@ -88,9 +111,13 @@ fruity_export! {
         /// Load the resources
         #[export]
         pub fn load_resources(&self) -> FruityResult<()> {
-            self.module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
+            let settings = self.inner.deref().borrow().settings.clone();
+            let resource_container = self.inner.deref().borrow().resource_container.clone();
+            let module_service = self.module_service.deref().borrow();
+
+            module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
                 if let Some(load_resources) = module.load_resources {
-                    load_resources(self.resource_container.clone(), self.settings.clone())?;
+                    load_resources(resource_container.clone(), settings.clone())?;
                 }
 
                 Ok(())
@@ -100,120 +127,59 @@ fruity_export! {
         /// Run the world
         #[export]
         pub fn run(&self) -> FruityResult<()> {
+            let run_middleware = self.inner.deref().borrow().run_middleware.clone();
+            let resource_container = self.inner.deref().borrow().resource_container.clone();
+            let settings = self.inner.deref().borrow().settings.clone();
+            let start_middleware = self.inner.deref().borrow().start_middleware.clone();
+            let frame_middleware = self.inner.deref().borrow().frame_middleware.clone();
+            let end_middleware = self.inner.deref().borrow().end_middleware.clone();
+
             puffin::profile_function!();
 
-            self.module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
-                if let Some(run) = module.run {
-                    run(self.resource_container.clone(), self.settings.clone())?;
-                }
-
-                Ok(())
-            }))?;
-
-            if let Some(run_middleware) = &self.run_middleware {
-                let resource_container_1 = self.resource_container.clone();
-                let resource_container_2 = self.resource_container.clone();
-                let resource_container_3 = self.resource_container.clone();
-                let settings_1 = self.settings.clone();
-                let settings_2 = self.settings.clone();
-                let settings_3 = self.settings.clone();
-
-                let start_middleware = self.start_middleware.clone();
-                let frame_middleware = self.frame_middleware.clone();
-                let end_middleware = self.end_middleware.clone();
-
-                run_middleware(
-                    self.resource_container.clone(),
-                    self.settings.clone(),
-                    &Box::new(move || {
-                        Self::run_start(
-                            &start_middleware,
-                            resource_container_1.clone(),
-                            settings_1.clone(),
-                        );
-                    }),
-                    &Box::new(move || {
-                        Self::run_frame(
-                            &frame_middleware,
-                            resource_container_2.clone(),
-                            settings_2.clone(),
-                        );
-                    }),
-                    &Box::new(move || {
-                        Self::run_end(
-                            &end_middleware,
-                            resource_container_3.clone(),
-                            settings_3.clone(),
-                        );
-                    }),
-                )
-            } else {
-                Self::run_start(
-                    &self.start_middleware,
-                    self.resource_container.clone(),
-                    self.settings.clone(),
-                );
-                Self::run_frame(
-                    &self.frame_middleware,
-                    self.resource_container.clone(),
-                    self.settings.clone(),
-                );
-                Self::run_end(
-                    &self.end_middleware,
-                    self.resource_container.clone(),
-                    self.settings.clone(),
-                );
-            }
-
-            Ok(())
+            run_middleware(
+                resource_container,
+                settings,
+                start_middleware.deref(),
+                frame_middleware.deref(),
+                end_middleware.deref(),
+            )
         }
 
-        /// Run the world on start
-        fn run_start(
-            middleware: &Option<StartMiddleware>,
-            resource_container: ResourceContainer,
-            settings: Settings,
-        ) {
-            puffin::profile_function!();
+        /// Add a run start middleware
+        pub fn add_run_start_middleware(&self, middleware: impl Fn(StartMiddleware, ResourceContainer, Settings) -> FruityResult<()> + 'static) {
+            let mut this = self.inner.deref().borrow_mut();
+            let next_middleware = this.start_middleware.clone();
 
-            if let Some(middleware) = middleware {
-                middleware(resource_container, settings, &Box::new(|| {}));
-            } else {
-            }
+            this.start_middleware = Rc::new(move |resource_container, settings| {
+                middleware(next_middleware.clone(), resource_container, settings)
+            });
         }
 
-        /// Run the world on frame
-        fn run_frame(
-            middleware: &Option<FrameMiddleware>,
-            resource_container: ResourceContainer,
-            settings: Settings,
-        ) {
-            puffin::profile_function!();
+        /// Add a run frame middleware
+        pub fn add_run_frame_middleware(&self, middleware: impl Fn(StartMiddleware, ResourceContainer, Settings) -> FruityResult<()> + 'static) {
+            let mut this = self.inner.deref().borrow_mut();
+            let next_middleware = this.frame_middleware.clone();
 
-            if let Some(middleware) = middleware {
-                middleware(resource_container, settings, &Box::new(|| {}));
-            } else {
-            }
+            this.frame_middleware = Rc::new(move |resource_container, settings| {
+                middleware(next_middleware.clone(), resource_container, settings)
+            });
         }
 
-        /// Run the world on end
-        fn run_end(
-            middleware: &Option<EndMiddleware>,
-            resource_container: ResourceContainer,
-            settings: Settings,
-        ) {
-            puffin::profile_function!();
+        /// Add a run end middleware
+        pub fn add_run_end_middleware(&self, middleware: impl Fn(StartMiddleware, ResourceContainer, Settings) -> FruityResult<()> + 'static) {
+            let mut this = self.inner.deref().borrow_mut();
+            let next_middleware = this.end_middleware.clone();
 
-            if let Some(middleware) = middleware {
-                middleware(resource_container, settings, &Box::new(|| {}));
-            } else {
-            }
+            this.end_middleware = Rc::new(move |resource_container, settings| {
+                middleware(next_middleware.clone(), resource_container, settings)
+            });
         }
 
         /// Get resource container
         #[export]
         pub fn get_resource_container(&self) -> ResourceContainer {
-            self.resource_container.clone()
+            let this = self.inner.deref().borrow();
+            this.resource_container.clone()
         }
     }
 }
@@ -223,6 +189,7 @@ impl Debug for World {
         &self,
         formatter: &mut std::fmt::Formatter<'_>,
     ) -> std::result::Result<(), std::fmt::Error> {
-        self.resource_container.fmt(formatter)
+        let this = self.inner.deref().borrow();
+        this.resource_container.fmt(formatter)
     }
 }

@@ -30,6 +30,7 @@ use crate::RwLock;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// a script value
 pub enum ScriptValue {
@@ -88,7 +89,7 @@ pub enum ScriptValue {
     Iterator(Rc<RwLock<dyn Iterator<Item = ScriptValue>>>),
 
     /// A callback
-    Callback(Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
+    Callback(Rc<dyn ScriptCallback>),
 
     /// An object stored as an hashmap, mostly used to grab objects from the scripting runtime
     Object {
@@ -118,12 +119,31 @@ impl<T: FruityFrom<ScriptValue> + ?Sized> FruityFrom<ScriptValue> for Vec<T> {
     }
 }
 
-impl FruityFrom<ScriptValue> for Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>> {
+/// A trait that can be implemented for a callback
+pub trait ScriptCallback {
+    /// Call the callback
+    fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
+
+    /// Turn the callback into a thread safe callback than can be called
+    /// in every thread of the application
+    /// It change the callback behavior, you can now call it from every thread but it will
+    /// not be synchronously called and you can't receive the callback return anymore
+    ///
+    /// Note that not every callbacks can be turned into a thread safe callback, in general only the
+    /// callbacks from the scripting language can be turned into a thread safe callback, an error will
+    /// be raised if the callback cannot be turned into a thread safe callback
+    ///
+    fn create_thread_safe_callback(
+        &self,
+    ) -> FruityResult<Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>>;
+}
+
+impl FruityFrom<ScriptValue> for Rc<dyn ScriptCallback> {
     fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::Callback(value) => Ok(value.clone()),
+            ScriptValue::Callback(value) => Ok(value),
             _ => Err(FruityError::new(
-                FruityStatus::FunctionExpected,
+                FruityStatus::InvalidArg,
                 format!("Couldn't convert {:?} to callback", value),
             )),
         }

@@ -4,11 +4,11 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug My Platformer",
+      "name": "Debug my_platformer",
       "program": "node",
       "args": ["${workspaceFolder}/examples/my_platformer/dist/src/index.js"],
       "cwd": "${workspaceFolder}/examples/my_platformer/",
-      "preLaunchTask": "Build Example My Platformer"
+      "preLaunchTask": "Build my_platformer"
     }
   ]
 }

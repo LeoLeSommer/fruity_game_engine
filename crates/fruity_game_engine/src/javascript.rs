@@ -1,13 +1,16 @@
 use crate::{
     convert::FruityInto,
     introspect::MethodCaller,
-    script_value::{IntrospectObjectClone, ScriptValue},
+    script_value::{IntrospectObjectClone, ScriptCallback, ScriptValue},
 };
 use convert_case::{Case, Casing};
 use napi::{
+    threadsafe_function::{
+        ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
+    },
     Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, Ref, Result, ValueType,
 };
-use std::{collections::HashMap, ops::DerefMut, rc::Rc};
+use std::{collections::HashMap, ops::DerefMut, rc::Rc, sync::Arc};
 
 /// Tool to export javascript modules
 pub struct ExportJavascript {
@@ -84,7 +87,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                     .map(|elem| js_value_to_script_value(ctx.env, elem))
                     .try_collect::<Vec<_>>()?;
 
-                let result = callback(args)?;
+                let result = callback.call(args)?;
                 script_value_to_js_value(ctx.env, result)
             })?
             .into_unknown(),
@@ -204,24 +207,11 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
             }
         }
         ValueType::Function => {
-            let env = env.clone();
             let js_func = JsFunction::try_from(value)?;
-            let js_func_reference = JsRefDrop(env.create_reference(js_func)?, env.clone());
 
-            ScriptValue::Callback(Rc::new(move |args| {
-                // Convert all the others args as a JsUnknown
-                let args = args
-                    .into_iter()
-                    .map(|elem| script_value_to_js_value(&env, elem))
-                    .try_collect::<Vec<_>>()?;
-
-                // Execute the function
-                let js_func = env.get_reference_value::<JsFunction>(&js_func_reference.0)?;
-                let result = js_func.call(None, &args)?;
-
-                // Returns the result
-                let result = js_value_to_script_value(&env, result)?;
-                Ok(result)
+            ScriptValue::Callback(Rc::new(JsFunctionCallback {
+                reference: env.create_reference(js_func)?,
+                env: env.clone(),
             }))
         }
         ValueType::External => todo!(),
@@ -230,13 +220,67 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
     })
 }
 
-struct JsRefDrop(Ref<()>, Env);
+struct JsFunctionCallback {
+    pub reference: Ref<()>,
+    pub env: Env,
+}
 
-impl Drop for JsRefDrop {
-    fn drop(&mut self) {
-        self.0.unref(self.1.clone()).unwrap();
+impl ScriptCallback for JsFunctionCallback {
+    fn call(&self, args: Vec<ScriptValue>) -> Result<ScriptValue> {
+        // Get the js func from the reference
+        let js_func = self
+            .env
+            .get_reference_value::<JsFunction>(&self.reference)?;
+
+        // Convert all the others args as a JsUnknown
+        let args = args
+            .into_iter()
+            .map(|elem| script_value_to_js_value(&self.env, elem))
+            .try_collect::<Vec<_>>()?;
+
+        // Call the function
+        let result = js_func.call(None, &args)?;
+
+        // Return the result
+        let result = js_value_to_script_value(&self.env, result)?;
+        Ok(result)
+    }
+
+    fn create_thread_safe_callback(&self) -> Result<Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
+        // Get the js func from the reference
+        let js_func = self
+            .env
+            .get_reference_value::<JsFunction>(&self.reference)?;
+
+        // Create the thread safe function
+        let thread_safe_func: ThreadsafeFunction<Vec<ScriptValue>, ErrorStrategy::Fatal> = js_func
+            .create_threadsafe_function(0, |ctx: ThreadSafeCallContext<Vec<ScriptValue>>| {
+                // Convert all the others args as a JsUnknown
+                let args = ctx
+                    .value
+                    .into_iter()
+                    .map(|elem| script_value_to_js_value(&ctx.env, elem))
+                    .try_collect::<Vec<_>>()?;
+
+                Ok(args)
+            })?;
+
+        // Create the closure to call the function later
+        Ok(Arc::new(move |args| {
+            // Execute the function
+            thread_safe_func.call(args, ThreadsafeFunctionCallMode::Blocking);
+        }))
     }
 }
+
+impl Drop for JsFunctionCallback {
+    fn drop(&mut self) {
+        self.reference.unref(self.env.clone()).unwrap();
+    }
+}
+
+/*struct JsRefDrop(Ref<()>, Env);
+}*/
 
 /*unsafe extern "C" fn generic_getter(
     raw_env: napi_env,

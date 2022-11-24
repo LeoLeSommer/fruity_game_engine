@@ -167,10 +167,10 @@ pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStr
     let output = quote! {
         #input
 
-        #[napi::bindgen_prelude::ctor]
+        #[#current_crate::napi::bindgen_prelude::ctor]
         fn __napi__explicit_module_register() {
-            unsafe fn register(raw_env: napi::sys::napi_env, raw_exports: napi::sys::napi_value) -> napi::Result<()> {
-                use napi::{Env, JsObject, NapiValue};
+            unsafe fn register(raw_env: #current_crate::napi::sys::napi_env, raw_exports: #current_crate::napi::sys::napi_value) -> #current_crate::napi::Result<()> {
+                use #current_crate::napi::{Env, JsObject, NapiValue};
 
                 let env = Env::from_raw(raw_env);
                 let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
@@ -179,7 +179,7 @@ pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStr
                 #fn_ident(export_js)
             }
 
-            napi::bindgen_prelude::register_module_exports(register)
+            #current_crate::napi::bindgen_prelude::register_module_exports(register)
         }
     };
 
@@ -246,7 +246,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
                     getter: std::rc::Rc::new(|__this| {
                         use #current_crate::convert::FruityInto;
                         let __this = #current_crate::utils::introspect::cast_introspect_ref::<#struct_name>(__this)?;
-                        __this.#name.fruity_into()
+                        __this.#name.clone().fruity_into()
                     }),
                     setter: #current_crate::introspect::SetterCaller::None,
                 },

@@ -2,13 +2,10 @@ use super::IntrospectObjectClone;
 use super::ScriptValue;
 use crate::convert::FruityFrom;
 use crate::convert::FruityInto;
-use crate::introspect::IntrospectObject;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
-use crate::RwLock;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 impl<T> FruityInto<ScriptValue> for FruityResult<T>
 where
@@ -37,30 +34,13 @@ impl<T: IntrospectObjectClone> FruityInto<ScriptValue> for T {
     }
 }
 
-impl<T: IntrospectObject + ?Sized> FruityFrom<ScriptValue> for RwLock<Box<T>> {
+impl<T> FruityFrom<ScriptValue> for T
+where
+    T: IntrospectObjectClone,
+{
     fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::NativeObject(value) => {
-                match value.as_any_box().downcast::<RwLock<Box<T>>>() {
-                    Ok(value) => Ok(*value),
-                    _ => Err(FruityError::new(
-                        FruityStatus::InvalidArg,
-                        format!("Couldn't convert a ScriptValue to native object"),
-                    )),
-                }
-            }
-            _ => Err(FruityError::new(
-                FruityStatus::InvalidArg,
-                format!("Couldn't convert {:?} to native object", value),
-            )),
-        }
-    }
-}
-
-impl<T: IntrospectObject + ?Sized> FruityFrom<ScriptValue> for Rc<T> {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::NativeObject(value) => match value.as_any_box().downcast::<Rc<T>>() {
+            ScriptValue::NativeObject(value) => match value.as_any_box().downcast::<T>() {
                 Ok(value) => Ok(*value),
                 _ => Err(FruityError::new(
                     FruityStatus::InvalidArg,
@@ -72,6 +52,16 @@ impl<T: IntrospectObject + ?Sized> FruityFrom<ScriptValue> for Rc<T> {
                 format!("Couldn't convert {:?} to native object", value),
             )),
         }
+    }
+}
+
+impl<T: FruityInto<ScriptValue> + Clone> FruityInto<ScriptValue> for &'static [T] {
+    fn fruity_into(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Array(
+            self.iter()
+                .map(|elem| elem.clone().fruity_into())
+                .try_collect::<Vec<_>>()?,
+        ))
     }
 }
 
@@ -96,11 +86,11 @@ impl<T: FruityInto<ScriptValue>> FruityInto<ScriptValue> for Option<T> {
 
 impl<T: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for Option<T> {
     fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        if let ScriptValue::Null = value {
-            Ok(None)
-        } else {
-            T::fruity_from(value).map(|value| Some(value))
-        }
+        Ok(match value {
+            ScriptValue::Null => None,
+            ScriptValue::Undefined => None,
+            _ => T::fruity_from(value).map(|value| Some(value))?,
+        })
     }
 }
 

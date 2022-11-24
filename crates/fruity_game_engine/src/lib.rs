@@ -74,11 +74,8 @@ pub mod frame_service;
 
 #[fruity_module_exports]
 fn module_export(mut exports: ExportJavascript) -> FruityResult<()> {
-    exports.export_value(
-        "read_settings",
-        &read_settings as &(dyn Fn(_) -> _ + Send + Sync),
-    )?;
-    exports.export_constructor("World", &World::new as &(dyn Fn(_) -> _ + Send + Sync))?;
+    exports.export_value("read_settings", &read_settings as &(dyn Fn(_) -> _))?;
+    exports.export_constructor("World", &World::new as &(dyn Fn(_) -> _))?;
 
     Ok(())
 }

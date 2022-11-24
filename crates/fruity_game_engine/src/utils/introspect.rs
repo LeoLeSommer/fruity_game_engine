@@ -64,23 +64,6 @@ impl ArgumentCaster {
         }
     }
 
-    /// Get a script value argument from an argument list
-    pub fn next(&mut self) -> FruityResult<ScriptValue> {
-        match self.iter.next() {
-            Some((index, arg)) => {
-                self.last_index = index + 1;
-                Ok(arg)
-            }
-            None => Err(FruityError::new(
-                FruityStatus::InvalidArg,
-                format!(
-                    "Wrong number of arguments, you provided {} and we expect {}",
-                    self.last_index, self.args_count
-                ),
-            )),
-        }
-    }
-
     /// Get all the remaining script value arguments from an argument list
     pub fn rest(&mut self) -> Vec<ScriptValue> {
         let mut result = Vec::new();
@@ -97,18 +80,23 @@ impl ArgumentCaster {
     /// * `T` - The type to cast
     ///
     pub fn cast_next<T: FruityFrom<ScriptValue> + ?Sized>(&mut self) -> FruityResult<T> {
+        let test = std::any::type_name::<T>();
+
         match self.iter.next() {
             Some((index, arg)) => {
                 self.last_index = index + 1;
                 T::fruity_from(arg)
             }
-            None => Err(FruityError::new(
-                FruityStatus::InvalidArg,
-                format!(
-                    "Wrong number of arguments, you provided {} and we expect {}",
-                    self.last_index, self.args_count
-                ),
-            )),
+            None => T::fruity_from(ScriptValue::Undefined).map_err(|_| {
+                FruityError::new(
+                    FruityStatus::InvalidArg,
+                    format!(
+                        "Wrong number of arguments, you provided {} and we expect {}",
+                        self.last_index,
+                        self.args_count + 1
+                    ),
+                )
+            }),
         }
     }
 }

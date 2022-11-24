@@ -144,18 +144,19 @@ checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
 name = "fruity_ecs"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
- "fruity_ecs_derive",
+ "fruity_ecs_macro",
  "fruity_game_engine",
  "itertools",
  "log",
  "maplit",
+ "napi-build",
  "rayon",
 ]
 
 [[package]]
-name = "fruity_ecs_derive"
+name = "fruity_ecs_macro"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

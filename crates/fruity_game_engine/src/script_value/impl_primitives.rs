@@ -87,7 +87,7 @@ impl FruityFrom<ScriptValue> for String {
             ScriptValue::String(value) => Ok(value),
             _ => Err(FruityError::new(
                 FruityStatus::StringExpected,
-                format!("Couldn't convert {:?} to bool", value),
+                format!("Couldn't convert {:?} to string", value),
             )),
         }
     }
