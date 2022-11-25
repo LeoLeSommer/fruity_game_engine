@@ -1,13 +1,9 @@
 use crate::any::FruityAny;
+use crate::convert::FruityFrom;
 use crate::convert::FruityInto;
-use crate::introspect::FieldInfo;
 use crate::introspect::IntrospectObject;
-use crate::introspect::MethodCaller;
-use crate::introspect::MethodInfo;
 use crate::script_value::ScriptCallback;
 use crate::script_value::ScriptValue;
-use crate::utils::introspect::cast_introspect_mut;
-use crate::utils::introspect::cast_introspect_ref;
 use crate::utils::introspect::ArgumentCaster;
 use crate::FruityResult;
 use crate::Mutex;
@@ -135,17 +131,67 @@ impl<T> Debug for Signal<T> {
     }
 }
 
-impl<T> IntrospectObject for Signal<T> {
+impl<T> IntrospectObject for Signal<T>
+where
+    T: FruityFrom<ScriptValue> + FruityInto<ScriptValue> + Clone,
+{
     fn get_class_name(&self) -> String {
-        "ResourceReference".to_string()
+        "Signal".to_string()
     }
 
-    fn get_field_infos(&self) -> Vec<FieldInfo> {
+    fn get_field_names(&self) -> Vec<String> {
         vec![]
     }
 
-    fn get_method_infos(&self) -> Vec<MethodInfo> {
-        todo!()
+    fn set_field_value(&mut self, _name: &str, _value: ScriptValue) -> FruityResult<()> {
+        unreachable!()
+    }
+
+    fn get_field_value(&self, _name: &str) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+
+    fn get_const_method_names(&self) -> Vec<String> {
+        vec!["notify".to_string()]
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        match name {
+            "notify" => {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 = caster.cast_next::<T>()?;
+
+                let handle = self.notify(arg1);
+
+                handle.fruity_into()
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_mut_method_names(&self) -> Vec<String> {
+        vec!["add_observer".to_string()]
+    }
+
+    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        match name {
+            "add_observer" => {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 = caster.cast_next::<Rc<dyn ScriptCallback>>()?;
+
+                // TODO: Restore
+                let callback = arg1.create_thread_safe_callback()?;
+                let handle = self.add_observer(move |arg| {
+                    let arg: ScriptValue = arg.clone().fruity_into()?;
+                    callback(vec![arg]);
+
+                    Ok(())
+                });
+
+                handle.fruity_into()
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -223,41 +269,56 @@ impl<T: Send + Sync + Clone + Debug> Debug for SignalProperty<T> {
 
 impl<T> IntrospectObject for SignalProperty<T>
 where
-    T: IntrospectObject + Send + Sync + Clone,
+    T: FruityInto<ScriptValue> + FruityFrom<ScriptValue> + Send + Sync + Clone + Debug,
 {
     fn get_class_name(&self) -> String {
-        "ResourceReference".to_string()
+        "SignalProperty".to_string()
     }
 
-    fn get_field_infos(&self) -> Vec<FieldInfo> {
+    fn get_field_names(&self) -> Vec<String> {
+        vec!["value".to_string(), "on_updated".to_string()]
+    }
+
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        match name {
+            "value" => self.value = T::fruity_from(value)?,
+            _ => unreachable!(),
+        };
+
+        FruityResult::Ok(())
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        match name {
+            "value" => self.value.clone().fruity_into(),
+            "on_updated" => self.on_updated.clone().fruity_into(),
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_const_method_names(&self) -> Vec<String> {
         vec![]
     }
 
-    fn get_method_infos(&self) -> Vec<MethodInfo> {
-        vec![MethodInfo {
-            name: "add_observer".to_string(),
-            call: MethodCaller::Mut(Rc::new(|this, args| {
-                let this = cast_introspect_mut::<Signal<T>>(this)?;
+    fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
 
-                let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster.cast_next::<Rc<dyn ScriptCallback>>()?;
+    fn get_mut_method_names(&self) -> Vec<String> {
+        vec![]
+    }
 
-                let callback = arg1.create_thread_safe_callback()?;
-                let handle = this.add_observer(move |arg| {
-                    let arg: ScriptValue = arg.clone().fruity_into()?;
-                    callback(vec![arg]);
-
-                    Ok(())
-                });
-
-                handle.fruity_into()
-            })),
-        }]
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
     }
 }
 
 /// A signal subscription handler, can be used to unsubscribe the signal
-#[derive(Clone, FruityAny)]
+#[derive(FruityAny)]
 pub struct ObserverHandler<T: 'static> {
     observer_id: ObserverIdentifier,
     intern: Arc<RwLock<InternSignal<T>>>,
@@ -297,26 +358,54 @@ impl<T> ObserverHandler<T> {
 
 impl<T> IntrospectObject for ObserverHandler<T>
 where
-    T: IntrospectObject,
+    T: FruityFrom<ScriptValue> + FruityInto<ScriptValue>,
 {
     fn get_class_name(&self) -> String {
-        "ResourceReference".to_string()
+        "ObserverHandler".to_string()
     }
 
-    fn get_field_infos(&self) -> Vec<FieldInfo> {
+    fn get_field_names(&self) -> Vec<String> {
         vec![]
     }
 
-    fn get_method_infos(&self) -> Vec<MethodInfo> {
-        vec![MethodInfo {
-            name: "dispose".to_string(),
-            call: MethodCaller::Const(Rc::new(|this, _args| {
-                let this = cast_introspect_ref::<ObserverHandler<T>>(this)?;
-                this.dispose_by_ref();
+    fn set_field_value(&mut self, _name: &str, _value: ScriptValue) -> FruityResult<()> {
+        unreachable!()
+    }
 
-                Ok(ScriptValue::Undefined)
-            })),
-        }]
+    fn get_field_value(&self, _name: &str) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+
+    fn get_const_method_names(&self) -> Vec<String> {
+        vec!["dispose".to_string()]
+    }
+
+    fn call_const_method(&self, name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        match name {
+            "dispose" => self.dispose_by_ref().fruity_into(),
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_mut_method_names(&self) -> Vec<String> {
+        vec![]
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+}
+
+impl<T> Clone for ObserverHandler<T> {
+    fn clone(&self) -> Self {
+        Self {
+            observer_id: self.observer_id.clone(),
+            intern: self.intern.clone(),
+        }
     }
 }
 

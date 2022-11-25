@@ -1,20 +1,13 @@
 use crate::any::FruityAny;
-use crate::convert::FruityFrom;
-use crate::introspect::FieldInfo;
 use crate::introspect::IntrospectObject;
-use crate::introspect::MethodCaller;
-use crate::introspect::MethodInfo;
-use crate::introspect::SetterCaller;
 use crate::resource::Resource;
 use crate::script_value::ScriptValue;
-use crate::utils::introspect::cast_introspect_mut;
-use crate::utils::introspect::cast_introspect_ref;
+use crate::FruityResult;
 use crate::RwLock;
 use crate::RwLockReadGuard;
 use crate::RwLockWriteGuard;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::rc::Rc;
 use std::sync::Arc;
 
 /// A reference over an any resource that is supposed to be used by components
@@ -54,74 +47,39 @@ impl AnyResourceReference {
 
 impl IntrospectObject for AnyResourceReference {
     fn get_class_name(&self) -> String {
-        "ResourceReference".to_string()
+        self.resource.get_class_name()
     }
 
-    fn get_field_infos(&self) -> Vec<FieldInfo> {
-        let mut fields_infos = self
-            .resource
-            .get_field_infos()
-            .into_iter()
-            .map(|field_info| {
-                let field_info_2 = field_info.clone();
-
-                FieldInfo {
-                    name: field_info.name.clone(),
-                    getter: Rc::new(move |this| {
-                        let this = cast_introspect_ref::<AnyResourceReference>(this)?;
-                        (field_info.getter)(this.resource.deref().as_fruity_any_ref())
-                    }),
-                    setter: match field_info_2.setter {
-                        SetterCaller::Const(call) => {
-                            SetterCaller::Const(Rc::new(move |this, args| {
-                                let this = cast_introspect_ref::<AnyResourceReference>(this)?;
-                                call(this.resource.deref().as_fruity_any_ref(), args)
-                            }))
-                        }
-                        SetterCaller::Mut(_) => {
-                            SetterCaller::Mut(Rc::new(move |_, _| unimplemented!()))
-                        }
-                        SetterCaller::None => SetterCaller::None,
-                    },
-                }
-            })
-            .collect::<Vec<_>>();
-
-        fields_infos.append(&mut vec![FieldInfo {
-            name: "resource_name".to_string(),
-            getter: Rc::new(move |this| {
-                let this = cast_introspect_ref::<AnyResourceReference>(this)?;
-                Ok(ScriptValue::String(this.name.clone()))
-            }),
-            setter: SetterCaller::Mut(Rc::new(move |this, value| {
-                let mut this = cast_introspect_mut::<AnyResourceReference>(this)?;
-                let value = String::fruity_from(value)?;
-                this.name = value;
-
-                Result::Ok(())
-            })),
-        }]);
-
-        fields_infos
+    fn get_field_names(&self) -> Vec<String> {
+        self.resource.get_field_names()
     }
 
-    fn get_method_infos(&self) -> Vec<MethodInfo> {
-        self.resource
-            .get_method_infos()
-            .into_iter()
-            .map(|method_info| MethodInfo {
-                name: method_info.name,
-                call: match method_info.call {
-                    MethodCaller::Const(call) => MethodCaller::Const(Rc::new(move |this, args| {
-                        let this = cast_introspect_ref::<AnyResourceReference>(this)?;
-                        call(this.resource.deref().as_fruity_any_ref(), args)
-                    })),
-                    MethodCaller::Mut(_) => {
-                        MethodCaller::Mut(Rc::new(move |_, _| unimplemented!()))
-                    }
-                },
-            })
-            .collect::<Vec<_>>()
+    fn set_field_value(&mut self, _name: &str, _value: ScriptValue) -> FruityResult<()> {
+        unreachable!()
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        self.resource.get_field_value(name)
+    }
+
+    fn get_const_method_names(&self) -> Vec<String> {
+        self.resource.get_const_method_names()
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.resource.call_const_method(name, args)
+    }
+
+    fn get_mut_method_names(&self) -> Vec<String> {
+        vec![]
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
     }
 }
 

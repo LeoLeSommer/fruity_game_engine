@@ -5,10 +5,10 @@
 //! Implements traits and macros to make a structure abe to list it's field and to get/set it with any
 //!
 
+use parking_lot::RwLockUpgradableReadGuard;
+
 use crate::any::FruityAny;
 use crate::script_value::ScriptValue;
-use crate::utils::introspect::cast_introspect_mut;
-use crate::utils::introspect::cast_introspect_ref;
 use crate::FruityResult;
 use crate::RwLock;
 use std::fmt::Debug;
@@ -71,198 +71,173 @@ pub struct MethodInfo {
     pub call: MethodCaller,
 }
 
+/// Getter and setter for a field of an introspect object
+pub struct IntrospectField<'s> {
+    /// Function to get one of the entry field value as FruityAny
+    pub get: Box<dyn Fn() -> FruityResult<ScriptValue> + 's>,
+
+    /// Function to set one of the entry field
+    ///
+    /// # Arguments
+    /// * `value` - The new field value as FruityAny
+    ///
+    pub set: Box<dyn Fn(ScriptValue) -> FruityResult<()> + 's>,
+}
+
+/// Method of an introspect object
+pub type IntrospectMethod<'s> = Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue> + 's>;
+
 /// Trait to implement static introspection to an object
 pub trait IntrospectObject: Debug + FruityAny {
     /// Return the class type name
     fn get_class_name(&self) -> String;
 
-    /// Get a list of fields with many informations
-    fn get_field_infos(&self) -> Vec<FieldInfo>;
+    /// Return the class type name
+    fn get_field_names(&self) -> Vec<String>;
 
-    /// Get a list of fields with many informations
-    fn get_method_infos(&self) -> Vec<MethodInfo>;
+    /// Return the class type name
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()>;
+
+    /// Return the class type name
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue>;
+
+    /// Return the class type name
+    fn get_const_method_names(&self) -> Vec<String>;
+
+    /// Return the class type name
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
+
+    /// Return the class type name
+    fn get_mut_method_names(&self) -> Vec<String>;
+
+    /// Return the class type name
+    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
 }
 
 impl<T: IntrospectObject + ?Sized> IntrospectObject for Box<T> {
     fn get_class_name(&self) -> String {
-        self.as_ref().get_class_name()
+        self.deref().get_class_name()
     }
 
-    fn get_field_infos(&self) -> Vec<FieldInfo> {
-        self.as_ref()
-            .get_field_infos()
-            .into_iter()
-            .map(|field_info| {
-                let field_info_2 = field_info.clone();
-
-                FieldInfo {
-                    name: field_info.name.clone(),
-                    getter: Rc::new(move |this| {
-                        let this = cast_introspect_ref::<Box<T>>(this)?;
-                        (field_info.getter)(this.as_ref().as_fruity_any_ref())
-                    }),
-                    setter: match field_info_2.setter {
-                        SetterCaller::Const(call) => {
-                            SetterCaller::Const(Rc::new(move |this, args| {
-                                let this = cast_introspect_ref::<Box<T>>(this)?;
-                                call(this.as_ref().as_fruity_any_ref(), args)
-                            }))
-                        }
-                        SetterCaller::Mut(call) => SetterCaller::Mut(Rc::new(move |this, args| {
-                            let this = cast_introspect_mut::<Box<T>>(this)?;
-                            call(this.as_mut().as_fruity_any_mut(), args)
-                        })),
-                        SetterCaller::None => SetterCaller::None,
-                    },
-                }
-            })
-            .collect::<Vec<_>>()
+    fn get_field_names(&self) -> Vec<String> {
+        self.deref().get_field_names()
     }
 
-    fn get_method_infos(&self) -> Vec<MethodInfo> {
-        self.as_ref()
-            .get_method_infos()
-            .into_iter()
-            .map(|method_info| MethodInfo {
-                name: method_info.name,
-                call: match method_info.call {
-                    MethodCaller::Const(call) => MethodCaller::Const(Rc::new(move |this, args| {
-                        let this = cast_introspect_ref::<Box<T>>(this)?;
-                        call(this.as_ref().as_fruity_any_ref(), args)
-                    })),
-                    MethodCaller::Mut(call) => MethodCaller::Mut(Rc::new(move |this, args| {
-                        let this = cast_introspect_mut::<Box<T>>(this)?;
-                        call(this.as_mut().as_fruity_any_mut(), args)
-                    })),
-                },
-            })
-            .collect::<Vec<_>>()
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        self.deref_mut().set_field_value(name, value)
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        self.deref().get_field_value(name)
+    }
+
+    fn get_const_method_names(&self) -> Vec<String> {
+        self.deref().get_const_method_names()
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.deref().call_const_method(name, args)
+    }
+
+    fn get_mut_method_names(&self) -> Vec<String> {
+        self.deref().get_mut_method_names()
+    }
+
+    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.deref_mut().call_mut_method(name, args)
     }
 }
 
 impl<T: IntrospectObject + ?Sized> IntrospectObject for Rc<T> {
     fn get_class_name(&self) -> String {
-        format!("Rc<{}>", self.as_ref().get_class_name())
+        self.deref().get_class_name()
     }
 
-    fn get_field_infos(&self) -> Vec<FieldInfo> {
-        self
-      .as_ref()
-      .get_field_infos()
-      .into_iter()
-      .map(|field_info| {
-        let field_info_2 = field_info.clone();
-
-        FieldInfo {
-          name: field_info.name.clone(),
-          getter: Rc::new(move |this| {
-            let this = cast_introspect_ref::<Rc<T>>(this)?;
-            (field_info.getter)(this.as_ref().as_fruity_any_ref())
-          }),
-          setter: match field_info_2.setter {
-            SetterCaller::Const(call) => SetterCaller::Const(Rc::new(move |this, args| {
-              let this = cast_introspect_ref::<Rc<T>>(this)?;
-              call(this.as_ref().as_fruity_any_ref(), args)
-            })),
-            SetterCaller::Mut(_) => {
-              panic!("Cannot call a mutable function from an arc, should be wrap into a lock");
-            }
-            SetterCaller::None => SetterCaller::None,
-          },
-        }
-      })
-      .collect::<Vec<_>>()
+    fn get_field_names(&self) -> Vec<String> {
+        self.deref().get_field_names()
     }
 
-    fn get_method_infos(&self) -> Vec<MethodInfo> {
-        self
-      .as_ref()
-      .get_method_infos()
-      .into_iter()
-      .map(|method_info| MethodInfo {
-        name: method_info.name,
-        call: match method_info.call {
-          MethodCaller::Const(call) => MethodCaller::Const(Rc::new(move |this, args| {
-            let this = cast_introspect_ref::<Rc<T>>(this)?;
-            call(this.as_ref().as_fruity_any_ref(), args)
-          })),
-          MethodCaller::Mut(_) => {
-            panic!("Cannot call a mutable function from an arc, should be wrap into a lock");
-          }
-        },
-      })
-      .collect::<Vec<_>>()
+    fn set_field_value(&mut self, _name: &str, _value: ScriptValue) -> FruityResult<()> {
+        unreachable!()
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        self.deref().get_field_value(name)
+    }
+
+    fn get_const_method_names(&self) -> Vec<String> {
+        self.deref().get_const_method_names()
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.deref().call_const_method(name, args)
+    }
+
+    fn get_mut_method_names(&self) -> Vec<String> {
+        vec![]
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
     }
 }
 
 impl<T: IntrospectObject> IntrospectObject for RwLock<T> {
     fn get_class_name(&self) -> String {
-        let reader = self.read();
-        format!("RwLock<{}>", reader.get_class_name())
+        self.read().get_class_name()
     }
 
-    fn get_field_infos(&self) -> Vec<FieldInfo> {
-        let reader = self.read();
-        reader
-            .get_field_infos()
-            .into_iter()
-            .map(|field_info| {
-                let field_info_2 = field_info.clone();
-
-                FieldInfo {
-                    name: field_info.name.clone(),
-                    getter: Rc::new(move |this| {
-                        let this = cast_introspect_ref::<RwLock<T>>(this)?;
-                        let reader = this.read();
-
-                        (field_info.getter)(reader.deref())
-                    }),
-                    setter: match field_info_2.setter {
-                        SetterCaller::Const(call) => {
-                            SetterCaller::Const(Rc::new(move |this, args| {
-                                let this = cast_introspect_ref::<RwLock<T>>(this)?;
-                                let reader = this.read();
-
-                                call(reader.deref(), args)
-                            }))
-                        }
-                        SetterCaller::Mut(call) => {
-                            SetterCaller::Const(Rc::new(move |this, args| {
-                                let this = cast_introspect_ref::<RwLock<T>>(this)?;
-                                let mut writer = this.write();
-
-                                call(writer.deref_mut(), args)
-                            }))
-                        }
-                        SetterCaller::None => SetterCaller::None,
-                    },
-                }
-            })
-            .collect::<Vec<_>>()
+    fn get_field_names(&self) -> Vec<String> {
+        self.read().get_field_names()
     }
 
-    fn get_method_infos(&self) -> Vec<MethodInfo> {
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        let mut writer = self.write();
+        writer.set_field_value(name, value)
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
         let reader = self.read();
-        reader
-            .get_method_infos()
-            .into_iter()
-            .map(|method_info| MethodInfo {
-                name: method_info.name,
-                call: match method_info.call {
-                    MethodCaller::Const(call) => MethodCaller::Const(Rc::new(move |this, args| {
-                        let this = cast_introspect_ref::<RwLock<T>>(this)?;
-                        let reader = this.read();
+        reader.get_field_value(name)
+    }
 
-                        call(reader.deref(), args)
-                    })),
-                    MethodCaller::Mut(call) => MethodCaller::Const(Rc::new(move |this, args| {
-                        let this = cast_introspect_ref::<RwLock<T>>(this)?;
-                        let mut writer = this.write();
+    fn get_const_method_names(&self) -> Vec<String> {
+        let reader = self.read();
+        let mut result = reader.get_const_method_names();
+        let mut mut_method_names = reader.get_mut_method_names();
+        result.append(&mut mut_method_names);
 
-                        call(writer.deref_mut(), args)
-                    })),
-                },
-            })
-            .collect::<Vec<_>>()
+        result
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        let reader = self.upgradable_read();
+        let const_method_names = reader.get_const_method_names();
+        let mut_method_names = reader.get_mut_method_names();
+
+        if const_method_names.contains(&name.to_string()) {
+            reader.call_const_method(name, args)
+        } else if mut_method_names.contains(&name.to_string()) {
+            let mut writer = RwLockUpgradableReadGuard::<T>::upgrade(reader);
+            writer.call_mut_method(name, args)
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn get_mut_method_names(&self) -> Vec<String> {
+        vec![]
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
     }
 }

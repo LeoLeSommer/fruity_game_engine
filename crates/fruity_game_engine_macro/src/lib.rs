@@ -1,7 +1,7 @@
 extern crate syn;
 extern crate quote;
 
-use parse::{parse_impl_method, ParsedField, ParsedMethod, parse_struct_fields};
+use parse::{parse_impl_method, ParsedField, ParsedMethod, parse_struct_fields, ParsedReceiver};
 use proc_macro::{self, TokenStream};
 use proc_macro2::Span;
 use quote::quote;
@@ -202,8 +202,8 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
     let mut struct_name = syn::Ident::new("unknown", Span::call_site());
             let struct_name_as_string = struct_name.to_string();
             let mut fields: Vec<ParsedField> = Vec::new();
-    let mut methods: Vec<ParsedMethod> = Vec::new();
 
+    let mut methods: Vec<ParsedMethod> = Vec::new();
     item.stmts.into_iter().for_each(|stmt| match stmt {
         Stmt::Item(item) => match item {
             syn::Item::Struct(item_struct) => {
@@ -232,109 +232,302 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
         _ => {}
     });
 
-    // Generate the field wrappers
-    let export_fields = fields
+    // Prepare the infos
+    let exported_fields = fields
+        .clone()
         .into_iter()
         .filter(|field| field.public)
-        .map(|field| {
-            let name = field.name.clone();
-            let name_as_string = field.name.to_string();
-
-            quote! {
-                #current_crate::introspect::FieldInfo {
-                    name: #name_as_string.to_string(),
-                    getter: std::rc::Rc::new(|__this| {
-                        use #current_crate::convert::FruityInto;
-                        let __this = #current_crate::utils::introspect::cast_introspect_ref::<#struct_name>(__this)?;
-                        __this.#name.clone().fruity_into()
-                    }),
-                    setter: #current_crate::introspect::SetterCaller::None,
-                },
-            }
-        })
         .collect::<Vec<_>>();
 
-    // Generate the method wrappers
-    let export_methods = methods
+    let exported_const_methods = methods
+        .clone()
         .into_iter()
         .filter_map(|method| {
             method.attrs.iter()
                 .find(|attr| attr.ident.to_string() == "export")
                 .map(|export_attr| (method.clone(), export_attr.clone()))
         })
-        .map(|(method, export_attr)| {
-            let name = method.name.clone();
-            let name_as_string = method.name.to_string();
-
-            let export_function_name = export_attr.params
-                .get("name")
-                .map(|name| name.to_string().replace("\"", ""))
-                .unwrap_or(name_as_string);
-            
-            let type_cast = match method.args.len() {
-                0 => None,
-                _ => {
-                    let args_cast = method.args.iter().map(|arg| {
-                        let name = arg.name.clone();
-                        let ty = arg.ty.clone();
-
-                        quote! {
-                            let #name = __caster.cast_next::<#ty>()?;
-                        }
-                    }).collect::<Vec<_>>();
-
-                    Some(
-                        quote! {
-                            let mut __caster = #current_crate::utils::introspect::ArgumentCaster::new(__args);
-                            #(#args_cast)*
-                        }
-                    )
-                }
-            };
-
-            let arg_names = method.args.iter().map(|arg| arg.name.clone()).collect::<Vec<_>>();
-            quote! {
-                #current_crate::introspect::MethodInfo {
-                    name: #export_function_name.to_string(),
-                    call: #current_crate::introspect::MethodCaller::Mut(std::rc::Rc::new(|__this, __args| {
-                        use #current_crate::convert::FruityInto;
-                        let __this = #current_crate::utils::introspect::cast_introspect_mut::<#struct_name>(__this)?;
-        
-                        #type_cast
-
-                        let __result = __this.#name(
-                            #(#arg_names),*
-                        );
-        
-                        Ok(__result.fruity_into()?)
-                    })),
-                },
-            }
-        })
+        .filter(|(method, _)| matches!(method.receiver, ParsedReceiver::Const))
         .collect::<Vec<_>>();
 
-    // Generate the impl for introspection
-    let impl_introspect_object = quote! {
+    let exported_mut_methods = methods
+        .clone()
+        .into_iter()
+        .filter_map(|method| {
+            method.attrs.iter()
+                .find(|attr| attr.ident.to_string() == "export")
+                .map(|export_attr| (method.clone(), export_attr.clone()))
+        })
+        .filter(|(method, _)| matches!(method.receiver, ParsedReceiver::Mut))
+        .collect::<Vec<_>>();
 
-        impl #current_crate::introspect::IntrospectObject for #struct_name {
-            fn get_class_name(&self) -> String {
-                #struct_name_as_string.to_string()
-            }
+    // Implement the IntrospectObject functions
+    let impl_get_class_name = quote! {
+        fn get_class_name(&self) -> String {
+            #struct_name_as_string.to_string()
+        }
+    };
 
-            fn get_method_infos(&self) -> Vec<#current_crate::introspect::MethodInfo> {
-                vec![
-                    #(#export_methods)*
-                ]
-            }
+    let impl_get_field_names = {
+        let fields_names = exported_fields
+            .iter()
+            .map(|field| field.name.to_string());
 
-            fn get_field_infos(&self) -> Vec<#current_crate::introspect::FieldInfo> {
-                vec![
-                    #(#export_fields)*
-                ]
+        quote! {
+            fn get_field_names(&self) -> Vec<String> {
+                vec![#(#fields_names.to_string(),)*]
             }
         }
     };
 
+    let impl_set_field_value = {
+        let fields_setters = exported_fields
+            .iter()
+            .map(|field| {
+                let name = field.name.clone();
+                let name_as_string = field.name.to_string();
+                let ty = field.ty.clone();
+                
+                quote! {
+                    #name_as_string => self.#name = <#ty>::fruity_from(value)?,
+                }
+            });
+
+
+        if fields_setters.len() > 0 {
+            quote! {
+                fn set_field_value(&mut self, name: &str, value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<()> {
+                    use #current_crate::convert::FruityFrom;
+
+                    match name {
+                        #(#fields_setters)*
+                        _ => unreachable!(),
+                    };
+            
+                    #current_crate::FruityResult::Ok(())
+                }
+            }
+        } else {
+            quote! {
+                fn set_field_value(&mut self, name: &str, value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<()> {
+                    unreachable!()
+                }
+            }
+        }
+    };
+
+    let impl_get_field_value = {
+        let fields_getters = exported_fields
+            .iter()
+            .map(|field| {
+                let name = field.name.clone();
+                let name_as_string = field.name.to_string();
+                let ty = field.ty.clone();
+                
+                quote! {
+                    #name_as_string => <#ty>::fruity_into(self.#name.clone()),
+                }
+            });
+
+
+        if fields_getters.len() > 0 {
+            quote! {
+                fn get_field_value(&self, name: &str) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                    use #current_crate::convert::FruityInto;
+                
+                    match name {
+                        #(#fields_getters)*
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        } else {
+            quote! {
+                fn get_field_value(&self, name: &str) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                    unreachable!()
+                }
+            }
+        }
+    };
+
+    let impl_get_const_method_names = {
+        let method_names = exported_const_methods
+            .iter()
+            .map(|(method, export_attr)| {
+                let name_as_string = method.name.to_string();
+                let export_function_name = export_attr.params
+                    .get("name")
+                    .map(|name| name.to_string().replace("\"", ""))
+                    .unwrap_or(name_as_string);
+                
+                export_function_name
+            });
+
+        quote! {
+            fn get_const_method_names(&self) -> Vec<String> {
+                vec![#(#method_names.to_string(),)*]
+            }
+        }
+    };
+
+    let impl_call_const_method = {
+        let method_callers = exported_const_methods
+            .iter()
+            .map(|(method, export_attr)| {
+                let name = method.name.clone();
+                let name_as_string = method.name.to_string();
+                let export_function_name = export_attr.params
+                    .get("name")
+                    .map(|name| name.to_string().replace("\"", ""))
+                    .unwrap_or(name_as_string);
+            
+                let type_cast = match method.args.len() {
+                    0 => None,
+                    _ => {
+                        let args_cast = method.args.iter().map(|arg| {
+                            let name = arg.name.clone();
+                            let ty = arg.ty.clone();
+    
+                            quote! {
+                                let #name = __caster.cast_next::<#ty>()?;
+                            }
+                        }).collect::<Vec<_>>();
+    
+                        Some(
+                            quote! {
+                                let mut __caster = #current_crate::utils::introspect::ArgumentCaster::new(__args);
+                                #(#args_cast)*
+                            }
+                        )
+                    }
+                };
+                let arg_names = method.args.iter().map(|arg| arg.name.clone());
+                
+                quote! {
+                    #export_function_name => {
+                        #type_cast
+                        self.#name(#(#arg_names),*).fruity_into()
+                    },
+                }
+            });
+
+        if method_callers.len() > 0 {
+            quote! {
+                fn call_const_method(&self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                    use #current_crate::convert::FruityInto;
+    
+                    match name {
+                        #(#method_callers)*
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        } else {
+            quote! {
+                fn call_const_method(&self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                    unreachable!()
+                }
+            }
+        }
+    };
+
+    let impl_get_mut_method_names = {
+        let method_names = exported_mut_methods
+            .iter()
+            .map(|(method, export_attr)| {
+                let name_as_string = method.name.to_string();
+                let export_function_name = export_attr.params
+                    .get("name")
+                    .map(|name| name.to_string().replace("\"", ""))
+                    .unwrap_or(name_as_string);
+                
+                export_function_name
+            });
+
+        quote! {
+            fn get_mut_method_names(&self) -> Vec<String> {
+                vec![#(#method_names.to_string(),)*]
+            }
+        }
+    };
+
+    let impl_call_mut_method = {
+        let method_callers = exported_mut_methods
+            .iter()
+            .map(|(method, export_attr)| {
+                let name = method.name.clone();
+                let name_as_string = method.name.to_string();
+                let export_function_name = export_attr.params
+                    .get("name")
+                    .map(|name| name.to_string().replace("\"", ""))
+                    .unwrap_or(name_as_string);
+            
+                let type_cast = match method.args.len() {
+                    0 => None,
+                    _ => {
+                        let args_cast = method.args.iter().map(|arg| {
+                            let name = arg.name.clone();
+                            let ty = arg.ty.clone();
+    
+                            quote! {
+                                let #name = __caster.cast_next::<#ty>()?;
+                            }
+                        }).collect::<Vec<_>>();
+    
+                        Some(
+                            quote! {
+                                let mut __caster = #current_crate::utils::introspect::ArgumentCaster::new(__args);
+                                #(#args_cast)*
+                            }
+                        )
+                    }
+                };
+                let arg_names = method.args.iter().map(|arg| arg.name.clone());
+                
+                quote! {
+                    #export_function_name => {
+                        #type_cast
+                        self.#name(#(#arg_names),*).fruity_into()
+                    },
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if method_callers.len() > 0 {
+            quote! {
+                fn call_mut_method(&mut self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                    use #current_crate::convert::FruityInto;
+    
+                    match name {
+                        #(#method_callers)*
+                        _ => unreachable!(),
+                    }
+                }
+            }
+        } else {
+            quote! {
+                fn call_mut_method(&mut self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                    unreachable!()
+                }
+            }
+        }
+    };
+
+    let impl_introspect_object = quote!{
+        impl #current_crate::introspect::IntrospectObject for #struct_name
+        {
+            #impl_get_class_name
+            #impl_get_field_names
+            #impl_set_field_value
+            #impl_get_field_value
+            #impl_get_const_method_names
+            #impl_call_const_method
+            #impl_get_mut_method_names
+            #impl_call_mut_method
+        }
+    };
+    
+    // Assemble everything
 
     let input_2: TokenStream2 = input.clone().into();
     let output = quote! {

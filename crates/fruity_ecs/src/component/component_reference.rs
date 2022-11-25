@@ -9,13 +9,9 @@ use crate::entity::entity_guard::EntityReadGuard;
 use crate::entity::entity_guard::EntityWriteGuard;
 use crate::entity::entity_reference::EntityReference;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::introspect::FieldInfo;
 use fruity_game_engine::introspect::IntrospectObject;
-use fruity_game_engine::introspect::MethodCaller;
-use fruity_game_engine::introspect::MethodInfo;
-use fruity_game_engine::introspect::SetterCaller;
-use fruity_game_engine::utils::introspect::cast_introspect_mut;
-use fruity_game_engine::utils::introspect::cast_introspect_ref;
+use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::FruityResult;
 use std::any::TypeId;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -108,59 +104,34 @@ impl Debug for ComponentReference {
 
 impl IntrospectObject for ComponentReference {
     fn get_class_name(&self) -> String {
-        let component = self.read();
-        component.get_class_name()
+        self.read().get_class_name()
     }
 
-    fn get_method_infos(&self) -> Vec<MethodInfo> {
-        let component = self.read();
-        component
-            .get_method_infos()
-            .into_iter()
-            .map(|method_info| MethodInfo {
-                name: method_info.name,
-                call: match method_info.call {
-                    MethodCaller::Const(call) => MethodCaller::Const(Rc::new(move |this, args| {
-                        let this = cast_introspect_ref::<ComponentReference>(this)?;
-                        let component = this.read();
-                        call(component.as_fruity_any_ref(), args)
-                    })),
-                    MethodCaller::Mut(call) => MethodCaller::Mut(Rc::new(move |this, args| {
-                        let this = cast_introspect_mut::<ComponentReference>(this)?;
-                        let mut component = this.write();
-                        call(component.as_fruity_any_mut(), args)
-                    })),
-                },
-            })
-            .collect::<Vec<_>>()
+    fn get_field_names(&self) -> Vec<String> {
+        self.read().get_field_names()
     }
 
-    fn get_field_infos(&self) -> Vec<FieldInfo> {
-        let component = self.read();
-        component
-            .get_field_infos()
-            .into_iter()
-            .map(|field_info| FieldInfo {
-                name: field_info.name,
-                getter: Rc::new(move |this| {
-                    let this = cast_introspect_ref::<ComponentReference>(this)?;
-                    let component = this.read();
-                    (field_info.getter)(component.as_fruity_any_ref())
-                }),
-                setter: match field_info.setter {
-                    SetterCaller::Const(call) => SetterCaller::Const(Rc::new(move |this, args| {
-                        let this = cast_introspect_ref::<ComponentReference>(this)?;
-                        let component = this.read();
-                        call(component.as_fruity_any_ref(), args)
-                    })),
-                    SetterCaller::Mut(call) => SetterCaller::Mut(Rc::new(move |this, args| {
-                        let this = cast_introspect_mut::<ComponentReference>(this)?;
-                        let mut component = this.write();
-                        call(component.as_fruity_any_mut(), args)
-                    })),
-                    SetterCaller::None => SetterCaller::None,
-                },
-            })
-            .collect::<Vec<_>>()
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        self.write().set_field_value(name, value)
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        self.read().get_field_value(name)
+    }
+
+    fn get_const_method_names(&self) -> Vec<String> {
+        self.read().get_const_method_names()
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.read().call_const_method(name, args)
+    }
+
+    fn get_mut_method_names(&self) -> Vec<String> {
+        self.read().get_mut_method_names()
+    }
+
+    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.write().call_mut_method(name, args)
     }
 }

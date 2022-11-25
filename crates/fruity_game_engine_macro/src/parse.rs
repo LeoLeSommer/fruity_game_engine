@@ -31,7 +31,7 @@ pub type AttributeParameters = HashMap<String, TokenStream>;
 pub struct ParsedMethod {
     pub attrs: Vec<Attribute>,
     pub name: TokenStream2,
-    pub _receiver: ParsedReceiver,
+    pub receiver: ParsedReceiver,
     pub args: Vec<ParsedArg>,
     pub return_ty: Option<TokenStream2>,
 }
@@ -125,7 +125,7 @@ pub fn parse_impl_method(method: &ImplItemMethod) -> ParsedMethod {
     ParsedMethod {
         attrs,
         name: quote! { #name },
-        _receiver: receiver,
+        receiver: receiver,
         args: args,
         return_ty,
     }

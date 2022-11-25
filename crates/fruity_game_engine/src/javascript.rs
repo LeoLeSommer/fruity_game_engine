@@ -1,6 +1,5 @@
 use crate::{
     convert::FruityInto,
-    introspect::MethodCaller,
     script_value::{IntrospectObjectClone, ScriptCallback, ScriptValue},
 };
 use convert_case::{Case, Casing};
@@ -10,7 +9,7 @@ use napi::{
     },
     Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, Ref, Result, ValueType,
 };
-use std::{collections::HashMap, ops::DerefMut, rc::Rc, sync::Arc};
+use std::{collections::HashMap, rc::Rc, sync::Arc};
 
 /// Tool to export javascript modules
 pub struct ExportJavascript {
@@ -106,14 +105,14 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
         ScriptValue::NativeObject(value) => {
             let mut js_object = env.create_object()?;
 
-            // Define method accessors
+            // Define const method accessors
             value
-                .get_method_infos()
+                .get_const_method_names()
                 .into_iter()
-                .try_for_each(|method_info| {
+                .try_for_each(|method_name| {
                     js_object.set_named_property(
-                        method_info.name.to_case(Case::Camel).as_str(),
-                        env.create_function_from_closure("unknown", move |ctx| {
+                        method_name.clone().to_case(Case::Camel).as_str(),
+                        env.create_function_from_closure(&method_name.clone(), move |ctx| {
                             // Get args as script value
                             let args = ctx
                                 .get_all()
@@ -127,14 +126,38 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                                 .unwrap::<Box<dyn IntrospectObjectClone>>(&ctx.this()?)?;
 
                             // Call the function
-                            let result = match &method_info.call {
-                                MethodCaller::Const(call) => {
-                                    call(wrapped.deref_mut().as_fruity_any_ref(), args)
-                                }
-                                MethodCaller::Mut(call) => {
-                                    call(wrapped.deref_mut().as_fruity_any_mut(), args)
-                                }
-                            }?;
+                            let result = wrapped.call_const_method(&method_name, args)?;
+
+                            // Returns the result
+                            script_value_to_js_value(ctx.env, result)
+                        })?,
+                    )?;
+
+                    Result::Ok(())
+                })?;
+
+            // Define mut method accessors
+            value
+                .get_mut_method_names()
+                .into_iter()
+                .try_for_each(|method_name| {
+                    js_object.set_named_property(
+                        method_name.clone().to_case(Case::Camel).as_str(),
+                        env.create_function_from_closure(&method_name.clone(), move |ctx| {
+                            // Get args as script value
+                            let args = ctx
+                                .get_all()
+                                .into_iter()
+                                .map(|elem| js_value_to_script_value(ctx.env, elem))
+                                .try_collect::<Vec<_>>()?;
+
+                            // Get the native value wrapped in the javascript object
+                            let wrapped = ctx
+                                .env
+                                .unwrap::<Box<dyn IntrospectObjectClone>>(&ctx.this()?)?;
+
+                            // Call the function
+                            let result = wrapped.call_mut_method(&method_name, args)?;
 
                             // Returns the result
                             script_value_to_js_value(ctx.env, result)

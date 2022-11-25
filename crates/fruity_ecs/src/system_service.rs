@@ -510,16 +510,6 @@ fruity_export! {
             });
         }
 
-        /// Run all the systems contained in a pool
-        fn run_pool(&self, index: usize) {
-            if let Some(pool) = self.system_pools.get(&index) {
-                pool.systems
-                    .iter()
-                    .par_bridge()
-                    .for_each(|system| (system.callback)(self.resource_container.clone()));
-            }
-        }
-
         /// Enable a pool
         pub fn enable_pool(&mut self, index: usize) {
             if let Some(pool) = self.system_pools.get_mut(&index) {
