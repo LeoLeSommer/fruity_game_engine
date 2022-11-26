@@ -457,19 +457,19 @@ fruity_export! {
 
             if let ScriptValue::Object { fields, .. } = serialized_entity {
                 let entity_id =
-                    if let Ok(entity_id) = EntityId::fruity_from(fields.get("entity_id").unwrap().clone()) {
+                    if let Ok(entity_id) = EntityId::from_script_value(fields.get("entity_id").unwrap().clone()) {
                         entity_id
                     } else {
                         return;
                     };
 
-                let name = if let Ok(name) = String::fruity_from(fields.get("name").unwrap().clone()) {
+                let name = if let Ok(name) = String::from_script_value(fields.get("name").unwrap().clone()) {
                     name
                 } else {
                     return;
                 };
 
-                let enabled = if let Ok(enabled) = bool::fruity_from(fields.get("enabled").unwrap().clone()) {
+                let enabled = if let Ok(enabled) = bool::from_script_value(fields.get("enabled").unwrap().clone()) {
                     enabled
                 } else {
                     return;

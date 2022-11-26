@@ -1,6 +1,6 @@
 use crate::any::FruityAny;
-use crate::convert::FruityFrom;
-use crate::convert::FruityInto;
+use crate::script_value::convert::TryFromScriptValue;
+use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::HashMapScriptObject;
 use crate::script_value::ScriptValue;
 use crate::FruityError;
@@ -44,10 +44,10 @@ impl Settings {
     /// # Generic Arguments
     /// * `T` - The type to cast the value
     ///
-    pub fn get<T: FruityFrom<Settings> + ?Sized>(&self, key: &str, default: T) -> T {
+    pub fn get<T: TryFrom<Settings> + ?Sized>(&self, key: &str, default: T) -> T {
         match self {
             Settings::Object(fields) => match fields.get(key) {
-                Some(value) => T::fruity_from(value.clone()).unwrap_or(default),
+                Some(value) => T::try_from(value.clone()).unwrap_or(default),
                 None => default,
             },
             _ => default,
@@ -76,23 +76,23 @@ impl Default for Settings {
     }
 }
 
-impl FruityInto<ScriptValue> for Settings {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
+impl TryIntoScriptValue for Settings {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
         Ok(match self {
-            Settings::F64(value) => ScriptValue::F64(value),
-            Settings::Bool(value) => ScriptValue::Bool(value),
-            Settings::String(value) => ScriptValue::String(value),
+            Settings::F64(value) => ScriptValue::F64(*value),
+            Settings::Bool(value) => ScriptValue::Bool(*value),
+            Settings::String(value) => ScriptValue::String(value.clone()),
             Settings::Array(value) => ScriptValue::Array(
                 value
                     .into_iter()
-                    .map(|elem| elem.fruity_into())
+                    .map(|elem| elem.into_script_value())
                     .try_collect::<Vec<_>>()?,
             ),
             Settings::Object(value) => ScriptValue::Object(Box::new(HashMapScriptObject {
                 class_name: "unknown".to_string(),
                 fields: value
-                    .into_iter()
-                    .map(|(key, value)| value.fruity_into().map(|value| (key, value)))
+                    .iter()
+                    .map(|(key, value)| value.into_script_value().map(|value| (key.clone(), value)))
                     .try_collect()?,
             })),
             Settings::Null => ScriptValue::Null,
@@ -100,27 +100,27 @@ impl FruityInto<ScriptValue> for Settings {
     }
 }
 
-impl FruityFrom<ScriptValue> for Settings {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
+impl TryFromScriptValue for Settings {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
         Ok(match value {
-            ScriptValue::I8(value) => Settings::F64(value as f64),
-            ScriptValue::I16(value) => Settings::F64(value as f64),
-            ScriptValue::I32(value) => Settings::F64(value as f64),
-            ScriptValue::I64(value) => Settings::F64(value as f64),
-            ScriptValue::ISize(value) => Settings::F64(value as f64),
-            ScriptValue::U8(value) => Settings::F64(value as f64),
-            ScriptValue::U16(value) => Settings::F64(value as f64),
-            ScriptValue::U32(value) => Settings::F64(value as f64),
-            ScriptValue::U64(value) => Settings::F64(value as f64),
-            ScriptValue::USize(value) => Settings::F64(value as f64),
-            ScriptValue::F32(value) => Settings::F64(value as f64),
-            ScriptValue::F64(value) => Settings::F64(value as f64),
-            ScriptValue::Bool(value) => Settings::Bool(value),
-            ScriptValue::String(value) => Settings::String(value),
+            ScriptValue::I8(value) => Settings::F64(*value as f64),
+            ScriptValue::I16(value) => Settings::F64(*value as f64),
+            ScriptValue::I32(value) => Settings::F64(*value as f64),
+            ScriptValue::I64(value) => Settings::F64(*value as f64),
+            ScriptValue::ISize(value) => Settings::F64(*value as f64),
+            ScriptValue::U8(value) => Settings::F64(*value as f64),
+            ScriptValue::U16(value) => Settings::F64(*value as f64),
+            ScriptValue::U32(value) => Settings::F64(*value as f64),
+            ScriptValue::U64(value) => Settings::F64(*value as f64),
+            ScriptValue::USize(value) => Settings::F64(*value as f64),
+            ScriptValue::F32(value) => Settings::F64(*value as f64),
+            ScriptValue::F64(value) => Settings::F64(*value as f64),
+            ScriptValue::Bool(value) => Settings::Bool(*value),
+            ScriptValue::String(value) => Settings::String(value.clone()),
             ScriptValue::Array(value) => Settings::Array(
                 value
                     .into_iter()
-                    .map(|elem| FruityFrom::<ScriptValue>::fruity_from(elem))
+                    .map(|elem| TryFromScriptValue::from_script_value(&elem))
                     .try_collect::<Vec<_>>()?,
             ),
             ScriptValue::Null => Settings::Null,
@@ -133,7 +133,7 @@ impl FruityFrom<ScriptValue> for Settings {
                     .into_iter()
                     .map(|name| {
                         let field_value = value.get_field_value(&name)?;
-                        FruityFrom::<ScriptValue>::fruity_from(field_value)
+                        TryFromScriptValue::from_script_value(&field_value)
                             .map(|value| (name, value))
                     })
                     .try_collect::<HashMap<_, _>>()?,
@@ -217,8 +217,10 @@ pub fn build_settings_from_yaml(yaml: &Yaml) -> Option<Settings> {
 
 macro_rules! impl_numeric_from_settings {
     ( $type:ident ) => {
-        impl FruityFrom<Settings> for $type {
-            fn fruity_from(value: Settings) -> FruityResult<Self> {
+        impl TryFrom<Settings> for $type {
+            type Error = FruityError;
+
+            fn try_from(value: Settings) -> FruityResult<Self> {
                 match value {
                     Settings::F64(value) => Ok(value as $type),
                     _ => Err(FruityError::new(
@@ -244,8 +246,10 @@ impl_numeric_from_settings!(usize);
 impl_numeric_from_settings!(f32);
 impl_numeric_from_settings!(f64);
 
-impl FruityFrom<Settings> for bool {
-    fn fruity_from(value: Settings) -> FruityResult<Self> {
+impl TryFrom<Settings> for bool {
+    type Error = FruityError;
+
+    fn try_from(value: Settings) -> FruityResult<Self> {
         match value {
             Settings::Bool(value) => Ok(value),
             _ => Err(FruityError::new(
@@ -256,8 +260,10 @@ impl FruityFrom<Settings> for bool {
     }
 }
 
-impl FruityFrom<Settings> for String {
-    fn fruity_from(value: Settings) -> FruityResult<Self> {
+impl TryFrom<Settings> for String {
+    type Error = FruityError;
+
+    fn try_from(value: Settings) -> FruityResult<Self> {
         match value {
             Settings::String(value) => Ok(value),
             _ => Err(FruityError::new(
@@ -268,29 +274,19 @@ impl FruityFrom<Settings> for String {
     }
 }
 
-impl FruityFrom<Settings> for Settings {
-    fn fruity_from(value: Settings) -> FruityResult<Self> {
-        Ok(value)
-    }
-}
+impl<T: TryFrom<Settings> + ?Sized> TryFrom<Settings> for Vec<T> {
+    type Error = FruityError;
 
-impl<T: FruityFrom<Settings> + ?Sized> FruityFrom<Settings> for Vec<T> {
-    fn fruity_from(value: Settings) -> FruityResult<Self> {
+    fn try_from(value: Settings) -> FruityResult<Self> {
         match value {
             Settings::Array(value) => Ok(value
                 .into_iter()
-                .filter_map(|elem| T::fruity_from(elem).ok())
+                .filter_map(|elem| T::try_from(elem).ok())
                 .collect()),
             _ => Err(FruityError::new(
                 FruityStatus::ArrayExpected,
                 format!("Couldn't convert {:?} to array", value),
             )),
         }
-    }
-}
-
-impl<T: FruityFrom<Settings> + ?Sized> FruityFrom<Settings> for Option<T> {
-    fn fruity_from(value: Settings) -> FruityResult<Self> {
-        Ok(T::fruity_from(value).ok())
     }
 }

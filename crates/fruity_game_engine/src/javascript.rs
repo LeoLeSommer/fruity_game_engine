@@ -1,6 +1,6 @@
 use crate::{
-    convert::FruityInto,
     introspect::IntrospectObject,
+    script_value::convert::TryIntoScriptValue,
     script_value::{ScriptCallback, ScriptObject, ScriptValue},
     FruityResult,
 };
@@ -30,9 +30,9 @@ impl ExportJavascript {
     /// Register a class type
     pub fn export_constructor<T>(&mut self, name: &str, value: T) -> Result<()>
     where
-        T: FruityInto<ScriptValue>,
+        T: TryIntoScriptValue,
     {
-        let js_value = script_value_to_js_value(&self.env, value.fruity_into()?)?;
+        let js_value = script_value_to_js_value(&self.env, value.into_script_value()?)?;
         self.exports.set_named_property(&name, js_value)?;
 
         Ok(())
@@ -41,9 +41,9 @@ impl ExportJavascript {
     /// Register a class type
     pub fn export_value<T>(&mut self, name: &str, value: T) -> Result<()>
     where
-        T: FruityInto<ScriptValue>,
+        T: TryIntoScriptValue,
     {
-        let js_value = script_value_to_js_value(&self.env, value.fruity_into()?)?;
+        let js_value = script_value_to_js_value(&self.env, value.into_script_value()?)?;
         self.exports
             .set_named_property(&name.to_case(Case::Camel), js_value)?;
 
@@ -53,7 +53,7 @@ impl ExportJavascript {
 
 /// Create a napi js value from a script value
 pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnknown> {
-    Ok(match value.fruity_into()? {
+    Ok(match value.into_script_value()? {
         ScriptValue::I8(value) => env.create_int32(value as i32)?.into_unknown(),
         ScriptValue::I16(value) => env.create_int32(value as i32)?.into_unknown(),
         ScriptValue::I32(value) => env.create_int32(value)?.into_unknown(),
@@ -96,9 +96,6 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
             .into_unknown(),
         ScriptValue::Object(value) => {
             let value_2 = value.duplicate();
-
-            let test = value.get_class_name()?;
-            let test2 = value.get_type_name();
 
             if let Ok(value) = value.as_any_box().downcast::<JsIntrospectObject>() {
                 // First case, it's a native js value

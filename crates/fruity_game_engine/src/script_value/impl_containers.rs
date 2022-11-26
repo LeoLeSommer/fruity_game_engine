@@ -1,47 +1,47 @@
 use super::HashMapScriptObject;
 use super::ScriptObject;
 use super::ScriptValue;
-use crate::convert::FruityFrom;
-use crate::convert::FruityInto;
+use crate::script_value::convert::TryFromScriptValue;
+use crate::script_value::convert::TryIntoScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
 use std::collections::HashMap;
 
-impl<T> FruityInto<ScriptValue> for FruityResult<T>
+impl<T> TryIntoScriptValue for FruityResult<T>
 where
-    T: FruityInto<ScriptValue>,
+    T: TryIntoScriptValue,
 {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
         match self {
-            Ok(value) => <T as FruityInto<ScriptValue>>::fruity_into(value),
-            Err(err) => Err(err),
+            Ok(value) => <T as TryIntoScriptValue>::into_script_value(value),
+            Err(err) => Err(err.clone()),
         }
     }
 }
 
-impl<T> FruityFrom<ScriptValue> for FruityResult<T>
+impl<T> TryFromScriptValue for FruityResult<T>
 where
-    T: FruityFrom<ScriptValue>,
+    T: TryFromScriptValue,
 {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        Ok(<T as FruityFrom<ScriptValue>>::fruity_from(value))
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+        Ok(<T as TryFromScriptValue>::from_script_value(value))
     }
 }
 
-impl<T: ScriptObject> FruityInto<ScriptValue> for T {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Object(Box::new(self)))
+impl<T: ScriptObject> TryIntoScriptValue for T {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self).duplicate()))
     }
 }
 
-impl<T> FruityFrom<ScriptValue> for T
+impl<T> TryFromScriptValue for T
 where
     T: ScriptObject,
 {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::Object(value) => match value.as_any_box().downcast::<T>() {
+            ScriptValue::Object(value) => match value.duplicate().as_any_box().downcast::<T>() {
                 Ok(value) => Ok(*value),
                 _ => Err(FruityError::new(
                     FruityStatus::InvalidArg,
@@ -56,53 +56,53 @@ where
     }
 }
 
-impl<T: FruityInto<ScriptValue> + Clone> FruityInto<ScriptValue> for &'static [T] {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
+impl<T: TryIntoScriptValue + Clone> TryIntoScriptValue for &'static [T] {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Array(
             self.iter()
-                .map(|elem| elem.clone().fruity_into())
+                .map(|elem| elem.clone().into_script_value())
                 .try_collect::<Vec<_>>()?,
         ))
     }
 }
 
-impl<T: FruityInto<ScriptValue>> FruityInto<ScriptValue> for Vec<T> {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
+impl<T: TryIntoScriptValue> TryIntoScriptValue for Vec<T> {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Array(
             self.into_iter()
-                .map(|elem| elem.fruity_into())
+                .map(|elem| elem.into_script_value())
                 .try_collect::<Vec<_>>()?,
         ))
     }
 }
 
-impl<T: FruityInto<ScriptValue>> FruityInto<ScriptValue> for Option<T> {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
+impl<T: TryIntoScriptValue> TryIntoScriptValue for Option<T> {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
         match self {
-            Some(value) => value.fruity_into(),
+            Some(value) => value.into_script_value(),
             None => Ok(ScriptValue::Null),
         }
     }
 }
 
-impl<T: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for Option<T> {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
+impl<T: TryFromScriptValue> TryFromScriptValue for Option<T> {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
         Ok(match value {
             ScriptValue::Null => None,
             ScriptValue::Undefined => None,
-            _ => T::fruity_from(value).map(|value| Some(value))?,
+            _ => T::from_script_value(value).map(|value| Some(value))?,
         })
     }
 }
 
-impl<T: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for HashMap<String, T> {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
+impl<T: TryFromScriptValue> TryFromScriptValue for HashMap<String, T> {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
         if let ScriptValue::Object(value) = value {
             let mut result = HashMap::<String, T>::new();
 
             value.get_field_names()?.into_iter().try_for_each(|name| {
                 let field_value = value.get_field_value(&name)?;
-                result.insert(name, T::fruity_from(field_value)?);
+                result.insert(name, T::from_script_value(&field_value)?);
 
                 FruityResult::Ok(())
             })?;
@@ -117,13 +117,13 @@ impl<T: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for HashMap<String, T> 
     }
 }
 
-impl<T: FruityInto<ScriptValue>> FruityInto<ScriptValue> for HashMap<String, T> {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
+impl<T: TryIntoScriptValue> TryIntoScriptValue for HashMap<String, T> {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Object(Box::new(HashMapScriptObject {
             class_name: "unknown".to_string(),
             fields: self
                 .into_iter()
-                .map(|(key, value)| value.fruity_into().map(|value| (key, value)))
+                .map(|(key, value)| value.into_script_value().map(|value| (key.clone(), value)))
                 .try_collect()?,
         })))
     }

@@ -98,7 +98,7 @@ pub fn derive_resource(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-#[proc_macro_derive(FruityFrom)]
+#[proc_macro_derive(TryFromScriptValue)]
 pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, data, .. } = parse_macro_input!(input);
     let current_crate = current_crate();
@@ -113,7 +113,7 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
                     let name_as_string = name.to_string();
     
                     Some(quote! {
-                        #name: <#ty>::fruity_from(value.get_field_value(#name_as_string)?)?,
+                        #name: <#ty>::from_script_value(&value.get_field_value(#name_as_string)?)?,
                     })
                 } else {
                     None
@@ -121,13 +121,15 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
             });
 
             quote! {
-                impl #current_crate::convert::FruityFrom<#current_crate::script_value::ScriptValue> for #ident {
-                    fn fruity_from(value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<Self> {
-                        match value.clone() {
+                impl #current_crate::script_value::convert::TryFromScriptValue for #ident {
+                    fn from_script_value(value: &#current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<Self> {
+                        use std::ops::Deref;
+
+                        match value {
                             #current_crate::script_value::ScriptValue::Object(value) => {
-                                match value.duplicate().as_any_box().downcast::<Self>() {
-                                    Ok(value) => Ok(*value),
-                                    Err(_) => {
+                                match value.deref().as_any_ref().downcast_ref::<Self>() {
+                                    Some(value) => Ok(value.clone()),
+                                    None => {
                                         Ok(Self {
                                             #(#convert_args)*
                                         })
@@ -283,7 +285,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
                 let ty = field.ty.clone();
                 
                 quote! {
-                    #name_as_string => self.#name = <#ty>::fruity_from(value)?,
+                    #name_as_string => self.#name = <#ty>::from_script_value(value)?,
                 }
             });
 
@@ -291,7 +293,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
         if fields_setters.len() > 0 {
             quote! {
                 fn set_field_value(&mut self, name: &str, value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<()> {
-                    use #current_crate::convert::FruityFrom;
+                    use #current_crate::script_value::convert::TryFromScriptValue;
 
                     match name {
                         #(#fields_setters)*
@@ -319,7 +321,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
                 let ty = field.ty.clone();
                 
                 quote! {
-                    #name_as_string => <#ty>::fruity_into(self.#name.clone()),
+                    #name_as_string => <#ty>::into_script_value(&self.#name.clone()),
                 }
             });
 
@@ -327,7 +329,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
         if fields_getters.len() > 0 {
             quote! {
                 fn get_field_value(&self, name: &str) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
-                    use #current_crate::convert::FruityInto;
+                    use #current_crate::script_value::convert::TryIntoScriptValue;
                 
                     match name {
                         #(#fields_getters)*
@@ -400,7 +402,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
                 quote! {
                     #export_function_name => {
                         #type_cast
-                        self.#name(#(#arg_names),*).fruity_into()
+                        self.#name(#(#arg_names),*).into_script_value()
                     },
                 }
             });
@@ -408,7 +410,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
         if method_callers.len() > 0 {
             quote! {
                 fn call_const_method(&self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
-                    use #current_crate::convert::FruityInto;
+                    use #current_crate::script_value::convert::TryIntoScriptValue;
     
                     match name {
                         #(#method_callers)*
@@ -481,7 +483,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
                 quote! {
                     #export_function_name => {
                         #type_cast
-                        self.#name(#(#arg_names),*).fruity_into()
+                        self.#name(#(#arg_names),*).into_script_value()
                     },
                 }
             })
@@ -490,7 +492,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
         if method_callers.len() > 0 {
             quote! {
                 fn call_mut_method(&mut self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
-                    use #current_crate::convert::FruityInto;
+                    use #current_crate::script_value::convert::TryIntoScriptValue;
     
                     match name {
                         #(#method_callers)*

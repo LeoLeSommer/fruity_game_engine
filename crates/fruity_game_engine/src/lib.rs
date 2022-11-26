@@ -50,9 +50,6 @@ pub mod resource;
 /// Provides a tool to inject resources into functions
 pub mod inject;
 
-/// Traits similar to into and from but without some limitations
-pub mod convert;
-
 /// Provides a factory for the introspect object
 /// This will be used by to do the snapshots
 pub mod object_factory_service;

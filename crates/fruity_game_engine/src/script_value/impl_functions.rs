@@ -1,5 +1,6 @@
 use super::{ScriptCallback, ScriptObject, ScriptValue};
-use crate::convert::{FruityFrom, FruityInto};
+use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
+use crate::utils::introspect::ArgumentCaster;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
@@ -17,9 +18,9 @@ impl ScriptCallback for Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue
     }
 }
 
-impl FruityFrom<ScriptValue> for Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>> {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        match value {
+impl TryFromScriptValue for Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>> {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+        match value.clone() {
             ScriptValue::Callback(value) => Ok(Rc::new(move |args| value.call(args))),
             _ => Err(FruityError::new(
                 FruityStatus::FunctionExpected,
@@ -29,14 +30,14 @@ impl FruityFrom<ScriptValue> for Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<Scr
     }
 }
 
-impl<R: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for Rc<dyn Fn() -> FruityResult<R>> {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        match value {
+impl<R: TryFromScriptValue> TryFromScriptValue for Rc<dyn Fn() -> FruityResult<R>> {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+        match value.clone() {
             ScriptValue::Callback(value) => Ok(Rc::new(move || {
                 let args: Vec<ScriptValue> = vec![];
                 let result = value.call(args)?;
 
-                <R>::fruity_from(result)
+                <R>::from_script_value(&result)
             })),
             _ => Err(FruityError::new(
                 FruityStatus::FunctionExpected,
@@ -46,16 +47,16 @@ impl<R: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for Rc<dyn Fn() -> Frui
     }
 }
 
-impl<T1: FruityInto<ScriptValue>, R: FruityFrom<ScriptValue> + ScriptObject> FruityFrom<ScriptValue>
+impl<T1: TryIntoScriptValue, R: TryFromScriptValue + ScriptObject> TryFromScriptValue
     for Rc<dyn Fn(T1) -> FruityResult<R>>
 {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        match value {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+        match value.clone() {
             ScriptValue::Callback(value) => Ok(Rc::new(move |arg1| {
-                let args: Vec<ScriptValue> = vec![arg1.fruity_into()?];
+                let args: Vec<ScriptValue> = vec![arg1.into_script_value()?];
                 let result = value.call(args)?;
 
-                <R>::fruity_from(result.fruity_into()?)
+                <R>::from_script_value(&result.into_script_value()?)
             })),
             _ => Err(FruityError::new(
                 FruityStatus::FunctionExpected,
@@ -65,12 +66,14 @@ impl<T1: FruityInto<ScriptValue>, R: FruityFrom<ScriptValue> + ScriptObject> Fru
     }
 }
 
-impl<R: FruityInto<ScriptValue>> FruityInto<ScriptValue> for &'static (dyn Fn() -> R) {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Rc::new(Box::new(|_| {
-            let result = self();
+impl<R: TryIntoScriptValue> TryIntoScriptValue for &'static (dyn Fn() -> R) {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
+        let callback = *self;
 
-            result.fruity_into()
+        Ok(ScriptValue::Callback(Rc::new(Box::new(|_| {
+            let result = callback();
+
+            result.into_script_value()
         })
             as Box<
                 dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>,
@@ -78,29 +81,33 @@ impl<R: FruityInto<ScriptValue>> FruityInto<ScriptValue> for &'static (dyn Fn() 
     }
 }
 
-impl<T1: FruityFrom<ScriptValue>, R: FruityInto<ScriptValue>> FruityInto<ScriptValue>
+impl<T1: TryFromScriptValue, R: TryIntoScriptValue> TryIntoScriptValue
     for &'static (dyn Fn(T1) -> R)
 {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Rc::new(
-            Box::new(|mut args: Vec<ScriptValue>| {
-                let arg1 = <T1 as FruityFrom<ScriptValue>>::fruity_from(args.remove(0))?;
-                let result = self(arg1);
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
+        let callback = *self;
 
-                result.fruity_into()
+        Ok(ScriptValue::Callback(Rc::new(
+            Box::new(|args: Vec<ScriptValue>| {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 = caster.cast_next::<T1>()?;
+
+                let result = callback(arg1);
+
+                result.into_script_value()
             }) as Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
         )))
     }
 }
 
-impl<T1: FruityFrom<ScriptValue>, R: FruityInto<ScriptValue>> ScriptCallback
-    for &'static (dyn Fn(T1) -> R)
-{
-    fn call(&self, mut args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        let arg1 = <T1 as FruityFrom<ScriptValue>>::fruity_from(args.remove(0))?;
+impl<T1: TryFromScriptValue, R: TryIntoScriptValue> ScriptCallback for &'static (dyn Fn(T1) -> R) {
+    fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        let mut caster = ArgumentCaster::new(args);
+        let arg1 = caster.cast_next::<T1>()?;
+
         let result = self(arg1);
 
-        result.fruity_into()
+        result.into_script_value()
     }
 
     fn create_thread_safe_callback(
@@ -110,16 +117,17 @@ impl<T1: FruityFrom<ScriptValue>, R: FruityInto<ScriptValue>> ScriptCallback
     }
 }
 
-impl<T1: FruityInto<ScriptValue>, T2: FruityInto<ScriptValue>, R: FruityFrom<ScriptValue>>
-    FruityFrom<ScriptValue> for Rc<dyn Fn(T1, T2) -> FruityResult<R>>
+impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
+    for Rc<dyn Fn(T1, T2) -> FruityResult<R>>
 {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        match value {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+        match value.clone() {
             ScriptValue::Callback(value) => Ok(Rc::new(move |arg1, arg2| {
-                let args: Vec<ScriptValue> = vec![arg1.fruity_into()?, arg2.fruity_into()?];
+                let args: Vec<ScriptValue> =
+                    vec![arg1.into_script_value()?, arg2.into_script_value()?];
                 let result = value.call(args)?;
 
-                <R>::fruity_from(result)
+                <R>::from_script_value(&result)
             })),
             _ => Err(FruityError::new(
                 FruityStatus::FunctionExpected,

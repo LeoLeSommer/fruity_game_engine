@@ -1,13 +1,13 @@
 use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::convert::FruityFrom;
-use fruity_game_engine::convert::FruityInto;
 use fruity_game_engine::export;
 use fruity_game_engine::fruity_export;
 use fruity_game_engine::inject::Inject;
 use fruity_game_engine::puffin::are_scopes_on;
 use fruity_game_engine::puffin::ProfilerScope;
 use fruity_game_engine::resource::Resource;
+use fruity_game_engine::script_value::convert::TryFromScriptValue;
+use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptCallback;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::FruityResult;
@@ -32,7 +32,7 @@ pub type StartupSystemCallback =
     dyn Fn(ResourceContainer) -> StartupDisposeSystemCallback + Sync + Send + 'static;
 
 /// Params for a system
-#[derive(Debug, Clone, FruityFrom)]
+#[derive(Debug, Clone, TryFromScriptValue)]
 pub struct SystemParams {
     /// The pool index
     pub pool_index: usize,
@@ -51,7 +51,7 @@ impl Default for SystemParams {
 }
 
 /// Params for a system
-#[derive(Debug, Clone, FruityFrom)]
+#[derive(Debug, Clone, TryFromScriptValue)]
 pub struct StartupSystemParams {
     /// If true, the system is still running while pause
     pub ignore_pause: bool,
@@ -360,7 +360,7 @@ fruity_export! {
                             } else {
                                 None
                             };
-                            system.callback.call(vec![resource_container.clone().fruity_into()?])?;
+                            system.callback.call(vec![resource_container.clone().into_script_value()?])?;
                         }
 
                         FruityResult::Ok(())
@@ -413,7 +413,7 @@ fruity_export! {
                         None
                     };
 
-                    let dispose_callback = system.callback.call(vec![self.resource_container.clone().fruity_into()?])?;
+                    let dispose_callback = system.callback.call(vec![self.resource_container.clone().into_script_value()?])?;
 
                     if let ScriptValue::Callback(dispose_callback) = dispose_callback {
                         self.script_startup_dispose_callbacks.push(ScriptStartupDisposeSystem {

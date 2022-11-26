@@ -6,6 +6,9 @@
 //! Will be used to make a bridge between the rust ecosystem and the scripting language and by the
 //! data storage
 
+/// Traits similar to TryInto and TryFrom for ScriptValue
+pub mod convert;
+
 /// Implementation of script value conversions for primitives
 pub mod impl_primitives;
 
@@ -19,10 +22,10 @@ pub mod impl_containers;
 pub mod impl_tuples;
 
 use crate::any::FruityAny;
+use crate::introspect::IntrospectObject;
 /// Implementation of script value conversions for tuples
 // pub mod yaml;
-use crate::convert::FruityFrom;
-use crate::introspect::IntrospectObject;
+use crate::script_value::convert::TryFromScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
@@ -95,12 +98,12 @@ pub enum ScriptValue {
     Object(Box<dyn ScriptObject>),
 }
 
-impl<T: FruityFrom<ScriptValue> + ?Sized> FruityFrom<ScriptValue> for Vec<T> {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
+impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::Array(value) => Ok(value
                 .into_iter()
-                .filter_map(|elem| T::fruity_from(elem).ok())
+                .filter_map(|elem| T::from_script_value(elem).ok())
                 .collect()),
             _ => Err(FruityError::new(
                 FruityStatus::ArrayExpected,
@@ -129,10 +132,10 @@ pub trait ScriptCallback {
     ) -> FruityResult<Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>>;
 }
 
-impl FruityFrom<ScriptValue> for Rc<dyn ScriptCallback> {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
+impl TryFromScriptValue for Rc<dyn ScriptCallback> {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::Callback(value) => Ok(value),
+            ScriptValue::Callback(value) => Ok(value.clone()),
             _ => Err(FruityError::new(
                 FruityStatus::InvalidArg,
                 format!("Couldn't convert {:?} to callback", value),
@@ -141,10 +144,10 @@ impl FruityFrom<ScriptValue> for Rc<dyn ScriptCallback> {
     }
 }
 
-impl FruityFrom<ScriptValue> for Box<dyn ScriptObject> {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
+impl TryFromScriptValue for Box<dyn ScriptObject> {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::Object(value) => Ok(value),
+            ScriptValue::Object(value) => Ok(value.duplicate()),
             _ => Err(FruityError::new(
                 FruityStatus::InvalidArg,
                 format!("Couldn't convert {:?} to native object", value),

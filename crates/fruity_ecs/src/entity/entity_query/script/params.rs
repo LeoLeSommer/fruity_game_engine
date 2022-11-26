@@ -2,7 +2,7 @@ use crate::entity::archetype::Archetype;
 use crate::entity::entity_query::script::ScriptQueryParam;
 use crate::entity::entity_reference::EntityReference;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::convert::FruityInto;
+use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::FruityResult;
 
@@ -22,7 +22,7 @@ impl ScriptQueryParam for WithEntity {
         &self,
         entity_reference: EntityReference,
     ) -> FruityResult<Vec<ScriptValue>> {
-        Ok(vec![entity_reference.fruity_into()?])
+        Ok(vec![entity_reference.into_script_value()?])
     }
 }
 
@@ -43,7 +43,7 @@ impl ScriptQueryParam for WithId {
         entity_reference: EntityReference,
     ) -> FruityResult<Vec<ScriptValue>> {
         let entity_reader = entity_reference.read();
-        Ok(vec![entity_reader.get_entity_id().fruity_into()?])
+        Ok(vec![entity_reader.get_entity_id().into_script_value()?])
     }
 }
 
@@ -64,7 +64,7 @@ impl ScriptQueryParam for WithName {
         entity_reference: EntityReference,
     ) -> FruityResult<Vec<ScriptValue>> {
         let entity_reader = entity_reference.read();
-        Ok(vec![entity_reader.get_name().fruity_into()?])
+        Ok(vec![entity_reader.get_name().into_script_value()?])
     }
 }
 
@@ -85,7 +85,7 @@ impl ScriptQueryParam for WithEnabled {
         entity_reference: EntityReference,
     ) -> FruityResult<Vec<ScriptValue>> {
         let entity_reader = entity_reference.read();
-        Ok(vec![entity_reader.is_enabled().fruity_into()?])
+        Ok(vec![entity_reader.is_enabled().into_script_value()?])
     }
 }
 
@@ -110,7 +110,7 @@ impl ScriptQueryParam for With {
         entity_reference
             .get_components_by_type_identifier(&self.identifier)
             .into_iter()
-            .map(|component| component.fruity_into())
+            .map(|component| component.into_script_value())
             .try_collect::<Vec<_>>()
     }
 }
@@ -136,7 +136,7 @@ impl ScriptQueryParam for WithOptional {
         let components = entity_reference
             .get_components_by_type_identifier(&self.identifier)
             .into_iter()
-            .map(|component| component.fruity_into())
+            .map(|component| component.into_script_value())
             .try_collect::<Vec<_>>()?;
 
         if components.len() > 0 {

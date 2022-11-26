@@ -1,61 +1,41 @@
 use super::ScriptValue;
-use crate::convert::FruityFrom;
-use crate::convert::FruityInto;
+use crate::script_value::convert::TryFromScriptValue;
+use crate::script_value::convert::TryIntoScriptValue;
+use crate::utils::introspect::ArgumentCaster;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
 
-impl FruityInto<ScriptValue> for () {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
+impl TryIntoScriptValue for () {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Undefined)
     }
 }
 
-impl FruityFrom<ScriptValue> for () {
-    fn fruity_from(_value: ScriptValue) -> FruityResult<Self> {
+impl TryFromScriptValue for () {
+    fn from_script_value(_value: &ScriptValue) -> FruityResult<Self> {
         Ok(())
     }
 }
 
-impl<T: FruityInto<ScriptValue>, U: FruityInto<ScriptValue>> FruityInto<ScriptValue> for (T, U) {
-    fn fruity_into(self) -> FruityResult<ScriptValue> {
+impl<T: TryIntoScriptValue, U: TryIntoScriptValue> TryIntoScriptValue for (T, U) {
+    fn into_script_value(&self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Array(vec![
-            self.0.fruity_into()?,
-            self.1.fruity_into()?,
+            self.0.into_script_value()?,
+            self.1.into_script_value()?,
         ]))
     }
 }
 
-impl<T: FruityFrom<ScriptValue>, U: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for (T, U) {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Array(mut value) => {
-                if value.len() < 2 {
-                    return Err(FruityError::new(
-                        FruityStatus::ArrayExpected,
-                        format!("Couldn't convert {:?} to tuple", value),
-                    ));
-                };
+impl<T1: TryFromScriptValue, T2: TryFromScriptValue> TryFromScriptValue for (T1, T2) {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+        match value.clone() {
+            ScriptValue::Array(args) => {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 = caster.cast_next::<T1>()?;
+                let arg2 = caster.cast_next::<T2>()?;
 
-                let value1 = if let Ok(value1) = T::fruity_from(value.remove(0)) {
-                    value1
-                } else {
-                    return Err(FruityError::new(
-                        FruityStatus::ArrayExpected,
-                        format!("Couldn't convert {:?} to tuple", value),
-                    ));
-                };
-
-                let value2 = if let Ok(value2) = U::fruity_from(value.remove(0)) {
-                    value2
-                } else {
-                    return Err(FruityError::new(
-                        FruityStatus::ArrayExpected,
-                        format!("Couldn't convert {:?} to tuple", value),
-                    ));
-                };
-
-                Ok((value1, value2))
+                Ok((arg1, arg2))
             }
             _ => Err(FruityError::new(
                 FruityStatus::ArrayExpected,

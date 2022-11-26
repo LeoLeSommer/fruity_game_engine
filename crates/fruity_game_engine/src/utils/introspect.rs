@@ -1,4 +1,4 @@
-use crate::convert::FruityFrom;
+use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::ScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
@@ -38,13 +38,13 @@ impl ArgumentCaster {
     /// # Generic Arguments
     /// * `T` - The type to cast
     ///
-    pub fn cast_next<T: FruityFrom<ScriptValue> + ?Sized>(&mut self) -> FruityResult<T> {
+    pub fn cast_next<T: TryFromScriptValue + ?Sized>(&mut self) -> FruityResult<T> {
         match self.iter.next() {
             Some((index, arg)) => {
                 self.last_index = index + 1;
-                T::fruity_from(arg)
+                T::from_script_value(&arg)
             }
-            None => T::fruity_from(ScriptValue::Undefined).map_err(|_| {
+            None => T::from_script_value(&ScriptValue::Undefined).map_err(|_| {
                 FruityError::new(
                     FruityStatus::InvalidArg,
                     format!(

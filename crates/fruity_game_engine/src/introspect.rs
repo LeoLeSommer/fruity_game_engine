@@ -5,87 +5,15 @@
 //! Implements traits and macros to make a structure abe to list it's field and to get/set it with any
 //!
 
-use parking_lot::RwLockUpgradableReadGuard;
-
 use crate::any::FruityAny;
 use crate::script_value::ScriptValue;
 use crate::FruityResult;
 use crate::RwLock;
+use parking_lot::RwLockUpgradableReadGuard;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::rc::Rc;
-
-/// A setter caller
-#[derive(Clone)]
-pub enum SetterCaller {
-    /// Without mutability
-    Const(Rc<dyn Fn(&dyn FruityAny, ScriptValue) -> FruityResult<()>>),
-
-    /// With mutability
-    Mut(Rc<dyn Fn(&mut dyn FruityAny, ScriptValue) -> FruityResult<()>>),
-
-    /// No setter
-    None,
-}
-
-/// Informations about a field of an introspect object
-#[derive(Clone)]
-pub struct FieldInfo {
-    /// The name of the field
-    pub name: String,
-
-    /// Function to get one of the entry field value as FruityAny
-    ///
-    /// # Arguments
-    /// * `property` - The field name
-    ///
-    pub getter: Rc<dyn Fn(&dyn FruityAny) -> FruityResult<ScriptValue>>,
-
-    /// Function to set one of the entry field
-    ///
-    /// # Arguments
-    /// * `property` - The field name
-    /// * `value` - The new field value as FruityAny
-    ///
-    pub setter: SetterCaller,
-}
-
-/// A method caller
-#[derive(Clone)]
-pub enum MethodCaller {
-    /// Without mutability
-    Const(Rc<dyn Fn(&dyn FruityAny, Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
-
-    /// With mutability
-    Mut(Rc<dyn Fn(&mut dyn FruityAny, Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
-}
-
-/// Informations about a field of an introspect object
-#[derive(Clone)]
-pub struct MethodInfo {
-    /// The name of the method
-    pub name: String,
-
-    /// Call for the method with any field
-    pub call: MethodCaller,
-}
-
-/// Getter and setter for a field of an introspect object
-pub struct IntrospectField<'s> {
-    /// Function to get one of the entry field value as FruityAny
-    pub get: Box<dyn Fn() -> FruityResult<ScriptValue> + 's>,
-
-    /// Function to set one of the entry field
-    ///
-    /// # Arguments
-    /// * `value` - The new field value as FruityAny
-    ///
-    pub set: Box<dyn Fn(ScriptValue) -> FruityResult<()> + 's>,
-}
-
-/// Method of an introspect object
-pub type IntrospectMethod<'s> = Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue> + 's>;
 
 /// Trait to implement static introspection to an object
 pub trait IntrospectObject: Debug + FruityAny {

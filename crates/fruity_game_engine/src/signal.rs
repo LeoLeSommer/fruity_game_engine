@@ -1,7 +1,7 @@
 use crate::any::FruityAny;
-use crate::convert::FruityFrom;
-use crate::convert::FruityInto;
 use crate::introspect::IntrospectObject;
+use crate::script_value::convert::TryFromScriptValue;
+use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptCallback;
 use crate::script_value::ScriptValue;
 use crate::utils::introspect::ArgumentCaster;
@@ -133,7 +133,7 @@ impl<T> Debug for Signal<T> {
 
 impl<T> IntrospectObject for Signal<T>
 where
-    T: FruityFrom<ScriptValue> + FruityInto<ScriptValue> + Clone,
+    T: TryFromScriptValue + TryIntoScriptValue + Clone,
 {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("Signal".to_string())
@@ -163,7 +163,7 @@ where
 
                 let handle = self.notify(arg1);
 
-                handle.fruity_into()
+                handle.into_script_value()
             }
             _ => unreachable!(),
         }
@@ -182,13 +182,13 @@ where
                 // TODO: Restore
                 let callback = arg1.create_thread_safe_callback()?;
                 let handle = self.add_observer(move |arg| {
-                    let arg: ScriptValue = arg.clone().fruity_into()?;
+                    let arg: ScriptValue = arg.clone().into_script_value()?;
                     callback(vec![arg]);
 
                     Ok(())
                 });
 
-                handle.fruity_into()
+                handle.into_script_value()
             }
             _ => unreachable!(),
         }
@@ -269,7 +269,7 @@ impl<T: Send + Sync + Clone + Debug> Debug for SignalProperty<T> {
 
 impl<T> IntrospectObject for SignalProperty<T>
 where
-    T: FruityInto<ScriptValue> + FruityFrom<ScriptValue> + Send + Sync + Clone + Debug,
+    T: TryIntoScriptValue + TryFromScriptValue + Send + Sync + Clone + Debug,
 {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("SignalProperty".to_string())
@@ -281,7 +281,7 @@ where
 
     fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
         match name {
-            "value" => self.value = T::fruity_from(value)?,
+            "value" => self.value = T::from_script_value(&value)?,
             _ => unreachable!(),
         };
 
@@ -290,8 +290,8 @@ where
 
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
         match name {
-            "value" => self.value.clone().fruity_into(),
-            "on_updated" => self.on_updated.clone().fruity_into(),
+            "value" => self.value.clone().into_script_value(),
+            "on_updated" => self.on_updated.clone().into_script_value(),
             _ => unreachable!(),
         }
     }
@@ -358,7 +358,7 @@ impl<T> ObserverHandler<T> {
 
 impl<T> IntrospectObject for ObserverHandler<T>
 where
-    T: FruityFrom<ScriptValue> + FruityInto<ScriptValue>,
+    T: TryFromScriptValue + TryIntoScriptValue,
 {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("ObserverHandler".to_string())
@@ -382,7 +382,7 @@ where
 
     fn call_const_method(&self, name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
         match name {
-            "dispose" => self.dispose_by_ref().fruity_into(),
+            "dispose" => self.dispose_by_ref().into_script_value(),
             _ => unreachable!(),
         }
     }

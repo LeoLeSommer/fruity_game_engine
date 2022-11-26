@@ -105,24 +105,24 @@ pub fn derive_introspect_object_trait(input: TokenStream)  -> TokenStream {
                     fruity_game_engine::introspect::FieldInfo {
                         name: #name_as_string.to_string(),
                         serializable: true,
-                        getter: std::sync::Arc::new(|this| this.downcast_ref::<#ident>().unwrap().#name.clone().fruity_into()),
+                        getter: std::sync::Arc::new(|this| this.downcast_ref::<#ident>().unwrap().#name.clone().into_script_value()),
                         setter: fruity_game_engine::introspect::SetterCaller::Mut(std::sync::Arc::new(|this, value| {
                             fn convert<
-                                T: fruity_game_engine::convert::FruityFrom<fruity_game_engine::serialize::serialized::ScriptValue>,
+                                T: fruity_game_engine::script_value::convert::TryFromScriptValue<fruity_game_engine::serialize::serialized::ScriptValue>,
                             >(
                                 value: fruity_game_engine::serialize::serialized::ScriptValue,
                             ) -> Result<
                                 T,
-                                <T as fruity_game_engine::convert::FruityFrom<
+                                <T as fruity_game_engine::script_value::convert::TryFromScriptValue<
                                     fruity_game_engine::serialize::serialized::ScriptValue,
                                 >>::Error,
                             > {
-                                T::fruity_from(value)
+                                T::from_script_value(value)
                             }
         
                             let this = this.downcast_mut::<#ident>().unwrap();
 
-                            match convert::<#ty>(value) {
+                            match script_value::convert::<#ty>(value) {
                                 Ok(value) => {
                                     this.#name = value
                                 }
@@ -141,7 +141,7 @@ pub fn derive_introspect_object_trait(input: TokenStream)  -> TokenStream {
 
             quote! {
                 fn get_field_infos(&self) -> Vec<fruity_game_engine::introspect::FieldInfo> {
-                    use fruity_game_engine::convert::FruityInto;
+                    use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 
                     vec![
                         #(#recurse_infos)*
@@ -224,7 +224,7 @@ pub fn derive_instantiable_object_trait(input: TokenStream)  -> TokenStream {
     let output = quote! {
         impl fruity_game_engine::introspect::InstantiableObject for #ident {
             fn get_constructor() -> fruity_game_engine::introspect::Constructor {
-                use fruity_game_engine::convert::FruityInto;
+                use fruity_game_engine::script_value::convert::TryIntoScriptValue;
                 use fruity_game_engine::introspect::IntrospectObject;
 
                 std::sync::Arc::new(|_resource_container: fruity_game_engine::resource::resource_container::ResourceContainer, mut args: Vec<fruity_game_engine::serialize::serialized::ScriptValue>| {
@@ -257,7 +257,7 @@ pub fn derive_instantiable_object_trait(input: TokenStream)  -> TokenStream {
                         };
                     };
         
-                    Ok(new_object.fruity_into())
+                    Ok(new_object.into_script_value())
                 })
             }
         }
@@ -278,10 +278,10 @@ pub fn derive_serializable_object(input: TokenStream)  -> TokenStream {
             }
         }
         
-        impl fruity_game_engine::convert::FruityFrom<fruity_game_engine::serialize::serialized::ScriptValue> for #ident {
+        impl fruity_game_engine::script_value::convert::TryFromScriptValue<fruity_game_engine::serialize::serialized::ScriptValue> for #ident {
             type Error = String;
         
-            fn fruity_from(value: fruity_game_engine::serialize::serialized::ScriptValue) -> Result<Self, Self::Error> {
+            fn from_script_value(value: fruity_game_engine::serialize::serialized::ScriptValue) -> Result<Self, Self::Error> {
                 match value {
                     /*fruity_game_engine::serialize::serialized::ScriptValue::Object { fields, .. } => {
                         use fruity_game_engine::introspect::IntrospectObject;
@@ -322,8 +322,8 @@ pub fn derive_serializable_object(input: TokenStream)  -> TokenStream {
             }
         }
         
-        impl fruity_game_engine::convert::FruityInto<fruity_game_engine::serialize::serialized::ScriptValue> for #ident {
-            fn fruity_into(self) -> fruity_game_engine::serialize::serialized::ScriptValue {
+        impl fruity_game_engine::script_value::convert::TryIntoScriptValue<fruity_game_engine::serialize::serialized::ScriptValue> for #ident {
+            fn into_script_value(&self) -> fruity_game_engine::serialize::serialized::ScriptValue {
                 fruity_game_engine::serialize::serialized::ScriptValue::Object(Box::new(self))
             }
         }

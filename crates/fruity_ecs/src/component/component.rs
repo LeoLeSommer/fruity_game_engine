@@ -1,7 +1,7 @@
 use crate::entity::archetype::component_collection::ComponentCollection;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::convert::FruityFrom;
 use fruity_game_engine::introspect::IntrospectObject;
+use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::ScriptObject;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::FruityError;
@@ -58,8 +58,8 @@ impl Deref for AnyComponent {
     }
 }
 
-impl FruityFrom<ScriptValue> for AnyComponent {
-    fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
+impl TryFromScriptValue for AnyComponent {
+    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::Object(value) => match value.as_any_box().downcast::<AnyComponent>() {
                 Ok(value) => Ok(*value),
