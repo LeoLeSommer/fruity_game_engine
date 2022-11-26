@@ -5,6 +5,7 @@ use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::fruity_export;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::Resource;
+use fruity_game_engine::FruityResult;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -44,8 +45,8 @@ fruity_export! {
         }
 
         /// Create extensions from a component
-        pub fn get_component_extension(&self, component: &dyn Component) -> Vec<AnyComponent> {
-            match self.extension_constructors.get(&component.get_class_name()) {
+        pub fn get_component_extension(&self, component: &dyn Component) -> FruityResult<Vec<AnyComponent>> {
+            Ok(match self.extension_constructors.get(&component.get_class_name()?) {
                 Some(constructors) => constructors
                     .iter()
                     .map(|constructor| constructor())
@@ -53,7 +54,7 @@ fruity_export! {
                 None => {
                     vec![]
                 }
-            }
+            })
         }
     }
 }

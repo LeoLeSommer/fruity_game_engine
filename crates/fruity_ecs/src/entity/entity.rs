@@ -1,3 +1,5 @@
+use fruity_game_engine::FruityResult;
+
 use crate::component::component::AnyComponent;
 use crate::component::component::Component;
 use std::fmt::Debug;
@@ -42,21 +44,23 @@ impl EntityTypeIdentifier {
 pub type EntityId = u64;
 
 /// Get the entity type identifier from a list of components
-pub fn get_type_identifier_by_any(components: &[AnyComponent]) -> EntityTypeIdentifier {
+pub fn get_type_identifier_by_any(
+    components: &[AnyComponent],
+) -> FruityResult<EntityTypeIdentifier> {
     let identifier = components
         .iter()
         .map(|component| component.get_class_name())
-        .collect::<Vec<_>>();
+        .try_collect::<Vec<_>>()?;
 
-    EntityTypeIdentifier(identifier)
+    Ok(EntityTypeIdentifier(identifier))
 }
 
 /// Get the entity type identifier from a list of components
-pub fn get_type_identifier(components: &[&dyn Component]) -> EntityTypeIdentifier {
+pub fn get_type_identifier(components: &[&dyn Component]) -> FruityResult<EntityTypeIdentifier> {
     let identifier = components
         .iter()
         .map(|component| component.get_class_name())
-        .collect::<Vec<_>>();
+        .try_collect::<Vec<_>>()?;
 
-    EntityTypeIdentifier(identifier)
+    Ok(EntityTypeIdentifier(identifier))
 }

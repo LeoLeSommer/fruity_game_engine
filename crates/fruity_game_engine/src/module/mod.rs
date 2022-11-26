@@ -9,7 +9,7 @@ use std::rc::Rc;
 pub mod modules_service;
 
 /// A module for the engine
-#[derive(Clone, FruityFrom)]
+#[derive(Clone, FruityFrom, Default)]
 pub struct Module {
     /// The name of the module
     pub name: String,

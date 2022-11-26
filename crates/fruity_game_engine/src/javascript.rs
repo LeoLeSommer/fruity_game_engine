@@ -6,15 +6,14 @@ use crate::{
 };
 use convert_case::{Case, Casing};
 use fruity_game_engine_macro::FruityAny;
-use lazy_static::__Deref;
 use napi::{
     threadsafe_function::{
         ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
     },
     Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, Ref, Result, ValueType,
 };
-use std::{cell::RefCell, rc::Rc, sync::Arc};
 use std::{fmt::Debug, vec};
+use std::{rc::Rc, sync::Arc};
 
 /// Tool to export javascript modules
 pub struct ExportJavascript {
@@ -96,6 +95,11 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
             })?
             .into_unknown(),
         ScriptValue::Object(value) => {
+            let value_2 = value.duplicate();
+
+            let test = value.get_class_name()?;
+            let test2 = value.get_type_name();
+
             if let Ok(value) = value.as_any_box().downcast::<JsIntrospectObject>() {
                 // First case, it's a native js value
                 value.inner.into_unknown()
@@ -104,7 +108,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                 let mut js_object = env.create_object()?;
 
                 // Define const method accessors
-                value
+                value_2
                     .get_const_method_names()?
                     .into_iter()
                     .try_for_each(|method_name| {
@@ -134,7 +138,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                     })?;
 
                 // Define mut method accessors
-                value
+                value_2
                     .get_mut_method_names()?
                     .into_iter()
                     .try_for_each(|method_name| {
@@ -163,7 +167,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                         Result::Ok(())
                     })?;
 
-                env.wrap(&mut js_object, value)?;
+                env.wrap(&mut js_object, value_2)?;
                 js_object.into_unknown()
             }
         }
@@ -286,6 +290,35 @@ struct JsIntrospectObject {
     env: Env,
 }
 
+impl Clone for JsIntrospectObject {
+    fn clone(&self) -> Self {
+        let mut inner = self.env.create_object().unwrap();
+
+        let properties = self.inner.get_property_names().unwrap();
+        let len = properties
+            .get_named_property::<JsNumber>("length")
+            .unwrap()
+            .get_uint32()
+            .unwrap();
+
+        (0..len)
+            .try_for_each(|index| {
+                let key = properties.get_element::<JsString>(index)?;
+                inner.set_property(
+                    key,
+                    self.inner
+                        .get_property::<JsString, JsUnknown>(key.clone())?,
+                )
+            })
+            .unwrap();
+
+        Self {
+            inner,
+            env: self.env.clone(),
+        }
+    }
+}
+
 impl Debug for JsIntrospectObject {
     fn fmt(&self, _: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         Ok(())
@@ -294,9 +327,12 @@ impl Debug for JsIntrospectObject {
 
 impl IntrospectObject for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
-        let constructor: JsObject = self.inner.get_named_property("constructor")?;
+        Ok("js_unknown".to_string())
+
+        // TODO: Get the class name from prototype
+        /*let constructor: JsObject = self.inner.get_named_property("constructor")?;
         let name: JsString = constructor.get_named_property("name")?;
-        Ok(name.into_utf8()?.as_str()?.to_string())
+        Ok(name.into_utf8()?.as_str()?.to_string())*/
     }
 
     fn get_field_names(&self) -> FruityResult<Vec<String>> {
@@ -308,20 +344,23 @@ impl IntrospectObject for JsIntrospectObject {
         (0..len)
             .map(|index| {
                 let key = properties.get_element::<JsString>(index)?;
-                Ok(key.into_utf8()?.as_str()?.to_string())
+                let key = key.into_utf8()?.as_str()?.to_string();
+
+                Ok(key.to_case(Case::Snake))
             })
             .try_collect()
     }
 
     fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
         let value = script_value_to_js_value(&self.env, value)?;
-        self.inner.set_named_property(name, value)?;
+        self.inner
+            .set_named_property(&name.to_case(Case::Camel), value)?;
 
         Ok(())
     }
 
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
-        let value = self.inner.get_named_property(name)?;
+        let value = self.inner.get_named_property(&name.to_case(Case::Camel))?;
         js_value_to_script_value(&self.env, value)
     }
 

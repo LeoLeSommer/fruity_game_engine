@@ -3,6 +3,9 @@ use std::{any::Any, fmt::Debug, sync::Arc};
 
 pub use fruity_game_engine_macro::Resource;
 
+/// A resource created by the script
+pub mod script_resource;
+
 /// A reference over a resource that is supposed to be used by components
 pub mod resource_reference;
 

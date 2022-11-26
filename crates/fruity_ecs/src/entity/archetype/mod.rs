@@ -9,6 +9,7 @@ use crate::entity::entity::EntityTypeIdentifier;
 use crate::entity::entity_reference::EntityReference;
 use crate::ExtensionComponentService;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
 use itertools::Itertools;
 use std::collections::BTreeMap;
@@ -62,9 +63,9 @@ impl Archetype {
         name: &str,
         enabled: bool,
         mut components: Vec<AnyComponent>,
-    ) -> Archetype {
+    ) -> FruityResult<Archetype> {
         // Deduce the archetype properties from the first components
-        let identifier = get_type_identifier_by_any(&components);
+        let identifier = get_type_identifier_by_any(&components)?;
 
         // Inject the extensions
         let mut extensions_component = {
@@ -75,6 +76,7 @@ impl Archetype {
                 .map(|component| {
                     extension_component_service
                         .get_component_extension(component.deref())
+                        .unwrap()
                         .into_iter()
                 })
                 .flatten()
@@ -89,7 +91,7 @@ impl Archetype {
             component_storages.insert(class_name, ComponentStorage::new(components));
         }
 
-        Archetype {
+        Ok(Archetype {
             extension_component_service,
             identifier: identifier,
             erased_indexes: RwLock::new(vec![]),
@@ -98,7 +100,7 @@ impl Archetype {
             enabled_array: vec![enabled],
             lock_array: vec![RwLock::new(())],
             component_storages,
-        }
+        })
     }
 
     /// Returns the entity type identifier of the archetype
@@ -137,7 +139,7 @@ impl Archetype {
         name: &str,
         enabled: bool,
         mut components: Vec<AnyComponent>,
-    ) {
+    ) -> FruityResult<()> {
         // TODO: Use previous deleted cells
 
         // Store the entity properties
@@ -155,6 +157,7 @@ impl Archetype {
                 .map(|component| {
                     extension_component_service
                         .get_component_extension(component.deref())
+                        .unwrap()
                         .into_iter()
                 })
                 .flatten()
@@ -170,6 +173,8 @@ impl Archetype {
                 component_array.add(components);
             }
         }
+
+        Ok(())
     }
 
     /// Remove an entity based on its id
@@ -220,7 +225,7 @@ impl Archetype {
     ) -> HashMap<String, Vec<AnyComponent>> {
         components
             .into_iter()
-            .group_by(|component| component.get_class_name())
+            .group_by(|component| component.get_class_name().unwrap())
             .into_iter()
             .map(|(class_name, component)| (class_name, component.collect::<Vec<_>>()))
             .collect::<HashMap<_, _>>()

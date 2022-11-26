@@ -2,7 +2,7 @@ use crate::entity::archetype::EntityId;
 use fruity_game_engine::convert::FruityFrom;
 
 /// This store all the information that are common accross all entities
-#[derive(Debug, Clone, FruityFrom)]
+#[derive(Debug, Clone, FruityFrom, Default)]
 pub struct EntityProperties {
     /// The entity id
     pub entity_id: EntityId,

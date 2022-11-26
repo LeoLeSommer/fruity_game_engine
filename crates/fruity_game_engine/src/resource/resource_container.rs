@@ -3,7 +3,9 @@ use crate::any::FruityAny;
 use crate::export;
 use crate::fruity_export;
 use crate::resource::resource_reference::ResourceReference;
+use crate::resource::script_resource::ScriptResource;
 use crate::resource::Resource;
+use crate::script_value::ScriptObject;
 use crate::settings::Settings;
 use crate::FruityError;
 use crate::FruityResult;
@@ -145,7 +147,7 @@ fruity_export! {
         pub fn add<T: Resource + ?Sized>(&self, identifier: &str, resource: Box<T>) {
             let mut inner = self.inner.write();
 
-            let shared = AnyResourceReference::from(identifier, resource);
+            let shared = AnyResourceReference::from_native(identifier, resource);
             inner
                 .resources
                 .insert(identifier.to_string(), shared.clone());
@@ -160,15 +162,15 @@ fruity_export! {
         /// * `identifier` - The resource identifier
         /// * `resource` - The resource object
         ///
-        // #[export(name = "add")]
-        /*pub fn add_untyped(&self, identifier: String, resource: Box<dyn Resource>) {
+        #[export(name = "add")]
+        pub fn add_script_resource(&self, identifier: String, resource: Box<dyn ScriptObject>) {
             let mut inner = self.inner.write();
 
-            let shared = AnyResourceReference::new(&identifier, resource);
+            let shared = AnyResourceReference::from_native(&identifier, Box::new(ScriptResource::from(resource)));
             inner
                 .resources
                 .insert(identifier.to_string(), shared);
-        }*/
+        }
 
         /// Remove a resource of the collection
         ///

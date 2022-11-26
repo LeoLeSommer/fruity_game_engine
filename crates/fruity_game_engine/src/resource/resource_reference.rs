@@ -22,7 +22,7 @@ pub struct AnyResourceReference {
 
 impl AnyResourceReference {
     /// Create a resource reference from a resource
-    pub fn from<T: Resource + ?Sized>(name: &str, resource: Box<T>) -> Self {
+    pub fn from_native<T: Resource + ?Sized>(name: &str, resource: Box<T>) -> Self {
         AnyResourceReference {
             name: name.to_string(),
             resource: Arc::new(RwLock::new(resource)),

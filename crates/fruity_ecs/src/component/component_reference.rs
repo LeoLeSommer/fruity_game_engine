@@ -103,11 +103,11 @@ impl Debug for ComponentReference {
 }
 
 impl IntrospectObject for ComponentReference {
-    fn get_class_name(&self) -> String {
+    fn get_class_name(&self) -> FruityResult<String> {
         self.read().get_class_name()
     }
 
-    fn get_field_names(&self) -> Vec<String> {
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
         self.read().get_field_names()
     }
 
@@ -119,7 +119,7 @@ impl IntrospectObject for ComponentReference {
         self.read().get_field_value(name)
     }
 
-    fn get_const_method_names(&self) -> Vec<String> {
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         self.read().get_const_method_names()
     }
 
@@ -127,7 +127,7 @@ impl IntrospectObject for ComponentReference {
         self.read().call_const_method(name, args)
     }
 
-    fn get_mut_method_names(&self) -> Vec<String> {
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
         self.read().get_mut_method_names()
     }
 

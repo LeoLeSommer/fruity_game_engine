@@ -3,8 +3,10 @@ type Settings = any;
 type World = any;
 
 class CustomService {
+  index = 1;
+
   hello(str: string) {
-    console.log("Hello", str);
+    console.log("Hello", str, this.index++);
   }
 }
 
@@ -15,12 +17,12 @@ export default {
     console.log("setup", world);
     const resourceContainer = world.getResourceContainer();
 
-    /*resourceContainer.add_untyped("custom_service", new CustomService());
+    resourceContainer.add("custom_service", new CustomService());
 
-    const customService = resourceContainer.get_untyped(
-      /*<CustomService>/ "custom_service"
-    );
-    customService.hello("Frame");*/
+    const customService = resourceContainer.get("custom_service");
+    console.log(customService);
+
+    customService.hello("Frame");
 
     const systemService = resourceContainer.get("system_service");
 

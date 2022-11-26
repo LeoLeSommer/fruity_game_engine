@@ -77,11 +77,11 @@ impl FruityFrom<ScriptValue> for AnyComponent {
 }
 
 impl IntrospectObject for AnyComponent {
-    fn get_class_name(&self) -> String {
+    fn get_class_name(&self) -> FruityResult<String> {
         self.component.get_class_name()
     }
 
-    fn get_field_names(&self) -> Vec<String> {
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
         self.component.get_field_names()
     }
 
@@ -93,7 +93,7 @@ impl IntrospectObject for AnyComponent {
         self.component.get_field_value(name)
     }
 
-    fn get_const_method_names(&self) -> Vec<String> {
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         self.component.get_const_method_names()
     }
 
@@ -101,7 +101,7 @@ impl IntrospectObject for AnyComponent {
         self.component.call_const_method(name, args)
     }
 
-    fn get_mut_method_names(&self) -> Vec<String> {
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
         self.component.get_mut_method_names()
     }
 

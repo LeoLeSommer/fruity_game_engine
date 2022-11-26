@@ -167,14 +167,14 @@ fruity_export! {
             };
 
             // Generate the archetype identifier from the components
-            components.sort_by(|a, b| a.get_class_name().cmp(&b.get_class_name()));
-            let archetype_identifier = get_type_identifier_by_any(&components);
+            components.sort_by(|a, b| a.get_class_name().unwrap().cmp(&b.get_class_name().unwrap()));
+            let archetype_identifier = get_type_identifier_by_any(&components)?;
 
             // Insert the entity into the archetype, create the archetype if needed
             let indexes = match self.archetype_by_identifier(archetype_identifier) {
                 Some((archetype_index, archetype)) => {
                     let archetype_entity_id = archetype.read().len();
-                    archetype.write().add(entity_id, &name, enabled, components);
+                    archetype.write().add(entity_id, &name, enabled, components)?;
 
                     (archetype_index, archetype_entity_id)
                 }
@@ -187,7 +187,8 @@ fruity_export! {
                         &name,
                         enabled,
                         components,
-                    );
+                    )?;
+
                     archetypes.push(ArchetypeArcRwLock::new(archetype));
                     (archetype_index, 0)
                 }
