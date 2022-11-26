@@ -42,9 +42,9 @@ impl ArgumentCaster {
         match self.iter.next() {
             Some((index, arg)) => {
                 self.last_index = index + 1;
-                T::from_script_value(&arg)
+                T::from_script_value(arg)
             }
-            None => T::from_script_value(&ScriptValue::Undefined).map_err(|_| {
+            None => T::from_script_value(ScriptValue::Undefined).map_err(|_| {
                 FruityError::new(
                     FruityStatus::InvalidArg,
                     format!(

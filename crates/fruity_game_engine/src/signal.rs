@@ -281,7 +281,7 @@ where
 
     fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
         match name {
-            "value" => self.value = T::from_script_value(&value)?,
+            "value" => self.value = T::from_script_value(value)?,
             _ => unreachable!(),
         };
 

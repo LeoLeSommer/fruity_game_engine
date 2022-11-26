@@ -1,12 +1,8 @@
 use crate::entity::archetype::component_collection::ComponentCollection;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::IntrospectObject;
-use fruity_game_engine::script_value::convert::TryFromScriptValue;
-use fruity_game_engine::script_value::ScriptObject;
 use fruity_game_engine::script_value::ScriptValue;
-use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
-use fruity_game_engine::FruityStatus;
 use std::fmt::Debug;
 use std::ops::Deref;
 
@@ -17,7 +13,7 @@ pub trait StaticComponent {
 }
 
 /// An abstraction over a component, should be implemented for every component
-pub trait Component: IntrospectObject + ScriptObject + Debug + Send + Sync {
+pub trait Component: IntrospectObject + Debug + Send + Sync {
     /// Get a collection to store this component in the archetype
     fn get_collection(&self) -> Box<dyn ComponentCollection>;
 
@@ -55,24 +51,6 @@ impl Deref for AnyComponent {
 
     fn deref(&self) -> &<Self as std::ops::Deref>::Target {
         self.component.as_ref()
-    }
-}
-
-impl TryFromScriptValue for AnyComponent {
-    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Object(value) => match value.as_any_box().downcast::<AnyComponent>() {
-                Ok(value) => Ok(*value),
-                Err(_) => Err(FruityError::new(
-                    FruityStatus::InvalidArg,
-                    format!("Couldn't convert An AnyComponent to native object"),
-                )),
-            },
-            _ => Err(FruityError::new(
-                FruityStatus::InvalidArg,
-                format!("Couldn't convert {:?} to native object", value),
-            )),
-        }
     }
 }
 

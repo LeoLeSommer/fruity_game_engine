@@ -21,6 +21,8 @@ pub mod impl_containers;
 /// Implementation of script value conversions for tuples
 pub mod impl_tuples;
 
+use lazy_static::__Deref;
+
 use crate::any::FruityAny;
 use crate::introspect::IntrospectObject;
 /// Implementation of script value conversions for tuples
@@ -30,6 +32,7 @@ use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
 use crate::RwLock;
+use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -95,11 +98,11 @@ pub enum ScriptValue {
     Callback(Rc<dyn ScriptCallback>),
 
     /// An object created by rust
-    Object(Box<dyn ScriptObject>),
+    Object(Box<dyn IntrospectObject>),
 }
 
 impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
-    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::Array(value) => Ok(value
                 .into_iter()
@@ -133,24 +136,12 @@ pub trait ScriptCallback {
 }
 
 impl TryFromScriptValue for Rc<dyn ScriptCallback> {
-    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::Callback(value) => Ok(value.clone()),
             _ => Err(FruityError::new(
                 FruityStatus::InvalidArg,
                 format!("Couldn't convert {:?} to callback", value),
-            )),
-        }
-    }
-}
-
-impl TryFromScriptValue for Box<dyn ScriptObject> {
-    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Object(value) => Ok(value.duplicate()),
-            _ => Err(FruityError::new(
-                FruityStatus::InvalidArg,
-                format!("Couldn't convert {:?} to native object", value),
             )),
         }
     }
@@ -186,47 +177,20 @@ impl Debug for ScriptValue {
     }
 }
 
-/// Provides trait to implement a self duplication for an introspect object that can be stored in serialized
-pub trait ScriptObject: IntrospectObject {
-    /// Create a copy of self
-    fn duplicate(&self) -> Box<dyn ScriptObject>;
-}
-
-impl<T: Clone + IntrospectObject> ScriptObject for T {
-    fn duplicate(&self) -> Box<dyn ScriptObject> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for ScriptValue {
-    fn clone(&self) -> Self {
-        match self {
-            Self::I8(value) => Self::I8(value.clone()),
-            Self::I16(value) => Self::I16(value.clone()),
-            Self::I32(value) => Self::I32(value.clone()),
-            Self::I64(value) => Self::I64(value.clone()),
-            Self::ISize(value) => Self::ISize(value.clone()),
-            Self::U8(value) => Self::U8(value.clone()),
-            Self::U16(value) => Self::U16(value.clone()),
-            Self::U32(value) => Self::U32(value.clone()),
-            Self::U64(value) => Self::U64(value.clone()),
-            Self::USize(value) => Self::USize(value.clone()),
-            Self::F32(value) => Self::F32(value.clone()),
-            Self::F64(value) => Self::F64(value.clone()),
-            Self::Bool(value) => Self::Bool(value.clone()),
-            Self::String(value) => Self::String(value.clone()),
-            Self::Array(value) => Self::Array(value.clone()),
-            Self::Null => Self::Null,
-            Self::Undefined => Self::Undefined,
-            Self::Iterator(value) => Self::Iterator(value.clone()),
-            Self::Callback(value) => Self::Callback(value.clone()),
-            Self::Object(value) => Self::Object(value.duplicate()),
+impl dyn IntrospectObject {
+    /// Downcast a script object like an Any could do, the only difference is the err returns
+    pub fn downcast<T: Any>(self: Box<Self>) -> Result<Box<T>, Box<Self>> {
+        let any = self.deref().as_any_ref();
+        if any.is::<T>() {
+            unsafe { Ok(self.as_any_box().downcast_unchecked::<T>()) }
+        } else {
+            Err(self)
         }
     }
 }
 
 /// An hash map object for any object created from rust
-#[derive(FruityAny, Debug, Clone)]
+#[derive(FruityAny, Debug)]
 pub struct HashMapScriptObject {
     /// The type identifier
     pub class_name: String,
@@ -249,7 +213,17 @@ impl IntrospectObject for HashMapScriptObject {
     }
 
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
-        Ok(self.fields.get(name).unwrap().clone())
+        #[allow(mutable_transmutes)]
+        let this =
+            unsafe { std::mem::transmute::<&HashMapScriptObject, &mut HashMapScriptObject>(self) };
+
+        match this.fields.remove(name) {
+            Some(value) => Ok(value),
+            None => Err(FruityError::new(
+                FruityStatus::GenericFailure,
+                format!("Cannot get twice the same field from an HashMapScriptObject, the field where occured the error is {}", name),
+            )),
+        }
     }
 
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {

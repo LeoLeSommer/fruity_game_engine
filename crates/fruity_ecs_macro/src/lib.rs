@@ -323,7 +323,7 @@ pub fn derive_serializable_object(input: TokenStream)  -> TokenStream {
         }
         
         impl fruity_game_engine::script_value::convert::TryIntoScriptValue<fruity_game_engine::serialize::serialized::ScriptValue> for #ident {
-            fn into_script_value(&self) -> fruity_game_engine::serialize::serialized::ScriptValue {
+            fn into_script_value(self) -> fruity_game_engine::serialize::serialized::ScriptValue {
                 fruity_game_engine::serialize::serialized::ScriptValue::Object(Box::new(self))
             }
         }

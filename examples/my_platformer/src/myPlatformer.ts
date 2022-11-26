@@ -19,10 +19,10 @@ export default {
 
     resourceContainer.add("custom_service", new CustomService());
 
-    const customService = resourceContainer.get("custom_service");
+    /*const customService = resourceContainer.get("custom_service");
     console.log(customService);
 
-    customService.hello("Frame");
+    customService.hello("Frame");*/
 
     const systemService = resourceContainer.get("system_service");
 

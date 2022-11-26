@@ -77,10 +77,10 @@ impl Default for Settings {
 }
 
 impl TryIntoScriptValue for Settings {
-    fn into_script_value(&self) -> FruityResult<ScriptValue> {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(match self {
-            Settings::F64(value) => ScriptValue::F64(*value),
-            Settings::Bool(value) => ScriptValue::Bool(*value),
+            Settings::F64(value) => ScriptValue::F64(value),
+            Settings::Bool(value) => ScriptValue::Bool(value),
             Settings::String(value) => ScriptValue::String(value.clone()),
             Settings::Array(value) => ScriptValue::Array(
                 value
@@ -91,7 +91,7 @@ impl TryIntoScriptValue for Settings {
             Settings::Object(value) => ScriptValue::Object(Box::new(HashMapScriptObject {
                 class_name: "unknown".to_string(),
                 fields: value
-                    .iter()
+                    .into_iter()
                     .map(|(key, value)| value.into_script_value().map(|value| (key.clone(), value)))
                     .try_collect()?,
             })),
@@ -101,26 +101,26 @@ impl TryIntoScriptValue for Settings {
 }
 
 impl TryFromScriptValue for Settings {
-    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         Ok(match value {
-            ScriptValue::I8(value) => Settings::F64(*value as f64),
-            ScriptValue::I16(value) => Settings::F64(*value as f64),
-            ScriptValue::I32(value) => Settings::F64(*value as f64),
-            ScriptValue::I64(value) => Settings::F64(*value as f64),
-            ScriptValue::ISize(value) => Settings::F64(*value as f64),
-            ScriptValue::U8(value) => Settings::F64(*value as f64),
-            ScriptValue::U16(value) => Settings::F64(*value as f64),
-            ScriptValue::U32(value) => Settings::F64(*value as f64),
-            ScriptValue::U64(value) => Settings::F64(*value as f64),
-            ScriptValue::USize(value) => Settings::F64(*value as f64),
-            ScriptValue::F32(value) => Settings::F64(*value as f64),
-            ScriptValue::F64(value) => Settings::F64(*value as f64),
-            ScriptValue::Bool(value) => Settings::Bool(*value),
+            ScriptValue::I8(value) => Settings::F64(value as f64),
+            ScriptValue::I16(value) => Settings::F64(value as f64),
+            ScriptValue::I32(value) => Settings::F64(value as f64),
+            ScriptValue::I64(value) => Settings::F64(value as f64),
+            ScriptValue::ISize(value) => Settings::F64(value as f64),
+            ScriptValue::U8(value) => Settings::F64(value as f64),
+            ScriptValue::U16(value) => Settings::F64(value as f64),
+            ScriptValue::U32(value) => Settings::F64(value as f64),
+            ScriptValue::U64(value) => Settings::F64(value as f64),
+            ScriptValue::USize(value) => Settings::F64(value as f64),
+            ScriptValue::F32(value) => Settings::F64(value as f64),
+            ScriptValue::F64(value) => Settings::F64(value as f64),
+            ScriptValue::Bool(value) => Settings::Bool(value),
             ScriptValue::String(value) => Settings::String(value.clone()),
             ScriptValue::Array(value) => Settings::Array(
                 value
                     .into_iter()
-                    .map(|elem| TryFromScriptValue::from_script_value(&elem))
+                    .map(|elem| TryFromScriptValue::from_script_value(elem))
                     .try_collect::<Vec<_>>()?,
             ),
             ScriptValue::Null => Settings::Null,
@@ -133,7 +133,7 @@ impl TryFromScriptValue for Settings {
                     .into_iter()
                     .map(|name| {
                         let field_value = value.get_field_value(&name)?;
-                        TryFromScriptValue::from_script_value(&field_value)
+                        TryFromScriptValue::from_script_value(field_value)
                             .map(|value| (name, value))
                     })
                     .try_collect::<HashMap<_, _>>()?,

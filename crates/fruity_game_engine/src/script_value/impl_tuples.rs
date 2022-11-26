@@ -7,19 +7,19 @@ use crate::FruityResult;
 use crate::FruityStatus;
 
 impl TryIntoScriptValue for () {
-    fn into_script_value(&self) -> FruityResult<ScriptValue> {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Undefined)
     }
 }
 
 impl TryFromScriptValue for () {
-    fn from_script_value(_value: &ScriptValue) -> FruityResult<Self> {
+    fn from_script_value(_value: ScriptValue) -> FruityResult<Self> {
         Ok(())
     }
 }
 
 impl<T: TryIntoScriptValue, U: TryIntoScriptValue> TryIntoScriptValue for (T, U) {
-    fn into_script_value(&self) -> FruityResult<ScriptValue> {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Array(vec![
             self.0.into_script_value()?,
             self.1.into_script_value()?,
@@ -28,8 +28,8 @@ impl<T: TryIntoScriptValue, U: TryIntoScriptValue> TryIntoScriptValue for (T, U)
 }
 
 impl<T1: TryFromScriptValue, T2: TryFromScriptValue> TryFromScriptValue for (T1, T2) {
-    fn from_script_value(value: &ScriptValue) -> FruityResult<Self> {
-        match value.clone() {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
             ScriptValue::Array(args) => {
                 let mut caster = ArgumentCaster::new(args);
                 let arg1 = caster.cast_next::<T1>()?;
@@ -37,7 +37,7 @@ impl<T1: TryFromScriptValue, T2: TryFromScriptValue> TryFromScriptValue for (T1,
 
                 Ok((arg1, arg2))
             }
-            _ => Err(FruityError::new(
+            value => Err(FruityError::new(
                 FruityStatus::ArrayExpected,
                 format!("Couldn't convert {:?} to tuple", value),
             )),

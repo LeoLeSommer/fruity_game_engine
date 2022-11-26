@@ -113,7 +113,7 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
                     let name_as_string = name.to_string();
     
                     Some(quote! {
-                        #name: <#ty>::from_script_value(&value.get_field_value(#name_as_string)?)?,
+                        #name: <#ty>::from_script_value(value.get_field_value(#name_as_string)?)?,
                     })
                 } else {
                     None
@@ -122,14 +122,12 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
 
             quote! {
                 impl #current_crate::script_value::convert::TryFromScriptValue for #ident {
-                    fn from_script_value(value: &#current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<Self> {
-                        use std::ops::Deref;
-
+                    fn from_script_value(value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<Self> {
                         match value {
                             #current_crate::script_value::ScriptValue::Object(value) => {
-                                match value.deref().as_any_ref().downcast_ref::<Self>() {
-                                    Some(value) => Ok(value.clone()),
-                                    None => {
+                                match value.downcast::<Self>() {
+                                    Ok(value) => Ok(*value),
+                                    Err(value) => {
                                         Ok(Self {
                                             #(#convert_args)*
                                         })
@@ -321,7 +319,7 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
                 let ty = field.ty.clone();
                 
                 quote! {
-                    #name_as_string => <#ty>::into_script_value(&self.#name.clone()),
+                    #name_as_string => <#ty>::into_script_value(self.#name.clone()),
                 }
             });
 

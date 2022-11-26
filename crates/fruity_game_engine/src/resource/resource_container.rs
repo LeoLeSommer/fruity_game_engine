@@ -2,10 +2,10 @@ use super::resource_reference::AnyResourceReference;
 use crate::any::FruityAny;
 use crate::export;
 use crate::fruity_export;
+use crate::introspect::IntrospectObject;
 use crate::resource::resource_reference::ResourceReference;
 use crate::resource::script_resource::ScriptResource;
 use crate::resource::Resource;
-use crate::script_value::ScriptObject;
 use crate::settings::Settings;
 use crate::FruityError;
 use crate::FruityResult;
@@ -163,7 +163,7 @@ fruity_export! {
         /// * `resource` - The resource object
         ///
         #[export(name = "add")]
-        pub fn add_script_resource(&self, identifier: String, resource: Box<dyn ScriptObject>) {
+        pub fn add_script_resource(&self, identifier: String, resource: Box<dyn IntrospectObject>) {
             let mut inner = self.inner.write();
 
             let shared = AnyResourceReference::from_native(&identifier, Box::new(ScriptResource::from(resource)));

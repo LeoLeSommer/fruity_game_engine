@@ -23,3 +23,28 @@ pub struct Module {
     /// A function that initialize the module resources
     pub load_resources: Option<Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>>,
 }
+
+/*impl crate::script_value::convert::TryFromScriptValue for Module {
+    fn from_script_value(value: crate::script_value::ScriptValue) -> crate::FruityResult<Self> {
+        match value {
+            crate::script_value::ScriptValue::Object(value) => {
+                match value.downcast::<Self>() {
+                    Ok(value) => Ok(*value),
+                    Err(value) => {
+                        Ok(Self {
+                            name: <String>::from_script_value(value.get_field_value("name")?)?,
+                            dependencies: <Vec<String>>::from_script_value(value.get_field_value("dependencies")?)?,
+                            setup: <Option<Rc<dyn Fn(World, Settings) -> FruityResult<()>>>>::from_script_value(value.get_field_value("setup")?)?,
+                            load_resources: <Option<Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>>>::from_script_value(value.get_field_value("load_resources")?)?,
+                        })
+                    }
+                }
+            }
+            _ => Err(crate::FruityError::new(
+                crate::FruityStatus::InvalidArg,
+                format!("Couldn't convert {:?} to native object", value),
+            )),
+        }
+    }
+}
+*/

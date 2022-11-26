@@ -1,16 +1,12 @@
 use super::Resource;
-use crate::{
-    introspect::IntrospectObject,
-    script_value::{ScriptObject, ScriptValue},
-    FruityResult,
-};
+use crate::{introspect::IntrospectObject, script_value::ScriptValue, FruityResult};
 use fruity_game_engine_macro::FruityAny;
 use std::{any::Any, sync::Arc};
 
 /// A resource created by the script
 #[derive(FruityAny, Debug)]
 pub struct ScriptResource {
-    script_object: Box<dyn ScriptObject>,
+    script_object: Box<dyn IntrospectObject>,
 }
 
 // Normally, a script resource is always called only by the scripting language
@@ -21,16 +17,8 @@ pub struct ScriptResource {
 unsafe impl Sync for ScriptResource {}
 unsafe impl Send for ScriptResource {}
 
-impl Clone for ScriptResource {
-    fn clone(&self) -> Self {
-        Self {
-            script_object: self.script_object.duplicate(),
-        }
-    }
-}
-
-impl From<Box<dyn ScriptObject>> for ScriptResource {
-    fn from(script_object: Box<dyn ScriptObject>) -> Self {
+impl From<Box<dyn IntrospectObject>> for ScriptResource {
+    fn from(script_object: Box<dyn IntrospectObject>) -> Self {
         Self { script_object }
     }
 }
@@ -71,7 +59,7 @@ impl IntrospectObject for ScriptResource {
 
 impl Resource for ScriptResource {
     fn as_resource_box(self: Box<Self>) -> Box<dyn Resource> {
-        self.clone()
+        self
     }
 
     fn as_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
