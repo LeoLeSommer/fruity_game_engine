@@ -189,7 +189,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
         ValueType::String => {
             ScriptValue::String(value.coerce_to_string()?.into_utf8()?.as_str()?.to_string())
         }
-        ValueType::Symbol => todo!(),
+        ValueType::Symbol => unimplemented!(),
         ValueType::Object => {
             let js_object = unsafe { value.cast::<JsObject>() };
 
@@ -230,9 +230,9 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
                 env: env.clone(),
             }))
         }
-        ValueType::External => todo!(),
+        ValueType::External => unimplemented!(),
         ValueType::BigInt => ScriptValue::I64(unsafe { value.cast::<JsBigInt>() }.get_i64()?.0),
-        ValueType::Unknown => todo!(),
+        ValueType::Unknown => unimplemented!(),
     })
 }
 
@@ -299,35 +299,6 @@ impl Drop for JsFunctionCallback {
 struct JsIntrospectObject {
     inner: JsObject,
     env: Env,
-}
-
-impl Clone for JsIntrospectObject {
-    fn clone(&self) -> Self {
-        let mut inner = self.env.create_object().unwrap();
-
-        let properties = self.inner.get_property_names().unwrap();
-        let len = properties
-            .get_named_property::<JsNumber>("length")
-            .unwrap()
-            .get_uint32()
-            .unwrap();
-
-        (0..len)
-            .try_for_each(|index| {
-                let key = properties.get_element::<JsString>(index)?;
-                inner.set_property(
-                    key,
-                    self.inner
-                        .get_property::<JsString, JsUnknown>(key.clone())?,
-                )
-            })
-            .unwrap();
-
-        Self {
-            inner,
-            env: self.env.clone(),
-        }
-    }
 }
 
 impl Debug for JsIntrospectObject {

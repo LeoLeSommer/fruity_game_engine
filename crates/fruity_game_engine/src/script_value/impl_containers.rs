@@ -1,4 +1,3 @@
-use super::HashMapScriptObject;
 use super::ScriptValue;
 use crate::introspect::IntrospectObject;
 use crate::script_value::convert::TryFromScriptValue;
@@ -114,17 +113,5 @@ impl<T: TryFromScriptValue> TryFromScriptValue for HashMap<String, T> {
                 format!("Couldn't convert {:?} to HashMap", value),
             ))
         }
-    }
-}
-
-impl<T: TryIntoScriptValue> TryIntoScriptValue for HashMap<String, T> {
-    fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Object(Box::new(HashMapScriptObject {
-            class_name: "unknown".to_string(),
-            fields: self
-                .into_iter()
-                .map(|(key, value)| value.into_script_value().map(|value| (key.clone(), value)))
-                .try_collect()?,
-        })))
     }
 }

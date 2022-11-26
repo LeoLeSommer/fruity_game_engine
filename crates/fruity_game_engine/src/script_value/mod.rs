@@ -21,19 +21,16 @@ pub mod impl_containers;
 /// Implementation of script value conversions for tuples
 pub mod impl_tuples;
 
-use lazy_static::__Deref;
-
-use crate::any::FruityAny;
 use crate::introspect::IntrospectObject;
-/// Implementation of script value conversions for tuples
-// pub mod yaml;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
 use crate::RwLock;
+/// Implementation of script value conversions for tuples
+// pub mod yaml;
+use lazy_static::__Deref;
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -186,63 +183,5 @@ impl dyn IntrospectObject {
         } else {
             Err(self)
         }
-    }
-}
-
-/// An hash map object for any object created from rust
-#[derive(FruityAny, Debug)]
-pub struct HashMapScriptObject {
-    /// The type identifier
-    pub class_name: String,
-    /// The fields
-    pub fields: HashMap<String, ScriptValue>,
-}
-
-impl IntrospectObject for HashMapScriptObject {
-    fn get_class_name(&self) -> FruityResult<String> {
-        Ok(self.class_name.clone())
-    }
-
-    fn get_field_names(&self) -> FruityResult<Vec<String>> {
-        Ok(self.fields.keys().map(|e| e.clone()).collect())
-    }
-
-    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
-        *self.fields.get_mut(name).unwrap() = value;
-        FruityResult::Ok(())
-    }
-
-    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
-        #[allow(mutable_transmutes)]
-        let this =
-            unsafe { std::mem::transmute::<&HashMapScriptObject, &mut HashMapScriptObject>(self) };
-
-        match this.fields.remove(name) {
-            Some(value) => Ok(value),
-            None => Err(FruityError::new(
-                FruityStatus::GenericFailure,
-                format!("Cannot get twice the same field from an HashMapScriptObject, the field where occured the error is {}", name),
-            )),
-        }
-    }
-
-    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec![])
-    }
-
-    fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        unreachable!()
-    }
-
-    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec![])
-    }
-
-    fn call_mut_method(
-        &mut self,
-        _name: &str,
-        _args: Vec<ScriptValue>,
-    ) -> FruityResult<ScriptValue> {
-        unreachable!()
     }
 }

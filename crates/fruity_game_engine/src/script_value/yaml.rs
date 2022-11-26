@@ -16,7 +16,7 @@ use yaml_rust::YamlLoader;
 /// * `reader` - The read io stream
 ///
 pub fn serialize_yaml(writer: &mut dyn Write, serialized: &ScriptValue) -> FruityResult<()> {
-    let yaml = intern_serialize_yaml(serialized);
+    let yaml = intern_serialize_yaml(serialized)?;
 
     let mut write_buf = String::new();
     let mut emitter = YamlEmitter::new(&mut write_buf);
@@ -61,8 +61,8 @@ pub fn deserialize_yaml(reader: &mut dyn Read) -> FruityResult<ScriptValue> {
     }
 }
 
-fn intern_serialize_yaml(serialized: &ScriptValue) -> Yaml {
-    match serialized {
+fn intern_serialize_yaml(serialized: &ScriptValue) -> FruityResult<Yaml> {
+    Ok(match serialized {
         ScriptValue::I8(value) => Yaml::Integer(*value as i64),
         ScriptValue::I16(value) => Yaml::Integer(*value as i64),
         ScriptValue::I32(value) => Yaml::Integer(*value as i64),
@@ -92,17 +92,13 @@ fn intern_serialize_yaml(serialized: &ScriptValue) -> Yaml {
         ScriptValue::Object(value) => {
             let mut hashmap = LinkedHashMap::<Yaml, Yaml>::new();
 
-            value
-                .get_field_names()
-                .into_iter()
-                .try_for_each(|name| {
-                    let field_value = value.get_field_value(&name)?;
-                    let name = Yaml::String(name.clone());
-                    hashmap.insert(name, intern_serialize_yaml(&field_value));
+            value.get_field_names().into_iter().try_for_each(|name| {
+                let field_value = value.get_field_value(&name)?;
+                let name = Yaml::String(name.clone());
+                hashmap.insert(name, intern_serialize_yaml(&field_value));
 
-                    FruityResult::Ok(())
-                })
-                .unwrap();
+                FruityResult::Ok(())
+            })?;
 
             hashmap.insert(
                 Yaml::String("class_name".to_string()),
@@ -114,7 +110,7 @@ fn intern_serialize_yaml(serialized: &ScriptValue) -> Yaml {
             Yaml::Hash(hashmap)
         }
         ScriptValue::Object(_) => Yaml::BadValue,
-    }
+    })
 }
 
 fn intern_deserialize_yaml(yaml: &Yaml) -> Option<ScriptValue> {

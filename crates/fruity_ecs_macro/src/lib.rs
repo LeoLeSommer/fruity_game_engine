@@ -75,7 +75,7 @@ pub fn derive_introspect_object_trait(input: TokenStream)  -> TokenStream {
                         let ty = &field.ty;
                         match &field.ident {
                             Some(ident) => (quote! { #ident }, quote! { #ty }),
-                            None => unimplemented!(),
+                            None => unreachable!(),
                         }
                     })
                     .collect(),
@@ -93,7 +93,7 @@ pub fn derive_introspect_object_trait(input: TokenStream)  -> TokenStream {
                         .collect()
                 }
                 Fields::Unit => {
-                    unimplemented!()
+                    unreachable!()
                 }
             };
 
