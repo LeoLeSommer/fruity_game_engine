@@ -113,11 +113,7 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
                     let name_as_string = name.to_string();
     
                     Some(quote! {
-                        #name: <#ty>::fruity_from(
-                            fields
-                                .remove(#name_as_string)
-                                .unwrap_or(#current_crate::script_value::ScriptValue::Undefined),
-                        )?,
+                        #name: <#ty>::fruity_from(value.get_field_value(#name_as_string)?)?,
                     })
                 } else {
                     None
@@ -127,23 +123,21 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
             quote! {
                 impl #current_crate::convert::FruityFrom<#current_crate::script_value::ScriptValue> for #ident {
                     fn fruity_from(value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<Self> {
-                        match value {
-                            #current_crate::script_value::ScriptValue::NativeObject(value) => {
-                                match value.as_any_box().downcast::<Self>() {
+                        match value.clone() {
+                            #current_crate::script_value::ScriptValue::Object(value) => {
+                                match value.duplicate().as_any_box().downcast::<Self>() {
                                     Ok(value) => Ok(*value),
-                                    Err(_) => Err(#current_crate::FruityError::new(
-                                        #current_crate::FruityStatus::InvalidArg,
-                                        "Couldn't convert An AnyComponent to native object".to_string(),
-                                      )),
+                                    Err(_) => {
+                                        Ok(Self {
+                                            #(#convert_args)*
+                                        })
+                                    }
                                 }
                             }
-                            #current_crate::script_value::ScriptValue::Object { mut fields, .. } => Ok(Self {
-                                #(#convert_args)*
-                            }),
                             _ => Err(#current_crate::FruityError::new(
                                 #current_crate::FruityStatus::InvalidArg,
                                 format!("Couldn't convert {:?} to native object", value),
-                              )),
+                             )),
                         }
                     }
                 }
@@ -263,8 +257,8 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
 
     // Implement the IntrospectObject functions
     let impl_get_class_name = quote! {
-        fn get_class_name(&self) -> String {
-            #struct_name_as_string.to_string()
+        fn get_class_name(&self) -> #current_crate::FruityResult<String> {
+            Ok(#struct_name_as_string.to_string())
         }
     };
 
@@ -274,8 +268,8 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
             .map(|field| field.name.to_string());
 
         quote! {
-            fn get_field_names(&self) -> Vec<String> {
-                vec![#(#fields_names.to_string(),)*]
+            fn get_field_names(&self) -> #current_crate::FruityResult<Vec<String>> {
+                Ok(vec![#(#fields_names.to_string(),)*])
             }
         }
     };
@@ -364,8 +358,8 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
             });
 
         quote! {
-            fn get_const_method_names(&self) -> Vec<String> {
-                vec![#(#method_names.to_string(),)*]
+            fn get_const_method_names(&self) -> #current_crate::FruityResult<Vec<String>> {
+                Ok(vec![#(#method_names.to_string(),)*])
             }
         }
     };
@@ -445,8 +439,8 @@ pub fn fruity_export(input: TokenStream) -> TokenStream {
             });
 
         quote! {
-            fn get_mut_method_names(&self) -> Vec<String> {
-                vec![#(#method_names.to_string(),)*]
+            fn get_mut_method_names(&self) -> #current_crate::FruityResult<Vec<String>> {
+                Ok(vec![#(#method_names.to_string(),)*])
             }
         }
     };

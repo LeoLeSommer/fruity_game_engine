@@ -135,12 +135,12 @@ impl<T> IntrospectObject for Signal<T>
 where
     T: FruityFrom<ScriptValue> + FruityInto<ScriptValue> + Clone,
 {
-    fn get_class_name(&self) -> String {
-        "Signal".to_string()
+    fn get_class_name(&self) -> FruityResult<String> {
+        Ok("Signal".to_string())
     }
 
-    fn get_field_names(&self) -> Vec<String> {
-        vec![]
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
     }
 
     fn set_field_value(&mut self, _name: &str, _value: ScriptValue) -> FruityResult<()> {
@@ -151,8 +151,8 @@ where
         unreachable!()
     }
 
-    fn get_const_method_names(&self) -> Vec<String> {
-        vec!["notify".to_string()]
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec!["notify".to_string()])
     }
 
     fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
@@ -169,8 +169,8 @@ where
         }
     }
 
-    fn get_mut_method_names(&self) -> Vec<String> {
-        vec!["add_observer".to_string()]
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec!["add_observer".to_string()])
     }
 
     fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
@@ -271,12 +271,12 @@ impl<T> IntrospectObject for SignalProperty<T>
 where
     T: FruityInto<ScriptValue> + FruityFrom<ScriptValue> + Send + Sync + Clone + Debug,
 {
-    fn get_class_name(&self) -> String {
-        "SignalProperty".to_string()
+    fn get_class_name(&self) -> FruityResult<String> {
+        Ok("SignalProperty".to_string())
     }
 
-    fn get_field_names(&self) -> Vec<String> {
-        vec!["value".to_string(), "on_updated".to_string()]
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec!["value".to_string(), "on_updated".to_string()])
     }
 
     fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
@@ -296,16 +296,16 @@ where
         }
     }
 
-    fn get_const_method_names(&self) -> Vec<String> {
-        vec![]
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
     }
 
     fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
         unreachable!()
     }
 
-    fn get_mut_method_names(&self) -> Vec<String> {
-        vec![]
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
     }
 
     fn call_mut_method(
@@ -360,12 +360,12 @@ impl<T> IntrospectObject for ObserverHandler<T>
 where
     T: FruityFrom<ScriptValue> + FruityInto<ScriptValue>,
 {
-    fn get_class_name(&self) -> String {
-        "ObserverHandler".to_string()
+    fn get_class_name(&self) -> FruityResult<String> {
+        Ok("ObserverHandler".to_string())
     }
 
-    fn get_field_names(&self) -> Vec<String> {
-        vec![]
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
     }
 
     fn set_field_value(&mut self, _name: &str, _value: ScriptValue) -> FruityResult<()> {
@@ -376,8 +376,8 @@ where
         unreachable!()
     }
 
-    fn get_const_method_names(&self) -> Vec<String> {
-        vec!["dispose".to_string()]
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec!["dispose".to_string()])
     }
 
     fn call_const_method(&self, name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
@@ -387,8 +387,8 @@ where
         }
     }
 
-    fn get_mut_method_names(&self) -> Vec<String> {
-        vec![]
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
     }
 
     fn call_mut_method(

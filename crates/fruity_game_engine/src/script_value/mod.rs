@@ -18,9 +18,9 @@ pub mod impl_containers;
 /// Implementation of script value conversions for tuples
 pub mod impl_tuples;
 
+use crate::any::FruityAny;
 /// Implementation of script value conversions for tuples
-pub mod yaml;
-
+// pub mod yaml;
 use crate::convert::FruityFrom;
 use crate::introspect::IntrospectObject;
 use crate::FruityError;
@@ -91,17 +91,8 @@ pub enum ScriptValue {
     /// A callback
     Callback(Rc<dyn ScriptCallback>),
 
-    /// An object stored as an hashmap, mostly used to grab objects from the scripting runtime
-    Object {
-        /// The object class name
-        class_name: String,
-
-        /// The object fields
-        fields: HashMap<String, ScriptValue>,
-    },
-
     /// An object created by rust
-    NativeObject(Box<dyn IntrospectObjectClone>),
+    Object(Box<dyn ScriptObject>),
 }
 
 impl<T: FruityFrom<ScriptValue> + ?Sized> FruityFrom<ScriptValue> for Vec<T> {
@@ -150,10 +141,10 @@ impl FruityFrom<ScriptValue> for Rc<dyn ScriptCallback> {
     }
 }
 
-impl FruityFrom<ScriptValue> for Box<dyn IntrospectObjectClone> {
+impl FruityFrom<ScriptValue> for Box<dyn ScriptObject> {
     fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::NativeObject(value) => Ok(value),
+            ScriptValue::Object(value) => Ok(value),
             _ => Err(FruityError::new(
                 FruityStatus::InvalidArg,
                 format!("Couldn't convert {:?} to native object", value),
@@ -187,20 +178,19 @@ impl Debug for ScriptValue {
             ScriptValue::Undefined => formatter.write_str("undefined"),
             ScriptValue::Iterator(_) => formatter.write_str("iterator"),
             ScriptValue::Callback(_) => formatter.write_str("function"),
-            ScriptValue::Object { fields, .. } => fields.fmt(formatter),
-            ScriptValue::NativeObject(value) => value.fmt(formatter),
+            ScriptValue::Object(value) => value.fmt(formatter),
         }
     }
 }
 
 /// Provides trait to implement a self duplication for an introspect object that can be stored in serialized
-pub trait IntrospectObjectClone: IntrospectObject {
+pub trait ScriptObject: IntrospectObject {
     /// Create a copy of self
-    fn duplicate(&self) -> Box<dyn IntrospectObjectClone>;
+    fn duplicate(&self) -> Box<dyn ScriptObject>;
 }
 
-impl<T: Clone + IntrospectObject> IntrospectObjectClone for T {
-    fn duplicate(&self) -> Box<dyn IntrospectObjectClone> {
+impl<T: Clone + IntrospectObject> ScriptObject for T {
+    fn duplicate(&self) -> Box<dyn ScriptObject> {
         Box::new(self.clone())
     }
 }
@@ -227,11 +217,55 @@ impl Clone for ScriptValue {
             Self::Undefined => Self::Undefined,
             Self::Iterator(value) => Self::Iterator(value.clone()),
             Self::Callback(value) => Self::Callback(value.clone()),
-            Self::Object { class_name, fields } => Self::Object {
-                class_name: class_name.clone(),
-                fields: fields.clone(),
-            },
-            Self::NativeObject(value) => Self::NativeObject(value.duplicate()),
+            Self::Object(value) => Self::Object(value.duplicate()),
         }
+    }
+}
+
+/// An hash map object for any object created from rust
+#[derive(FruityAny, Debug, Clone)]
+pub struct HashMapScriptObject {
+    /// The type identifier
+    pub class_name: String,
+    /// The fields
+    pub fields: HashMap<String, ScriptValue>,
+}
+
+impl IntrospectObject for HashMapScriptObject {
+    fn get_class_name(&self) -> FruityResult<String> {
+        Ok(self.class_name.clone())
+    }
+
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        Ok(self.fields.keys().map(|e| e.clone()).collect())
+    }
+
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        *self.fields.get_mut(name).unwrap() = value;
+        FruityResult::Ok(())
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        Ok(self.fields.get(name).unwrap().clone())
+    }
+
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
     }
 }

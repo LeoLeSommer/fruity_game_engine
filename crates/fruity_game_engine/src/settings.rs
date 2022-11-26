@@ -1,6 +1,7 @@
 use crate::any::FruityAny;
 use crate::convert::FruityFrom;
 use crate::convert::FruityInto;
+use crate::script_value::HashMapScriptObject;
 use crate::script_value::ScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
@@ -87,15 +88,13 @@ impl FruityInto<ScriptValue> for Settings {
                     .map(|elem| elem.fruity_into())
                     .try_collect::<Vec<_>>()?,
             ),
-            Settings::Object(value) => ScriptValue::Object {
+            Settings::Object(value) => ScriptValue::Object(Box::new(HashMapScriptObject {
                 class_name: "unknown".to_string(),
                 fields: value
                     .into_iter()
-                    .map(|(key, elem)| {
-                        Ok((key, elem.fruity_into()?)) as FruityResult<(String, ScriptValue)>
-                    })
-                    .try_collect::<HashMap<_, _>>()?,
-            },
+                    .map(|(key, value)| value.fruity_into().map(|value| (key, value)))
+                    .try_collect()?,
+            })),
             Settings::Null => ScriptValue::Null,
         })
     }
@@ -128,15 +127,17 @@ impl FruityFrom<ScriptValue> for Settings {
             ScriptValue::Undefined => Settings::Null,
             ScriptValue::Iterator(_) => unimplemented!(),
             ScriptValue::Callback(_) => unimplemented!(),
-            ScriptValue::Object { fields, .. } => Settings::Object(
-                fields
+            ScriptValue::Object(value) => Settings::Object(
+                value
+                    .get_field_names()?
                     .into_iter()
-                    .map(|(key, elem)| {
-                        FruityFrom::<ScriptValue>::fruity_from(elem).map(|value| (key, value))
+                    .map(|name| {
+                        let field_value = value.get_field_value(&name)?;
+                        FruityFrom::<ScriptValue>::fruity_from(field_value)
+                            .map(|value| (name, value))
                     })
                     .try_collect::<HashMap<_, _>>()?,
             ),
-            ScriptValue::NativeObject(_) => unimplemented!(),
         })
     }
 }

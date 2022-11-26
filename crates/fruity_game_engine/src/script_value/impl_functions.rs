@@ -1,4 +1,4 @@
-use super::{IntrospectObjectClone, ScriptCallback, ScriptValue};
+use super::{ScriptCallback, ScriptObject, ScriptValue};
 use crate::convert::{FruityFrom, FruityInto};
 use crate::FruityError;
 use crate::FruityResult;
@@ -46,8 +46,8 @@ impl<R: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for Rc<dyn Fn() -> Frui
     }
 }
 
-impl<T1: FruityInto<ScriptValue>, R: FruityFrom<ScriptValue> + IntrospectObjectClone>
-    FruityFrom<ScriptValue> for Rc<dyn Fn(T1) -> FruityResult<R>>
+impl<T1: FruityInto<ScriptValue>, R: FruityFrom<ScriptValue> + ScriptObject> FruityFrom<ScriptValue>
+    for Rc<dyn Fn(T1) -> FruityResult<R>>
 {
     fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
         match value {

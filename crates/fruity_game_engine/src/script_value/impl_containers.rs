@@ -1,4 +1,5 @@
-use super::IntrospectObjectClone;
+use super::HashMapScriptObject;
+use super::ScriptObject;
 use super::ScriptValue;
 use crate::convert::FruityFrom;
 use crate::convert::FruityInto;
@@ -28,19 +29,19 @@ where
     }
 }
 
-impl<T: IntrospectObjectClone> FruityInto<ScriptValue> for T {
+impl<T: ScriptObject> FruityInto<ScriptValue> for T {
     fn fruity_into(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::NativeObject(Box::new(self)))
+        Ok(ScriptValue::Object(Box::new(self)))
     }
 }
 
 impl<T> FruityFrom<ScriptValue> for T
 where
-    T: IntrospectObjectClone,
+    T: ScriptObject,
 {
     fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::NativeObject(value) => match value.as_any_box().downcast::<T>() {
+            ScriptValue::Object(value) => match value.as_any_box().downcast::<T>() {
                 Ok(value) => Ok(*value),
                 _ => Err(FruityError::new(
                     FruityStatus::InvalidArg,
@@ -96,14 +97,15 @@ impl<T: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for Option<T> {
 
 impl<T: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for HashMap<String, T> {
     fn fruity_from(value: ScriptValue) -> FruityResult<Self> {
-        if let ScriptValue::Object { fields, .. } = value {
+        if let ScriptValue::Object(value) = value {
             let mut result = HashMap::<String, T>::new();
 
-            fields.into_iter().for_each(|(key, value)| {
-                if let Some(value) = T::fruity_from(value).ok() {
-                    result.insert(key, value);
-                }
-            });
+            value.get_field_names()?.into_iter().try_for_each(|name| {
+                let field_value = value.get_field_value(&name)?;
+                result.insert(name, T::fruity_from(field_value)?);
+
+                FruityResult::Ok(())
+            })?;
 
             Ok(result)
         } else {
@@ -117,12 +119,12 @@ impl<T: FruityFrom<ScriptValue>> FruityFrom<ScriptValue> for HashMap<String, T> 
 
 impl<T: FruityInto<ScriptValue>> FruityInto<ScriptValue> for HashMap<String, T> {
     fn fruity_into(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Object {
+        Ok(ScriptValue::Object(Box::new(HashMapScriptObject {
             class_name: "unknown".to_string(),
             fields: self
                 .into_iter()
                 .map(|(key, value)| value.fruity_into().map(|value| (key, value)))
                 .try_collect()?,
-        })
+        })))
     }
 }

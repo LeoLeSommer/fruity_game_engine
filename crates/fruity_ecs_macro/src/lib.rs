@@ -208,7 +208,7 @@ fn derive_component_instantiable_object_trait(input: TokenStream)  -> TokenStrea
                         };
                     };
         
-                    Ok(fruity_game_engine::serialize::serialized::ScriptValue::NativeObject(Box::new(fruity_ecs::component::component::AnyComponent::new(new_object))))
+                    Ok(fruity_game_engine::serialize::serialized::ScriptValue::Object(Box::new(fruity_ecs::component::component::AnyComponent::new(new_object))))
                 })
             }
         }
@@ -309,7 +309,7 @@ pub fn derive_serializable_object(input: TokenStream)  -> TokenStream {
 
                         Ok(new_object)
                     }*/
-                    fruity_game_engine::serialize::serialized::ScriptValue::NativeObject(value) => {
+                    fruity_game_engine::serialize::serialized::ScriptValue::Object(value) => {
                         match value.as_any_box().downcast::<#ident>() {
                             Ok(value) => Ok(*value),
                             Err(_) => Err(format!(
@@ -324,7 +324,7 @@ pub fn derive_serializable_object(input: TokenStream)  -> TokenStream {
         
         impl fruity_game_engine::convert::FruityInto<fruity_game_engine::serialize::serialized::ScriptValue> for #ident {
             fn fruity_into(self) -> fruity_game_engine::serialize::serialized::ScriptValue {
-                fruity_game_engine::serialize::serialized::ScriptValue::NativeObject(Box::new(self))
+                fruity_game_engine::serialize::serialized::ScriptValue::Object(Box::new(self))
             }
         }
     };

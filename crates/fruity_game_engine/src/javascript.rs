@@ -1,15 +1,20 @@
 use crate::{
     convert::FruityInto,
-    script_value::{IntrospectObjectClone, ScriptCallback, ScriptValue},
+    introspect::IntrospectObject,
+    script_value::{ScriptCallback, ScriptObject, ScriptValue},
+    FruityResult,
 };
 use convert_case::{Case, Casing};
+use fruity_game_engine_macro::FruityAny;
+use lazy_static::__Deref;
 use napi::{
     threadsafe_function::{
         ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
     },
     Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, Ref, Result, ValueType,
 };
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{fmt::Debug, vec};
 
 /// Tool to export javascript modules
 pub struct ExportJavascript {
@@ -90,85 +95,77 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                 script_value_to_js_value(ctx.env, result)
             })?
             .into_unknown(),
-        ScriptValue::Object { fields, .. } => {
-            let mut js_object = env.create_object()?;
+        ScriptValue::Object(value) => {
+            if let Ok(value) = value.as_any_box().downcast::<JsIntrospectObject>() {
+                // First case, it's a native js value
+                value.inner.into_unknown()
+            } else {
+                // Second case, we wrap the object into a js object
+                let mut js_object = env.create_object()?;
 
-            for (key, elem) in fields.into_iter() {
-                js_object.set(
-                    key.to_case(Case::Camel),
-                    script_value_to_js_value(env, elem)?,
-                )?;
+                // Define const method accessors
+                value
+                    .get_const_method_names()?
+                    .into_iter()
+                    .try_for_each(|method_name| {
+                        js_object.set_named_property(
+                            method_name.clone().to_case(Case::Camel).as_str(),
+                            env.create_function_from_closure(&method_name.clone(), move |ctx| {
+                                // Get args as script value
+                                let args = ctx
+                                    .get_all()
+                                    .into_iter()
+                                    .map(|elem| js_value_to_script_value(ctx.env, elem))
+                                    .try_collect::<Vec<_>>()?;
+
+                                // Get the native value wrapped in the javascript object
+                                let wrapped =
+                                    ctx.env.unwrap::<Box<dyn ScriptObject>>(&ctx.this()?)?;
+
+                                // Call the function
+                                let result = wrapped.call_const_method(&method_name, args)?;
+
+                                // Returns the result
+                                script_value_to_js_value(ctx.env, result)
+                            })?,
+                        )?;
+
+                        Result::Ok(())
+                    })?;
+
+                // Define mut method accessors
+                value
+                    .get_mut_method_names()?
+                    .into_iter()
+                    .try_for_each(|method_name| {
+                        js_object.set_named_property(
+                            method_name.clone().to_case(Case::Camel).as_str(),
+                            env.create_function_from_closure(&method_name.clone(), move |ctx| {
+                                // Get args as script value
+                                let args = ctx
+                                    .get_all()
+                                    .into_iter()
+                                    .map(|elem| js_value_to_script_value(ctx.env, elem))
+                                    .try_collect::<Vec<_>>()?;
+
+                                // Get the native value wrapped in the javascript object
+                                let wrapped =
+                                    ctx.env.unwrap::<Box<dyn ScriptObject>>(&ctx.this()?)?;
+
+                                // Call the function
+                                let result = wrapped.call_mut_method(&method_name, args)?;
+
+                                // Returns the result
+                                script_value_to_js_value(ctx.env, result)
+                            })?,
+                        )?;
+
+                        Result::Ok(())
+                    })?;
+
+                env.wrap(&mut js_object, value)?;
+                js_object.into_unknown()
             }
-
-            js_object.into_unknown()
-        }
-        ScriptValue::NativeObject(value) => {
-            let mut js_object = env.create_object()?;
-
-            // Define const method accessors
-            value
-                .get_const_method_names()
-                .into_iter()
-                .try_for_each(|method_name| {
-                    js_object.set_named_property(
-                        method_name.clone().to_case(Case::Camel).as_str(),
-                        env.create_function_from_closure(&method_name.clone(), move |ctx| {
-                            // Get args as script value
-                            let args = ctx
-                                .get_all()
-                                .into_iter()
-                                .map(|elem| js_value_to_script_value(ctx.env, elem))
-                                .try_collect::<Vec<_>>()?;
-
-                            // Get the native value wrapped in the javascript object
-                            let wrapped = ctx
-                                .env
-                                .unwrap::<Box<dyn IntrospectObjectClone>>(&ctx.this()?)?;
-
-                            // Call the function
-                            let result = wrapped.call_const_method(&method_name, args)?;
-
-                            // Returns the result
-                            script_value_to_js_value(ctx.env, result)
-                        })?,
-                    )?;
-
-                    Result::Ok(())
-                })?;
-
-            // Define mut method accessors
-            value
-                .get_mut_method_names()
-                .into_iter()
-                .try_for_each(|method_name| {
-                    js_object.set_named_property(
-                        method_name.clone().to_case(Case::Camel).as_str(),
-                        env.create_function_from_closure(&method_name.clone(), move |ctx| {
-                            // Get args as script value
-                            let args = ctx
-                                .get_all()
-                                .into_iter()
-                                .map(|elem| js_value_to_script_value(ctx.env, elem))
-                                .try_collect::<Vec<_>>()?;
-
-                            // Get the native value wrapped in the javascript object
-                            let wrapped = ctx
-                                .env
-                                .unwrap::<Box<dyn IntrospectObjectClone>>(&ctx.this()?)?;
-
-                            // Call the function
-                            let result = wrapped.call_mut_method(&method_name, args)?;
-
-                            // Returns the result
-                            script_value_to_js_value(ctx.env, result)
-                        })?,
-                    )?;
-
-                    Result::Ok(())
-                })?;
-
-            env.wrap(&mut js_object, value)?;
-            js_object.into_unknown()
         }
     })
 }
@@ -195,36 +192,17 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
                         .try_collect::<Vec<_>>()?,
                 )
             } else {
-                match env.unwrap::<Box<dyn IntrospectObjectClone>>(&js_object) {
+                match env.unwrap::<Box<dyn ScriptObject>>(&js_object) {
                     Ok(wrapped) => {
                         // Second case, a value is wrapped into the object
-                        ScriptValue::NativeObject(wrapped.duplicate())
+                        ScriptValue::Object(wrapped.duplicate())
                     }
                     Err(_) => {
                         // Third case, the object is a plain javascript object
-                        let mut fields: HashMap<String, ScriptValue> = HashMap::new();
-
-                        let properties = js_object.get_property_names()?;
-                        let len = properties
-                            .get_named_property::<JsNumber>("length")?
-                            .get_uint32()?;
-
-                        for index in 0..len {
-                            let key = properties.get_element::<JsString>(index)?;
-                            let key_string = key.into_utf8()?.as_str()?.to_string();
-
-                            let js_value: JsUnknown = js_object.get_property(key)?;
-
-                            fields.insert(
-                                key_string.to_case(Case::Snake),
-                                js_value_to_script_value(env, js_value)?,
-                            );
-                        }
-
-                        ScriptValue::Object {
-                            class_name: "unknown".to_string(),
-                            fields: fields,
-                        }
+                        ScriptValue::Object(Box::new(JsIntrospectObject {
+                            inner: js_object,
+                            env: env.clone(),
+                        }))
                     }
                 }
             }
@@ -302,8 +280,71 @@ impl Drop for JsFunctionCallback {
     }
 }
 
-/*struct JsRefDrop(Ref<()>, Env);
-}*/
+#[derive(FruityAny)]
+struct JsIntrospectObject {
+    inner: JsObject,
+    env: Env,
+}
+
+impl Debug for JsIntrospectObject {
+    fn fmt(&self, _: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+        Ok(())
+    }
+}
+
+impl IntrospectObject for JsIntrospectObject {
+    fn get_class_name(&self) -> FruityResult<String> {
+        let constructor: JsObject = self.inner.get_named_property("constructor")?;
+        let name: JsString = constructor.get_named_property("name")?;
+        Ok(name.into_utf8()?.as_str()?.to_string())
+    }
+
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        let properties = self.inner.get_property_names()?;
+        let len = properties
+            .get_named_property::<JsNumber>("length")?
+            .get_uint32()?;
+
+        (0..len)
+            .map(|index| {
+                let key = properties.get_element::<JsString>(index)?;
+                Ok(key.into_utf8()?.as_str()?.to_string())
+            })
+            .try_collect()
+    }
+
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        let value = script_value_to_js_value(&self.env, value)?;
+        self.inner.set_named_property(name, value)?;
+
+        Ok(())
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        let value = self.inner.get_named_property(name)?;
+        js_value_to_script_value(&self.env, value)
+    }
+
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+}
 
 /*unsafe extern "C" fn generic_getter(
     raw_env: napi_env,
@@ -320,7 +361,7 @@ impl Drop for JsFunctionCallback {
 
     // Get the native value wrapped in the javascript object
     let this = JsObject::from_raw(raw_env, callback_info.this()).unwrap();
-    let mut wrapped = env.unwrap::<Box<dyn IntrospectObjectClone>>(&this).unwrap();
+    let mut wrapped = env.unwrap::<Box<dyn ScriptObject>>(&this).unwrap();
 
     // Execute the getter
     let result = (field_info.getter)(wrapped.as_any_ref());

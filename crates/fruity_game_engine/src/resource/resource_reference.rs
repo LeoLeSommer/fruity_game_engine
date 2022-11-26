@@ -46,11 +46,11 @@ impl AnyResourceReference {
 }
 
 impl IntrospectObject for AnyResourceReference {
-    fn get_class_name(&self) -> String {
+    fn get_class_name(&self) -> FruityResult<String> {
         self.resource.get_class_name()
     }
 
-    fn get_field_names(&self) -> Vec<String> {
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
         self.resource.get_field_names()
     }
 
@@ -62,7 +62,7 @@ impl IntrospectObject for AnyResourceReference {
         self.resource.get_field_value(name)
     }
 
-    fn get_const_method_names(&self) -> Vec<String> {
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         self.resource.get_const_method_names()
     }
 
@@ -70,8 +70,8 @@ impl IntrospectObject for AnyResourceReference {
         self.resource.call_const_method(name, args)
     }
 
-    fn get_mut_method_names(&self) -> Vec<String> {
-        vec![]
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
     }
 
     fn call_mut_method(

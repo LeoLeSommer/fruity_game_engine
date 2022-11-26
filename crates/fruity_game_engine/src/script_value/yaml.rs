@@ -89,32 +89,31 @@ fn intern_serialize_yaml(serialized: &ScriptValue) -> Yaml {
         ScriptValue::Undefined => Yaml::Null,
         ScriptValue::Iterator(_) => Yaml::BadValue,
         ScriptValue::Callback(_) => Yaml::BadValue,
-        ScriptValue::Object { class_name, fields } => {
+        ScriptValue::Object(value) => {
             let mut hashmap = LinkedHashMap::<Yaml, Yaml>::new();
-            let field_hashmap = {
-                let mut hashmap = LinkedHashMap::<Yaml, Yaml>::new();
 
-                fields.iter().for_each(|(key, value)| {
-                    let key = Yaml::String(key.clone());
-                    hashmap.insert(key, intern_serialize_yaml(value));
-                });
+            value
+                .get_field_names()
+                .into_iter()
+                .try_for_each(|name| {
+                    let field_value = value.get_field_value(&name)?;
+                    let name = Yaml::String(name.clone());
+                    hashmap.insert(name, intern_serialize_yaml(&field_value));
 
-                hashmap
-            };
+                    FruityResult::Ok(())
+                })
+                .unwrap();
 
             hashmap.insert(
                 Yaml::String("class_name".to_string()),
-                Yaml::String(class_name.clone()),
+                Yaml::String(value.get_class_name()),
             );
 
-            hashmap.insert(
-                Yaml::String("fields".to_string()),
-                Yaml::Hash(field_hashmap),
-            );
+            hashmap.insert(Yaml::String("fields".to_string()), Yaml::Hash(hashmap));
 
             Yaml::Hash(hashmap)
         }
-        ScriptValue::NativeObject(_) => Yaml::BadValue,
+        ScriptValue::Object(_) => Yaml::BadValue,
     }
 }
 
