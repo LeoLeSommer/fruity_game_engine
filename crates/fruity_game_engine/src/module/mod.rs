@@ -2,7 +2,6 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::settings::Settings;
 use crate::world::World;
 use crate::FruityResult;
-use crate::ResourceContainer;
 use std::rc::Rc;
 
 /// A service to manage modules loading
@@ -21,7 +20,7 @@ pub struct Module {
     pub setup: Option<Rc<dyn Fn(World, Settings) -> FruityResult<()>>>,
 
     /// A function that initialize the module resources
-    pub load_resources: Option<Rc<dyn Fn(ResourceContainer, Settings) -> FruityResult<()>>>,
+    pub load_resources: Option<Rc<dyn Fn(World, Settings) -> FruityResult<()>>>,
 }
 
 /*impl crate::script_value::convert::TryFromScriptValue for Module {

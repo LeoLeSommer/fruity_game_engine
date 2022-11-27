@@ -112,12 +112,11 @@ fruity_export! {
         #[export]
         pub fn load_resources(&self) -> FruityResult<()> {
             let settings = self.inner.deref().borrow().settings.clone();
-            let resource_container = self.inner.deref().borrow().resource_container.clone();
             let module_service = self.module_service.deref().borrow();
 
             module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
                 if let Some(load_resources) = module.load_resources {
-                    load_resources(resource_container.clone(), settings.clone())?;
+                    load_resources(self.clone(), settings.clone())?;
                 }
 
                 Ok(())

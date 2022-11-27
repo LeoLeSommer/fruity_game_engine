@@ -133,3 +133,44 @@ impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryF
         }
     }
 }
+
+impl<T1: TryFromScriptValue, T2: TryFromScriptValue, R: TryIntoScriptValue> ScriptCallback
+    for &'static (dyn Fn(T1, T2) -> R)
+{
+    fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        let mut caster = ArgumentCaster::new(args);
+        let arg1 = caster.cast_next::<T1>()?;
+        let arg2 = caster.cast_next::<T2>()?;
+
+        let result = self(arg1, arg2);
+
+        result.into_script_value()
+    }
+
+    fn create_thread_safe_callback(
+        &self,
+    ) -> FruityResult<std::sync::Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
+        unimplemented!()
+    }
+}
+
+impl<
+        T1: TryFromScriptValue + 'static,
+        T2: TryFromScriptValue + 'static,
+        R: TryIntoScriptValue + 'static,
+    > TryIntoScriptValue for Rc<dyn Fn(T1, T2) -> R>
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Callback(Rc::new(
+            Box::new(move |args: Vec<ScriptValue>| {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 = caster.cast_next::<T1>()?;
+                let arg2 = caster.cast_next::<T2>()?;
+
+                let result = self(arg1, arg2);
+
+                result.into_script_value()
+            }) as Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+        )))
+    }
+}

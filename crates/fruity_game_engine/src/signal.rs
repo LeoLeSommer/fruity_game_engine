@@ -1,5 +1,6 @@
 use crate::any::FruityAny;
 use crate::introspect::IntrospectObject;
+use crate::lazy_static;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptCallback;

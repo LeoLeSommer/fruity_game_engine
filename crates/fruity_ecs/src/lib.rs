@@ -11,18 +11,23 @@
 //! - Entities represent any object stored in the ecs, entities are composed of components, in a game engine, a game object for example
 //! - Components are structure where the datas are stored
 
+use std::rc::Rc;
+
 use crate::entity::entity_service::EntityService;
 use crate::extension_component_service::ExtensionComponentService;
 use crate::system_service::SystemService;
-use fruity_game_engine::fruity_module_exports;
-use fruity_game_engine::javascript::ExportJavascript;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
-use fruity_game_engine::FruityResult;
-
 pub use fruity_ecs_macro::Component;
 pub use fruity_ecs_macro::IntrospectObject;
 pub use fruity_ecs_macro::SerializableObject;
+use fruity_game_engine::fruity_module_exports;
+use fruity_game_engine::javascript::ExportJavascript;
+use fruity_game_engine::lazy_static;
+use fruity_game_engine::module::Module;
+use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::send_wrapper::SendWrapper;
+use fruity_game_engine::settings::Settings;
 use fruity_game_engine::world::World;
+use fruity_game_engine::FruityResult;
 
 /// All related with components
 pub mod component;
@@ -36,71 +41,65 @@ pub mod system_service;
 /// A service to store components extensions
 pub mod extension_component_service;
 
-/// Create an entity type, use it like entity_type!["Component1", "Component2"])
-#[macro_export]
-macro_rules! entity_type {
-    ($($component:expr),*) => {
-        fruity_ecs::entity::entity::EntityTypeIdentifier(vec![$ ($component.to_string()),*])
-    };
-}
+lazy_static! {
+    /// The ecs module, ready to be registered into the fruity_game_engine
+    pub static ref FRUITY_ECS_MODULE: SendWrapper<Module> = SendWrapper::new(Module {
+        name: String::from("fruity_ecs"),
+        dependencies: vec!(),
+        setup: Some(Rc::new(|world: World, _settings: Settings| -> FruityResult<()> {
+            let resource_container = world.get_resource_container();
 
-/// Identifier of this extension
-pub fn name() -> &'static str {
-    "fruity_ecs"
-}
+            let system_service = SystemService::new(resource_container.clone());
+            resource_container.add::<SystemService>("system_service", Box::new(system_service));
 
-/// List all the dependencies of this extension
-pub fn dependencies() -> &'static [&'static str] {
-    &[]
-}
+            // Register system middleware
+            let system_service = resource_container.require::<SystemService>();
+            world.add_run_start_middleware(move |next, resource_container, settings| {
+                let mut system_service_writer = system_service.write();
+                system_service_writer.run_start()?;
 
-/// Setup this extension
-pub fn setup(world: World) {
-    let resource_container = world.get_resource_container();
+                next(resource_container.clone(), settings.clone())
+            });
 
-    let system_service = SystemService::new(resource_container.clone());
-    resource_container.add::<SystemService>("system_service", Box::new(system_service));
+            let system_service = resource_container.require::<SystemService>();
+            world.add_run_frame_middleware(move |next, resource_container, settings| {
+                let system_service_reader = system_service.read();
+                system_service_reader.run_frame()?;
 
-    // Register system middleware
-    let system_service = resource_container.require::<SystemService>();
-    world.add_run_start_middleware(move |next, resource_container, settings| {
-        let mut system_service_writer = system_service.write();
-        system_service_writer.run_start()?;
+                next(resource_container.clone(), settings.clone())
+            });
 
-        next(resource_container.clone(), settings.clone())
+            let system_service = resource_container.require::<SystemService>();
+            world.add_run_end_middleware(move |next, resource_container, settings| {
+                let mut system_service_writer = system_service.write();
+                system_service_writer.run_end()?;
+
+                next(resource_container.clone(), settings.clone())
+            });
+
+            let extension_component_service = ExtensionComponentService::new(resource_container.clone());
+            resource_container.add::<ExtensionComponentService>(
+                "extension_component_service",
+                Box::new(extension_component_service),
+            );
+
+            let entity_service = EntityService::new(resource_container.clone());
+            resource_container.add::<EntityService>("entity_service", Box::new(entity_service));
+
+            Ok(())
+        })),
+        load_resources: None,
     });
-
-    let system_service = resource_container.require::<SystemService>();
-    world.add_run_frame_middleware(move |next, resource_container, settings| {
-        let system_service_reader = system_service.read();
-        system_service_reader.run_frame()?;
-
-        next(resource_container.clone(), settings.clone())
-    });
-
-    let system_service = resource_container.require::<SystemService>();
-    world.add_run_end_middleware(move |next, resource_container, settings| {
-        let mut system_service_writer = system_service.write();
-        system_service_writer.run_end()?;
-
-        next(resource_container.clone(), settings.clone())
-    });
-
-    let extension_component_service = ExtensionComponentService::new(resource_container.clone());
-    resource_container.add::<ExtensionComponentService>(
-        "extension_component_service",
-        Box::new(extension_component_service),
-    );
-
-    let entity_service = EntityService::new(resource_container.clone());
-    resource_container.add::<EntityService>("entity_service", Box::new(entity_service));
 }
 
 #[fruity_module_exports]
 fn module_export(mut exports: ExportJavascript) -> FruityResult<()> {
-    exports.export_value("name", name())?;
-    exports.export_value("dependencies", dependencies())?;
-    exports.export_value("setup", &setup as &(dyn Fn(_) -> _))?;
+    exports.export_value("name", FRUITY_ECS_MODULE.name.clone())?;
+    exports.export_value("dependencies", FRUITY_ECS_MODULE.dependencies.clone())?;
+    exports.export_value(
+        "setup",
+        FRUITY_ECS_MODULE.setup.clone() as Option<Rc<dyn Fn(_, _) -> _>>,
+    )?;
 
     Ok(())
 }
