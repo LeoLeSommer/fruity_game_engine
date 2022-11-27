@@ -90,9 +90,7 @@ fruity_export! {
                 .flatten()
                 .collect::<Vec<_>>();
 
-                todo!();
-
-            /*entities
+            entities
                 .into_iter()
                 .try_for_each(|entity| {
                     let script_params: Vec<Vec<ScriptValue>> = self
@@ -110,7 +108,7 @@ fruity_export! {
                     })?;
 
                     Result::<(), FruityError>::Ok(())
-                })*/
+                })
         }
 
         /// Call a function for every entities of an query
@@ -124,7 +122,7 @@ fruity_export! {
             let params = self
                 .params
                 .iter()
-                .map(|param| param)
+                .map(|param| param.duplicate())
                 .collect::<Vec<_>>();
 
             let callback = callback.create_thread_safe_callback()?;
@@ -135,17 +133,15 @@ fruity_export! {
                         entity_reader.get_entity_id()
                     };*/
 
-                    todo!();
-
-                    /*let mut serialized_params = params
+                    let mut serialized_params = params
                         .iter()
                         .map(|param| param.get_entity_components(entity.clone()))
                         .multi_cartesian_product()
                         .flatten();
 
-                    serialized_params.try_for_each(|params| {*/
+                    serialized_params.try_for_each(|params| {
                         // TODO: Try to find a way to get back the result from thread safe function
-                        //callback(params);
+                        callback(params);
                         /*let dispose_callback = callback(params);
 
                         if let Some(dispose_callback) = dispose_callback {
@@ -160,8 +156,8 @@ fruity_export! {
                             )
                         }*/
 
-                        /*Result::<(), FruityError>::Ok(())
-                    })*/
+                        Result::<(), FruityError>::Ok(())
+                    })
                 } else {
                     Ok(())
                 }
@@ -186,6 +182,17 @@ fruity_export! {
 
                 true
             })*/
+        }
+    }
+}
+
+impl Clone for ScriptQuery {
+    fn clone(&self) -> Self {
+        Self {
+            archetypes: self.archetypes.clone(),
+            on_entity_created: self.on_entity_created.clone(),
+            on_entity_deleted: self.on_entity_deleted.clone(),
+            params: self.params.iter().map(|param| param.duplicate()).collect(),
         }
     }
 }

@@ -23,7 +23,6 @@ pub use napi::Error as FruityError;
 pub use napi::Result as FruityResult;
 pub use napi::Status as FruityStatus;
 pub use parking_lot::*;
-pub use puffin;
 use settings::read_settings;
 use world::World;
 
@@ -54,6 +53,9 @@ pub mod inject;
 /// Provides a factory for the introspect object
 /// This will be used by to do the snapshots
 pub mod object_factory_service;
+
+/// Provides tools to profile functions/blocks
+pub mod profile;
 
 /// An observer pattern
 pub mod signal;

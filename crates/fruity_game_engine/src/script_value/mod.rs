@@ -95,7 +95,7 @@ pub enum ScriptValue {
     Callback(Rc<dyn ScriptCallback>),
 
     /// An object created by rust
-    Object(Box<dyn IntrospectObject>),
+    Object(Box<dyn ScriptObject>),
 }
 
 impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
@@ -113,7 +113,34 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
     }
 }
 
-/// A trait that can be implemented for a callback
+/// A trait that can be implemented for an object storable in a ScriptValue
+pub trait ScriptObject: IntrospectObject {
+    /// Duplicate the script object
+    fn duplicate(&self) -> FruityResult<Box<dyn ScriptObject>>;
+}
+
+impl dyn ScriptObject {
+    /// Downcast a script object like an Any could do, the only difference is the err returns
+    pub fn downcast<T: Any>(self: Box<Self>) -> Result<Box<T>, Box<Self>> {
+        let any = self.deref().as_any_ref();
+        if any.is::<T>() {
+            unsafe { Ok(self.as_any_box().downcast_unchecked::<T>()) }
+        } else {
+            Err(self)
+        }
+    }
+}
+
+impl<T> ScriptObject for T
+where
+    T: Clone + IntrospectObject,
+{
+    fn duplicate(&self) -> FruityResult<Box<dyn ScriptObject>> {
+        Ok(Box::new(self.clone()))
+    }
+}
+
+/// A trait that can be implemented for a callback storable in a ScriptValue
 pub trait ScriptCallback {
     /// Call the callback
     fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
@@ -174,14 +201,29 @@ impl Debug for ScriptValue {
     }
 }
 
-impl dyn IntrospectObject {
-    /// Downcast a script object like an Any could do, the only difference is the err returns
-    pub fn downcast<T: Any>(self: Box<Self>) -> Result<Box<T>, Box<Self>> {
-        let any = self.deref().as_any_ref();
-        if any.is::<T>() {
-            unsafe { Ok(self.as_any_box().downcast_unchecked::<T>()) }
-        } else {
-            Err(self)
+impl Clone for ScriptValue {
+    fn clone(&self) -> Self {
+        match self {
+            Self::I8(value) => Self::I8(value.clone()),
+            Self::I16(value) => Self::I16(value.clone()),
+            Self::I32(value) => Self::I32(value.clone()),
+            Self::I64(value) => Self::I64(value.clone()),
+            Self::ISize(value) => Self::ISize(value.clone()),
+            Self::U8(value) => Self::U8(value.clone()),
+            Self::U16(value) => Self::U16(value.clone()),
+            Self::U32(value) => Self::U32(value.clone()),
+            Self::U64(value) => Self::U64(value.clone()),
+            Self::USize(value) => Self::USize(value.clone()),
+            Self::F32(value) => Self::F32(value.clone()),
+            Self::F64(value) => Self::F64(value.clone()),
+            Self::Bool(value) => Self::Bool(value.clone()),
+            Self::String(value) => Self::String(value.clone()),
+            Self::Array(value) => Self::Array(value.clone()),
+            Self::Null => Self::Null,
+            Self::Undefined => Self::Undefined,
+            Self::Iterator(value) => Self::Iterator(value.clone()),
+            Self::Callback(value) => Self::Callback(value.clone()),
+            Self::Object(value) => Self::Object(value.duplicate().unwrap()),
         }
     }
 }

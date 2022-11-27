@@ -1,17 +1,24 @@
 use crate::{
     introspect::IntrospectObject,
     script_value::convert::TryIntoScriptValue,
+    script_value::ScriptObject,
     script_value::{ScriptCallback, ScriptValue},
     FruityResult,
 };
 use convert_case::{Case, Casing};
 use fruity_game_engine_macro::FruityAny;
 use napi::{
+    bindgen_prelude::CallbackInfo,
+    sys::{napi_env, napi_value},
     threadsafe_function::{
         ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
     },
-    Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, Ref, Result, ValueType,
+    Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, PropertyAttributes, Ref,
+    Result, ValueType,
 };
+use napi::{check_status, NapiValue};
+use napi::{JsError, NapiRaw};
+use std::{ffi::CString, ops::Deref};
 use std::{fmt::Debug, vec};
 use std::{rc::Rc, sync::Arc};
 
@@ -102,6 +109,43 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                 Err(value) => {
                     let mut js_object = env.create_object()?;
 
+                    // Defined property accessors
+                    let field_names = value
+                        .get_field_names()?
+                        .into_iter()
+                        .map(|field_name| CString::new(field_name).unwrap())
+                        .collect::<Vec<_>>();
+
+                    let properties = field_names
+                        .iter()
+                        .map(|field_name| napi_sys::napi_property_descriptor {
+                            utf8name: field_name.as_ptr(),
+                            name: std::ptr::null_mut(),
+                            method: None,
+                            getter: Some(generic_getter),
+                            setter: Some(generic_setter),
+                            value: std::ptr::null_mut(),
+                            attributes: (PropertyAttributes::Default
+                                | PropertyAttributes::Writable
+                                | PropertyAttributes::Enumerable)
+                                .bits(),
+                            data: field_name.as_ptr() as *mut std::ffi::c_void,
+                        })
+                        .collect::<Vec<napi_sys::napi_property_descriptor>>();
+
+                    js_object.add_finalizer((), (), |_| {
+                        std::mem::drop(field_names);
+                    })?;
+
+                    unsafe {
+                        check_status!(napi_sys::napi_define_properties(
+                            env.raw(),
+                            js_object.raw(),
+                            properties.len(),
+                            properties.as_ptr(),
+                        ))?;
+                    }
+
                     // Define const method accessors
                     value
                         .get_const_method_names()?
@@ -122,7 +166,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                                         // Get the native value wrapped in the javascript object
                                         let wrapped = ctx
                                             .env
-                                            .unwrap::<Box<dyn IntrospectObject>>(&ctx.this()?)?;
+                                            .unwrap::<Box<dyn ScriptObject>>(&ctx.this()?)?;
 
                                         // Call the function
                                         let result =
@@ -157,7 +201,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
                                         // Get the native value wrapped in the javascript object
                                         let wrapped = ctx
                                             .env
-                                            .unwrap::<Box<dyn IntrospectObject>>(&ctx.this()?)?;
+                                            .unwrap::<Box<dyn ScriptObject>>(&ctx.this()?)?;
 
                                         // Call the function
                                         let result = wrapped.call_mut_method(&method_name, args)?;
@@ -201,16 +245,10 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
                         .try_collect::<Vec<_>>()?,
                 )
             } else {
-                match env.unwrap::<Box<dyn IntrospectObject>>(&js_object) {
+                match env.unwrap::<Box<dyn ScriptObject>>(&js_object) {
                     Ok(wrapped) => {
                         // Second case, a value is wrapped into the object
-                        let wrapped = wrapped as *mut Box<dyn IntrospectObject>;
-                        let wrapped = unsafe { <Box<dyn IntrospectObject>>::from_raw(wrapped) };
-
-                        // TODO: There is a memory leak there
-                        std::mem::forget(js_object);
-
-                        ScriptValue::Object(wrapped)
+                        ScriptValue::Object(wrapped.deref().duplicate()?)
                     }
                     Err(_) => {
                         // Third case, the object is a plain javascript object
@@ -295,8 +333,9 @@ impl Drop for JsFunctionCallback {
     }
 }
 
+/// A structure to store a javascript object that can be stored in a ScriptValue
 #[derive(FruityAny)]
-struct JsIntrospectObject {
+pub struct JsIntrospectObject {
     inner: JsObject,
     env: Env,
 }
@@ -304,6 +343,30 @@ struct JsIntrospectObject {
 impl Debug for JsIntrospectObject {
     fn fmt(&self, _: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
         Ok(())
+    }
+}
+
+impl ScriptObject for JsIntrospectObject {
+    fn duplicate(&self) -> FruityResult<Box<dyn ScriptObject>> {
+        let mut new_js_object = self.env.create_object()?;
+
+        let properties = self.inner.get_property_names()?;
+        let len = properties
+            .get_named_property::<JsNumber>("length")?
+            .get_uint32()?;
+
+        for index in 0..len {
+            let name: JsString = properties.get_element(index)?;
+            let name = name.into_utf8()?.as_str()?.to_string();
+
+            let value: JsUnknown = self.inner.get_named_property(&name.to_case(Case::Camel))?;
+            new_js_object.set_named_property(&name, value)?;
+        }
+
+        Ok(Box::new(Self {
+            inner: new_js_object,
+            env: self.env.clone(),
+        }))
     }
 }
 
@@ -367,27 +430,104 @@ impl IntrospectObject for JsIntrospectObject {
     }
 }
 
-/*unsafe extern "C" fn generic_getter(
+unsafe extern "C" fn generic_getter(
     raw_env: napi_env,
-    callback_info: napi_callback_info,
+    callback_info: napi_sys::napi_callback_info,
 ) -> napi_value {
-    // Initialize javascript utils
-    let env = Env::from_raw(raw_env);
-    let callback_info = CallbackInfo::new(raw_env, callback_info, None).unwrap();
+    unsafe fn generic_getter(
+        raw_env: napi_env,
+        callback_info: napi_sys::napi_callback_info,
+    ) -> Result<napi_value> {
+        // Get the field name passed as data
+        let field_name = {
+            let mut this = std::ptr::null_mut();
+            let mut args = [std::ptr::null_mut(); 1];
+            let mut argc = 1;
+            let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
 
-    // Get the field info wrapped in the callback info
-    let field_info: &JsObject = callback_info.unwrap_borrow().unwrap();
-    let field_info = JsObject::from_raw(raw_env, *field_info).unwrap();
-    let mut field_info = env.unwrap::<FieldInfo>(&field_info).unwrap();
+            check_status!(napi_sys::napi_get_cb_info(
+                raw_env,
+                callback_info,
+                &mut argc,
+                args.as_mut_ptr(),
+                &mut this,
+                &mut data_ptr,
+            ))?;
 
-    // Get the native value wrapped in the javascript object
-    let this = JsObject::from_raw(raw_env, callback_info.this()).unwrap();
-    let mut wrapped = env.unwrap::<Box<dyn ScriptObject>>(&this).unwrap();
+            let data_ptr = std::ffi::CStr::from_ptr(data_ptr as *mut std::ffi::c_char);
+            data_ptr.to_str().unwrap().to_string()
+        };
 
-    // Execute the getter
-    let result = (field_info.getter)(wrapped.as_any_ref());
+        // Initialize javascript utils
+        let env = Env::from_raw(raw_env);
+        let callback_info = CallbackInfo::<3>::new(raw_env, callback_info, None)?;
 
-    // Returns the result
-    let result = script_value_to_js_value(&env, result).unwrap();
-    result.raw()
-}*/
+        // Get the wrapped object
+        let this = JsObject::from_raw(raw_env, callback_info.this())?;
+        let wrapped = env.unwrap::<Box<dyn ScriptObject>>(&this)?;
+
+        // Execute the getter
+        let result = wrapped.get_field_value(&field_name)?;
+
+        // Returns the result
+        let result = script_value_to_js_value(&env, result)?;
+        Ok(result.raw())
+    }
+
+    generic_getter(raw_env, callback_info).unwrap_or_else(|e| {
+        unsafe { JsError::from(e).throw_into(raw_env) };
+        std::ptr::null_mut()
+    })
+}
+
+unsafe extern "C" fn generic_setter(
+    raw_env: napi_env,
+    callback_info: napi_sys::napi_callback_info,
+) -> napi_value {
+    unsafe fn generic_setter(
+        raw_env: napi_env,
+        callback_info: napi_sys::napi_callback_info,
+    ) -> Result<napi_value> {
+        // Get the field name passed as data
+        let field_name = {
+            let mut this = std::ptr::null_mut();
+            let mut args = [std::ptr::null_mut(); 1];
+            let mut argc = 1;
+            let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+
+            check_status!(napi_sys::napi_get_cb_info(
+                raw_env,
+                callback_info,
+                &mut argc,
+                args.as_mut_ptr(),
+                &mut this,
+                &mut data_ptr,
+            ))?;
+
+            let data_ptr = std::ffi::CStr::from_ptr(data_ptr as *mut std::ffi::c_char);
+            data_ptr.to_str().unwrap().to_string()
+        };
+
+        // Initialize javascript utils
+        let env = Env::from_raw(raw_env);
+        let callback_info = CallbackInfo::<3>::new(raw_env, callback_info, None)?;
+
+        // Get the wrapped object
+        let this = JsObject::from_raw(raw_env, callback_info.this())?;
+        let wrapped = env.unwrap::<Box<dyn ScriptObject>>(&this)?;
+
+        // Execute the setter
+        let arg = JsUnknown::from_raw(raw_env, callback_info.get_arg(0))?;
+        let arg = js_value_to_script_value(&env, arg)?;
+        wrapped.set_field_value(&field_name, arg)?;
+
+        // Returns the result
+        let result = env.get_undefined()?;
+        Ok(result.raw())
+    }
+
+    generic_setter(raw_env, callback_info).unwrap_or_else(|e| {
+        unsafe { JsError::from(e).throw_into(raw_env) };
+        std::ptr::null_mut()
+    })
+}

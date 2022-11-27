@@ -11,7 +11,7 @@ fruity_export! {
     #[derive(FruityAny, Resource, Debug)]
     pub struct FrameService {
         last_frame_instant: Instant,
-        delta: f32,
+         delta: f32,
     }
 
     impl FrameService {

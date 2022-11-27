@@ -134,7 +134,7 @@ fruity_export! {
             let frame_middleware = self.inner.deref().borrow().frame_middleware.clone();
             let end_middleware = self.inner.deref().borrow().end_middleware.clone();
 
-            puffin::profile_function!();
+            crate::profile::profile_function!();
 
             run_middleware(
                 resource_container,

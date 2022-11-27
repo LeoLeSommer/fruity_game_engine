@@ -4,11 +4,8 @@ import myPlatformer from "./myPlatformer";
 
 console.log("Hello world!");
 
-console.log("1");
 const settings = readSettings("./assets/settings.yaml");
-console.log("2");
 const world = new World(settings);
-console.log("3");
 
 console.log(fruityEcs);
 

@@ -1,3 +1,4 @@
+use super::ScriptObject;
 use super::ScriptValue;
 use crate::introspect::IntrospectObject;
 use crate::script_value::convert::TryFromScriptValue;
@@ -5,6 +6,7 @@ use crate::script_value::convert::TryIntoScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::FruityStatus;
+use std::any::type_name;
 use std::collections::HashMap;
 
 impl<T> TryIntoScriptValue for FruityResult<T>
@@ -28,7 +30,7 @@ where
     }
 }
 
-impl<T: IntrospectObject> TryIntoScriptValue for T {
+impl<T: ScriptObject> TryIntoScriptValue for T {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Object(Box::new(self)))
     }
@@ -42,9 +44,13 @@ where
         match value {
             ScriptValue::Object(value) => match value.downcast::<T>() {
                 Ok(value) => Ok(*value),
-                _ => Err(FruityError::new(
+                Err(value) => Err(FruityError::new(
                     FruityStatus::InvalidArg,
-                    format!("Couldn't convert a ScriptValue to native object"),
+                    format!(
+                        "Couldn't convert a {} to {}",
+                        value.get_type_name(),
+                        type_name::<T>()
+                    ),
                 )),
             },
             value => Err(FruityError::new(

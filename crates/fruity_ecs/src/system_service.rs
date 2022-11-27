@@ -3,8 +3,7 @@ use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
 use fruity_game_engine::fruity_export;
 use fruity_game_engine::inject::Inject;
-use fruity_game_engine::puffin::are_scopes_on;
-use fruity_game_engine::puffin::ProfilerScope;
+use fruity_game_engine::profile::profile_scope;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
@@ -337,14 +336,8 @@ fruity_export! {
                     let handler = thread::spawn(move || {
                         pool.systems.iter().par_bridge().for_each(|system| {
                             if !is_paused || system.ignore_pause {
-                                let _profiler_scope = if are_scopes_on() {
-                                    // Safe cause identifier don't need to be static (from the doc)
-                                    let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                                    Some(ProfilerScope::new(identifier, "system", ""))
-                                } else {
-                                    None
-                                };
-                                (system.callback)(resource_container.clone());
+                                let _profiler_scope = profile_scope(&system.identifier);
+                                (system.callback)(resource_container.clone())
                             }
                         });
                     });
@@ -353,13 +346,7 @@ fruity_export! {
                     let resource_container = self.resource_container.clone();
                     pool.script_systems.iter().try_for_each(|system| {
                         if !is_paused || system.ignore_pause {
-                            let _profiler_scope = if are_scopes_on() {
-                                // Safe cause identifier don't need to be static (from the doc)
-                                let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                                Some(ProfilerScope::new(identifier, "system", ""))
-                            } else {
-                                None
-                            };
+                            let _profiler_scope = profile_scope(&system.identifier);
                             system.callback.call(vec![resource_container.clone().into_script_value()?])?;
                         }
 
@@ -381,13 +368,7 @@ fruity_export! {
                 .par_iter()
                 .filter(|system| system.ignore_pause)
                 .for_each(|system| {
-                    let _profiler_scope = if are_scopes_on() {
-                        // Safe cause identifier don't need to be static (from the doc)
-                        let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                        Some(ProfilerScope::new(identifier, "system", ""))
-                    } else {
-                        None
-                    };
+                    let _profiler_scope = profile_scope(&system.identifier);
 
                     let dispose_callback = (system.callback)(self.resource_container.clone());
 
@@ -405,13 +386,7 @@ fruity_export! {
                 .iter()
                 .filter(|system| system.ignore_pause)
                 .try_for_each(|system| {
-                    let _profiler_scope = if are_scopes_on() {
-                        // Safe cause identifier don't need to be static (from the doc)
-                        let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                        Some(ProfilerScope::new(identifier, "system", ""))
-                    } else {
-                        None
-                    };
+                    let _profiler_scope = profile_scope(&system.identifier);
 
                     let dispose_callback = system.callback.call(vec![self.resource_container.clone().into_script_value()?])?;
 
@@ -441,27 +416,13 @@ fruity_export! {
             // Run the threaded systems
             let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
             startup_dispose_callbacks.drain(..).par_bridge().for_each(|system| {
-                let _profiler_scope = if are_scopes_on() {
-                    // Safe cause identifier don't need to be static (from the doc)
-                    let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                    Some(ProfilerScope::new(identifier, "dispose system", ""))
-                } else {
-                    None
-                };
-
+                let _profiler_scope = profile_scope(&system.identifier);
                 (system.callback)()
             });
 
             // Run the script systems
             self.script_startup_dispose_callbacks.drain(..).try_for_each(|system| {
-                let _profiler_scope = if are_scopes_on() {
-                    // Safe cause identifier don't need to be static (from the doc)
-                    let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                    Some(ProfilerScope::new(identifier, "dispose system", ""))
-                } else {
-                    None
-                };
-
+                let _profiler_scope = profile_scope(&system.identifier);
                 system.callback.call(vec![]).map(|_| ())
             })?;
 
@@ -474,13 +435,7 @@ fruity_export! {
                 .iter()
                 .filter(|system| !system.ignore_pause)
                 .for_each(|system| {
-                    let _profiler_scope = if are_scopes_on() {
-                        // Safe cause identifier don't need to be static (from the doc)
-                        let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                        Some(ProfilerScope::new(identifier, "system", ""))
-                    } else {
-                        None
-                    };
+                    let _profiler_scope = profile_scope(&system.identifier);
 
                     let dispose_callback = (system.callback)(self.resource_container.clone());
 
@@ -498,14 +453,7 @@ fruity_export! {
         fn run_unpause_end(&self) {
             let mut startup_dispose_callbacks = self.startup_pause_dispose_callbacks.lock();
             startup_dispose_callbacks.drain(..).for_each(|system| {
-                let _profiler_scope = if are_scopes_on() {
-                    // Safe cause identifier don't need to be static (from the doc)
-                    let identifier = unsafe { &*(&system.identifier as *const _) } as &str;
-                    Some(ProfilerScope::new(identifier, "dispose system", ""))
-                } else {
-                    None
-                };
-
+                let _profiler_scope = profile_scope(&system.identifier);
                 (system.callback)()
             });
         }
