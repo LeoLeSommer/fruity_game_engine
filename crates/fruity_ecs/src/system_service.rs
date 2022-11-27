@@ -9,6 +9,7 @@ use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptCallback;
 use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::send_wrapper::SendWrapper;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
 use rayon::prelude::*;
@@ -83,20 +84,6 @@ struct ScriptFrameSystem {
     ignore_pause: bool,
 }
 
-// All the functions that use ScriptFrameSystem should be wrapped into
-// an unsafe call
-//
-// If we want to keep SystemService as a resource, we need it to store it as Send + Sync
-// The only calls to the run functions are made in the middleware
-// The only calls to add a ScriptFrameSystem are unsafe or called by the scripting language
-// which is mono-threaded
-//
-// TODO: Find a safer way to do that, for example by splitting system service into a multi threads
-// service for native systems and a single threaded service for scripting systems
-//
-unsafe impl Sync for ScriptFrameSystem {}
-unsafe impl Send for ScriptFrameSystem {}
-
 #[derive(Clone)]
 struct ScriptStartupSystem {
     identifier: String,
@@ -104,38 +91,10 @@ struct ScriptStartupSystem {
     ignore_pause: bool,
 }
 
-// All the functions that use ScriptStartupSystem should be wrapped into
-// an unsafe call
-//
-// If we want to keep SystemService as a resource, we need it to store it as Send + Sync
-// The only calls to the run functions are made in the middleware
-// The only calls to add a ScriptStartupSystem are unsafe or called by the scripting language
-// which is mono-threaded
-//
-// TODO: Find a safer way to do that, for example by splitting system service into a multi threads
-// service for native systems and a single threaded service for scripting systems
-//
-unsafe impl Sync for ScriptStartupSystem {}
-unsafe impl Send for ScriptStartupSystem {}
-
 pub(crate) struct ScriptStartupDisposeSystem {
     identifier: String,
     callback: Rc<dyn ScriptCallback>,
 }
-
-// All the functions that use ScriptStartupDisposeSystem should be wrapped into
-// an unsafe call
-//
-// If we want to keep SystemService as a resource, we need it to store it as Send + Sync
-// The only calls to the run functions are made in the middleware
-// The only calls to add a ScriptStartupDisposeSystem are unsafe or called by the scripting language
-// which is mono-threaded
-//
-// TODO: Find a safer way to do that, for example by splitting system service into a multi threads
-// service for native systems and a single threaded service for scripting systems
-//
-unsafe impl Sync for ScriptStartupDisposeSystem {}
-unsafe impl Send for ScriptStartupDisposeSystem {}
 
 #[derive(Clone)]
 struct FrameSystem {
@@ -151,7 +110,7 @@ pub struct FrameSystemPool {
     systems: Vec<FrameSystem>,
 
     /// Script systems of the pool
-    script_systems: Vec<ScriptFrameSystem>,
+    script_systems: SendWrapper<Vec<ScriptFrameSystem>>,
 
     /// Is the pool enabled
     enabled: bool,
@@ -178,8 +137,8 @@ fruity_export! {
         startup_systems: Vec<StartupSystem>,
         startup_dispose_callbacks: Mutex<Vec<StartupDisposeSystem>>,
         startup_pause_dispose_callbacks: Mutex<Vec<StartupDisposeSystem>>,
-        script_startup_systems: Vec<ScriptStartupSystem>,
-        script_startup_dispose_callbacks: Vec<ScriptStartupDisposeSystem>,
+        script_startup_systems: SendWrapper<Vec<ScriptStartupSystem>>,
+        script_startup_dispose_callbacks: SendWrapper<Vec<ScriptStartupDisposeSystem>>,
         resource_container: ResourceContainer,
     }
 
@@ -198,8 +157,8 @@ fruity_export! {
                 startup_systems: Vec::new(),
                 startup_dispose_callbacks: Mutex::new(Vec::new()),
                 startup_pause_dispose_callbacks: Mutex::new(Vec::new()),
-                script_startup_systems: Vec::new(),
-                script_startup_dispose_callbacks: Vec::new(),
+                script_startup_systems: SendWrapper::new(Vec::new()),
+                script_startup_dispose_callbacks: SendWrapper::new(Vec::new()),
                 resource_container,
             }
         }
@@ -232,7 +191,7 @@ fruity_export! {
                     params.pool_index,
                     FrameSystemPool {
                         systems,
-                        script_systems: vec![],
+                        script_systems: SendWrapper::new(vec![]),
                         enabled: true,
                     },
                 );
@@ -268,7 +227,7 @@ fruity_export! {
         /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
         ///
         #[export(name = "add_system")]
-        /*unsafe */pub fn add_script_system(
+        pub fn add_script_system(
             &mut self,
             identifier: String,
             callback: Rc<dyn ScriptCallback>,
@@ -290,7 +249,7 @@ fruity_export! {
                     params.pool_index,
                     FrameSystemPool {
                         systems: vec![],
-                        script_systems,
+                        script_systems: SendWrapper::new(script_systems),
                         enabled: true,
                     },
                 );
@@ -304,7 +263,7 @@ fruity_export! {
         /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
         ///
         #[export(name = "add_startup_system")]
-        /*unsafe */pub fn add_script_startup_system(
+        pub fn add_script_startup_system(
             &mut self,
             identifier: String,
             callback: Rc<dyn ScriptCallback>,
