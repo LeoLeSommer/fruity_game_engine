@@ -10,6 +10,7 @@ use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptCallback;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::send_wrapper::SendWrapper;
+use fruity_game_engine::world::World;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
 use rayon::prelude::*;
@@ -285,13 +286,13 @@ fruity_export! {
         }
 
         /// Run all the stored systems
-        pub(crate) fn run_frame(&self) -> FruityResult<()> {
+        pub(crate) fn run_frame(&self, world: &World) -> FruityResult<()> {
             let is_paused = self.is_paused();
 
             self.iter_system_pools().map(|pool| pool.clone()).try_for_each(|pool| {
                 if pool.enabled {
                     // Run the threaded systems
-                    let resource_container = self.resource_container.clone();
+                    let resource_container = world.get_resource_container();
                     let handler = thread::spawn(move || {
                         pool.systems.iter().par_bridge().for_each(|system| {
                             if !is_paused || system.ignore_pause {
@@ -302,11 +303,11 @@ fruity_export! {
                     });
 
                     // Run the script systems
-                    let resource_container = self.resource_container.clone();
+                    let script_resource_container = world.get_script_resource_container();
                     pool.script_systems.iter().try_for_each(|system| {
                         if !is_paused || system.ignore_pause {
                             let _profiler_scope = profile_scope(&system.identifier);
-                            system.callback.call(vec![resource_container.clone().into_script_value()?])?;
+                            system.callback.call(vec![script_resource_container.clone().into_script_value()?])?;
                         }
 
                         FruityResult::Ok(())
@@ -321,15 +322,16 @@ fruity_export! {
         }
 
         /// Run all the startup systems
-        pub(crate) fn run_start(&mut self) -> FruityResult<()> {
+        pub(crate) fn run_start(&mut self, world: &World) -> FruityResult<()> {
             // Run the threaded systems
+            let resource_container = world.get_resource_container();
             self.startup_systems
                 .par_iter()
                 .filter(|system| system.ignore_pause)
                 .for_each(|system| {
                     let _profiler_scope = profile_scope(&system.identifier);
 
-                    let dispose_callback = (system.callback)(self.resource_container.clone());
+                    let dispose_callback = (system.callback)(resource_container.clone());
 
                     if let Some(dispose_callback) = dispose_callback {
                         let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
@@ -341,13 +343,14 @@ fruity_export! {
                 });
 
             // Run the script systems
+            let script_resource_container = world.get_script_resource_container();
             self.script_startup_systems
                 .iter()
                 .filter(|system| system.ignore_pause)
                 .try_for_each(|system| {
                     let _profiler_scope = profile_scope(&system.identifier);
 
-                    let dispose_callback = system.callback.call(vec![self.resource_container.clone().into_script_value()?])?;
+                    let dispose_callback = system.callback.call(vec![script_resource_container.clone().into_script_value()?])?;
 
                     if let ScriptValue::Callback(dispose_callback) = dispose_callback {
                         self.script_startup_dispose_callbacks.push(ScriptStartupDisposeSystem {
@@ -367,7 +370,7 @@ fruity_export! {
         }
 
         /// Run all startup dispose callbacks
-        pub(crate) fn run_end(&mut self) -> FruityResult<()> {
+        pub(crate) fn run_end(&mut self, _world: &World) -> FruityResult<()> {
             if !self.is_paused() {
                 self.run_unpause_end();
             }

@@ -336,7 +336,7 @@ impl Drop for JsFunctionCallback {
 /// A structure to store a javascript object that can be stored in a ScriptValue
 #[derive(FruityAny)]
 pub struct JsIntrospectObject {
-    inner: JsObject,
+    pub reference: Ref<()>,
     env: Env,
 }
 
@@ -372,12 +372,12 @@ impl ScriptObject for JsIntrospectObject {
 
 impl IntrospectObject for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
-        Ok("js_unknown".to_string())
+        // Ok("js_unknown".to_string())
 
         // TODO: Get the class name from prototype
-        /*let constructor: JsObject = self.inner.get_named_property("constructor")?;
+        let constructor: JsObject = self.inner.get_named_property("constructor")?;
         let name: JsString = constructor.get_named_property("name")?;
-        Ok(name.into_utf8()?.as_str()?.to_string())*/
+        Ok(name.into_utf8()?.as_str()?.to_string())
     }
 
     fn get_field_names(&self) -> FruityResult<Vec<String>> {

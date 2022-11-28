@@ -54,27 +54,27 @@ lazy_static! {
 
             // Register system middleware
             let system_service = resource_container.require::<SystemService>();
-            world.add_run_start_middleware(move |next, resource_container, settings| {
+            world.add_run_start_middleware(move |next, world| {
                 let mut system_service_writer = system_service.write();
-                system_service_writer.run_start()?;
+                system_service_writer.run_start(world)?;
 
-                next(resource_container.clone(), settings.clone())
+                next(world)
             });
 
             let system_service = resource_container.require::<SystemService>();
-            world.add_run_frame_middleware(move |next, resource_container, settings| {
+            world.add_run_frame_middleware(move |next, world| {
                 let system_service_reader = system_service.read();
-                system_service_reader.run_frame()?;
+                system_service_reader.run_frame(world)?;
 
-                next(resource_container.clone(), settings.clone())
+                next(world)
             });
 
             let system_service = resource_container.require::<SystemService>();
-            world.add_run_end_middleware(move |next, resource_container, settings| {
+            world.add_run_end_middleware(move |next, world| {
                 let mut system_service_writer = system_service.write();
-                system_service_writer.run_end()?;
+                system_service_writer.run_end(world)?;
 
-                next(resource_container.clone(), settings.clone())
+                next(world)
             });
 
             let extension_component_service = ExtensionComponentService::new(resource_container.clone());
