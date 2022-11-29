@@ -2,7 +2,6 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::ScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::FruityStatus;
 use std::iter::Enumerate;
 use std::vec::IntoIter as VecIntoIter;
 
@@ -45,14 +44,11 @@ impl ArgumentCaster {
                 T::from_script_value(arg)
             }
             None => T::from_script_value(ScriptValue::Undefined).map_err(|_| {
-                FruityError::new(
-                    FruityStatus::InvalidArg,
-                    format!(
-                        "Wrong number of arguments, you provided {} and we expect {}",
-                        self.last_index,
-                        self.args_count + 1
-                    ),
-                )
+                FruityError::InvalidArg(format!(
+                    "Wrong number of arguments, you provided {} and we expect {}",
+                    self.last_index,
+                    self.args_count + 1
+                ))
             }),
         }
     }

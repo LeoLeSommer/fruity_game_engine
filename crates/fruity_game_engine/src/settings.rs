@@ -5,7 +5,6 @@ use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::FruityStatus;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -79,28 +78,17 @@ impl Default for Settings {
 /// Build a Settings by reading a yaml document
 pub fn read_settings(path: String) -> FruityResult<Settings> {
     // Open the file
-    let mut reader = File::open(&path).map_err(|_| {
-        FruityError::new(
-            FruityStatus::GenericFailure,
-            format!("File couldn't be opened: {:?}", path),
-        )
-    })?;
+    let mut reader = File::open(&path)
+        .map_err(|_| FruityError::GenericFailure(format!("File couldn't be opened: {:?}", path)))?;
 
     let mut buffer = String::new();
-    reader.read_to_string(&mut buffer).map_err(|_| {
-        FruityError::new(
-            FruityStatus::GenericFailure,
-            format!("File couldn't be read: {:?}", path),
-        )
-    })?;
+    reader
+        .read_to_string(&mut buffer)
+        .map_err(|_| FruityError::GenericFailure(format!("File couldn't be read: {:?}", path)))?;
 
     // Parse the yaml
-    let docs = YamlLoader::load_from_str(&buffer).map_err(|_| {
-        FruityError::new(
-            FruityStatus::GenericFailure,
-            format!("Incorrect Yaml file: {:?}", path),
-        )
-    })?;
+    let docs = YamlLoader::load_from_str(&buffer)
+        .map_err(|_| FruityError::GenericFailure(format!("Incorrect Yaml file: {:?}", path)))?;
 
     let root = &docs[0];
 
@@ -157,10 +145,10 @@ macro_rules! impl_numeric_from_settings {
             fn try_from(value: Settings) -> FruityResult<Self> {
                 match value {
                     Settings::F64(value) => Ok(value as $type),
-                    _ => Err(FruityError::new(
-                        FruityStatus::NumberExpected,
-                        format!("Couldn't convert {:?} to {}", value, "$type"),
-                    )),
+                    _ => Err(FruityError::NumberExpected(format!(
+                        "Couldn't convert {:?} to {}",
+                        value, "$type"
+                    ))),
                 }
             }
         }
@@ -186,10 +174,10 @@ impl TryFrom<Settings> for bool {
     fn try_from(value: Settings) -> FruityResult<Self> {
         match value {
             Settings::Bool(value) => Ok(value),
-            _ => Err(FruityError::new(
-                FruityStatus::BooleanExpected,
-                format!("Couldn't convert {:?} to bool", value),
-            )),
+            _ => Err(FruityError::BooleanExpected(format!(
+                "Couldn't convert {:?} to bool",
+                value
+            ))),
         }
     }
 }
@@ -200,10 +188,10 @@ impl TryFrom<Settings> for String {
     fn try_from(value: Settings) -> FruityResult<Self> {
         match value {
             Settings::String(value) => Ok(value),
-            _ => Err(FruityError::new(
-                FruityStatus::StringExpected,
-                format!("Couldn't convert {:?} to string", value),
-            )),
+            _ => Err(FruityError::StringExpected(format!(
+                "Couldn't convert {:?} to string",
+                value
+            ))),
         }
     }
 }
@@ -217,10 +205,10 @@ impl<T: TryFrom<Settings> + ?Sized> TryFrom<Settings> for Vec<T> {
                 .into_iter()
                 .filter_map(|elem| T::try_from(elem).ok())
                 .collect()),
-            _ => Err(FruityError::new(
-                FruityStatus::ArrayExpected,
-                format!("Couldn't convert {:?} to array", value),
-            )),
+            _ => Err(FruityError::ArrayExpected(format!(
+                "Couldn't convert {:?} to array",
+                value
+            ))),
         }
     }
 }

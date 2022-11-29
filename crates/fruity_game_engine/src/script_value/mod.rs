@@ -10,7 +10,6 @@ use crate::introspect::IntrospectObject;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::FruityStatus;
 use crate::RwLock;
 use lazy_static::__Deref;
 use std::any::Any;
@@ -106,10 +105,10 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
                 .into_iter()
                 .filter_map(|elem| T::from_script_value(elem).ok())
                 .collect()),
-            _ => Err(FruityError::new(
-                FruityStatus::ArrayExpected,
-                format!("Couldn't convert {:?} to array", value),
-            )),
+            _ => Err(FruityError::ArrayExpected(format!(
+                "Couldn't convert {:?} to array",
+                value
+            ))),
         }
     }
 }
@@ -164,10 +163,10 @@ impl TryFromScriptValue for Rc<dyn ScriptCallback> {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::Callback(value) => Ok(value.clone()),
-            _ => Err(FruityError::new(
-                FruityStatus::InvalidArg,
-                format!("Couldn't convert {:?} to callback", value),
-            )),
+            _ => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to callback",
+                value
+            ))),
         }
     }
 }

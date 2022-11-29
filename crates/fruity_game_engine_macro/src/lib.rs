@@ -8,8 +8,11 @@ use quote::quote;
 use syn::__private::TokenStream2;
 use syn::{
     parse_macro_input,  Data, DeriveInput, 
-    Stmt, ItemFn
+    Stmt, 
 };
+
+#[cfg(feature = "napi-module")]
+use syn::ItemFn;
 
 mod parse;
 
@@ -134,8 +137,7 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
                                     }
                                 }
                             }
-                            _ => Err(#current_crate::FruityError::new(
-                                #current_crate::FruityStatus::InvalidArg,
+                            _ => Err(#current_crate::FruityError::InvalidArg(
                                 format!("Couldn't convert {:?} to native object", value),
                              )),
                         }
@@ -150,6 +152,20 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
     output.into()
 }
 
+#[cfg(not(feature = "napi-module"))]
+#[proc_macro_attribute]
+pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    let input: TokenStream2 = input.clone().into();
+
+    let output = quote! {
+        #[allow(dead_code)]
+        #input
+    };
+
+    output.into()
+}
+
+#[cfg(feature = "napi-module")]
 #[proc_macro_attribute]
 pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input_2 = input.clone();
@@ -170,7 +186,8 @@ pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStr
                 let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
                 let export_js = #current_crate::javascript::ExportJavascript::new(exports, env);
 
-                #fn_ident(export_js)
+                let result = #fn_ident(export_js);
+                result.map_err(|e| #current_crate::FruityError::into_napi(e))
             }
 
             #current_crate::napi::bindgen_prelude::register_module_exports(register)

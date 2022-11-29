@@ -3,7 +3,7 @@ use crate::{
     any::FruityAny,
     javascript::JsIntrospectObject,
     script_value::{convert::TryIntoScriptValue, ScriptValue},
-    FruityError, FruityResult, FruityStatus,
+    FruityError, FruityResult,
 };
 use fruity_game_engine_macro::{export, fruity_export};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
@@ -83,8 +83,7 @@ fruity_export! {
 
                         Ok(())
                     } else {
-                        Err(FruityError::new(
-                            FruityStatus::GenericFailure,
+                        Err(FruityError::GenericFailure(
                             format!("Resource {} doesn't exists", identifier),
                         ))
                     }

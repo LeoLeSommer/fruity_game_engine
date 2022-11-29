@@ -14,19 +14,22 @@
 
 use crate::module::modules_service::ModulesService;
 use crate::resource::resource_container::ResourceContainer;
+pub use error::FruityError;
+pub use error::FruityResult;
 pub use fruity_game_engine_macro::export;
 pub use fruity_game_engine_macro::fruity_export;
 pub use fruity_game_engine_macro::fruity_module_exports;
 use javascript::ExportJavascript;
 pub use lazy_static::lazy_static;
-pub use napi;
-pub use napi::Error as FruityError;
-pub use napi::Result as FruityResult;
-pub use napi::Status as FruityStatus;
 pub use parking_lot::*;
 pub use send_wrapper;
 use settings::read_settings;
 use world::World;
+
+#[cfg(feature = "napi-module")]
+pub use napi;
+
+pub mod error;
 
 /// The any trait
 pub mod any;

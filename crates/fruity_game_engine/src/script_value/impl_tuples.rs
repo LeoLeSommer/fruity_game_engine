@@ -4,7 +4,6 @@ use crate::script_value::convert::TryIntoScriptValue;
 use crate::utils::introspect::ArgumentCaster;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::FruityStatus;
 
 impl TryIntoScriptValue for () {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
@@ -37,10 +36,10 @@ impl<T1: TryFromScriptValue, T2: TryFromScriptValue> TryFromScriptValue for (T1,
 
                 Ok((arg1, arg2))
             }
-            value => Err(FruityError::new(
-                FruityStatus::ArrayExpected,
-                format!("Couldn't convert {:?} to tuple", value),
-            )),
+            value => Err(FruityError::ArrayExpected(format!(
+                "Couldn't convert {:?} to tuple",
+                value
+            ))),
         }
     }
 }

@@ -5,7 +5,6 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::FruityStatus;
 use std::any::type_name;
 use std::collections::HashMap;
 
@@ -44,19 +43,16 @@ where
         match value {
             ScriptValue::Object(value) => match value.downcast::<T>() {
                 Ok(value) => Ok(*value),
-                Err(value) => Err(FruityError::new(
-                    FruityStatus::InvalidArg,
-                    format!(
-                        "Couldn't convert a {} to {}",
-                        value.get_type_name(),
-                        type_name::<T>()
-                    ),
-                )),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.get_type_name(),
+                    type_name::<T>()
+                ))),
             },
-            value => Err(FruityError::new(
-                FruityStatus::InvalidArg,
-                format!("Couldn't convert {:?} to native object", value),
-            )),
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
         }
     }
 }
@@ -114,10 +110,10 @@ impl<T: TryFromScriptValue> TryFromScriptValue for HashMap<String, T> {
 
             Ok(result)
         } else {
-            Err(FruityError::new(
-                FruityStatus::ObjectExpected,
-                format!("Couldn't convert {:?} to HashMap", value),
-            ))
+            Err(FruityError::ObjectExpected(format!(
+                "Couldn't convert {:?} to HashMap",
+                value
+            )))
         }
     }
 }

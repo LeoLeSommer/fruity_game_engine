@@ -4,7 +4,6 @@ use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::utils::introspect::ArgumentCaster;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::FruityStatus;
 use std::rc::Rc;
 
 impl ScriptCallback for Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>> {
@@ -23,10 +22,10 @@ impl TryFromScriptValue for Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptVa
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::Callback(value) => Ok(Rc::new(move |args| value.call(args))),
-            _ => Err(FruityError::new(
-                FruityStatus::FunctionExpected,
-                format!("Couldn't convert {:?} to native callback ", value),
-            )),
+            _ => Err(FruityError::FunctionExpected(format!(
+                "Couldn't convert {:?} to native callback ",
+                value
+            ))),
         }
     }
 }
@@ -40,10 +39,10 @@ impl<R: TryFromScriptValue> TryFromScriptValue for Rc<dyn Fn() -> FruityResult<R
 
                 <R>::from_script_value(result)
             })),
-            _ => Err(FruityError::new(
-                FruityStatus::FunctionExpected,
-                format!("Couldn't convert {:?} to native callback ", value),
-            )),
+            _ => Err(FruityError::FunctionExpected(format!(
+                "Couldn't convert {:?} to native callback ",
+                value
+            ))),
         }
     }
 }
@@ -59,10 +58,10 @@ impl<T1: TryIntoScriptValue, R: TryFromScriptValue + IntrospectObject> TryFromSc
 
                 <R>::from_script_value(result.into_script_value()?)
             })),
-            value => Err(FruityError::new(
-                FruityStatus::FunctionExpected,
-                format!("Couldn't convert {:?} to native callback ", value),
-            )),
+            value => Err(FruityError::FunctionExpected(format!(
+                "Couldn't convert {:?} to native callback ",
+                value
+            ))),
         }
     }
 }
@@ -126,10 +125,10 @@ impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryF
 
                 <R>::from_script_value(result)
             })),
-            _ => Err(FruityError::new(
-                FruityStatus::FunctionExpected,
-                format!("Couldn't convert {:?} to native callback ", value),
-            )),
+            _ => Err(FruityError::FunctionExpected(format!(
+                "Couldn't convert {:?} to native callback ",
+                value
+            ))),
         }
     }
 }

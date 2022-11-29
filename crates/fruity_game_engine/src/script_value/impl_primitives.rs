@@ -3,7 +3,6 @@ use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::FruityStatus;
 
 impl TryFromScriptValue for ScriptValue {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
@@ -34,10 +33,10 @@ macro_rules! impl_fruity_try_from_fruity_any_for_numeric {
                     ScriptValue::USize(value) => Ok(value as $type),
                     ScriptValue::F32(value) => Ok(value as $type),
                     ScriptValue::F64(value) => Ok(value as $type),
-                    _ => Err(FruityError::new(
-                        FruityStatus::NumberExpected,
-                        format!("Couldn't convert {:?} to {}", value, "$type"),
-                    )),
+                    _ => Err(FruityError::NumberExpected(format!(
+                        "Couldn't convert {:?} to {}",
+                        value, "$type"
+                    ))),
                 }
             }
         }
@@ -61,10 +60,10 @@ impl TryFromScriptValue for bool {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::Bool(value) => Ok(value),
-            _ => Err(FruityError::new(
-                FruityStatus::BooleanExpected,
-                format!("Couldn't convert {:?} to bool", value),
-            )),
+            _ => Err(FruityError::BooleanExpected(format!(
+                "Couldn't convert {:?} to bool",
+                value
+            ))),
         }
     }
 }
@@ -85,10 +84,10 @@ impl TryFromScriptValue for String {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::String(value) => Ok(value.clone()),
-            _ => Err(FruityError::new(
-                FruityStatus::StringExpected,
-                format!("Couldn't convert {:?} to string", value),
-            )),
+            _ => Err(FruityError::StringExpected(format!(
+                "Couldn't convert {:?} to string",
+                value
+            ))),
         }
     }
 }

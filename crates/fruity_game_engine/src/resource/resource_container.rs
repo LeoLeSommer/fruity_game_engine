@@ -5,7 +5,6 @@ use crate::resource::Resource;
 use crate::settings::Settings;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::FruityStatus;
 use crate::RwLock;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -148,10 +147,10 @@ impl ResourceContainer {
 
             Ok(())
         } else {
-            Err(FruityError::new(
-                FruityStatus::GenericFailure,
-                format!("Resource {} doesn't exists", identifier),
-            ))
+            Err(FruityError::GenericFailure(format!(
+                "Resource {} doesn't exists",
+                identifier
+            )))
         }
     }
 
@@ -176,10 +175,7 @@ impl ResourceContainer {
     ///
     pub fn load_resource_file(&self, path: &str, resource_type: &str) -> FruityResult<()> {
         let mut file = File::open(path).map_err(|_| {
-            FruityError::new(
-                FruityStatus::GenericFailure,
-                format!("File couldn't be opened: {:?}", path),
-            )
+            FruityError::GenericFailure(format!("File couldn't be opened: {:?}", path))
         })?;
 
         Self::load_resource(self, path, resource_type, &mut file, Settings::default())?;
@@ -207,10 +203,10 @@ impl ResourceContainer {
             if let Some(resource_loader) = inner_reader.resource_loaders.get(resource_type) {
                 Ok(resource_loader.clone())
             } else {
-                Err(FruityError::new(
-                    FruityStatus::GenericFailure,
-                    format!("Resource type {} is not registered", resource_type),
-                ))
+                Err(FruityError::GenericFailure(format!(
+                    "Resource type {} is not registered",
+                    resource_type
+                )))
             }?
         };
 

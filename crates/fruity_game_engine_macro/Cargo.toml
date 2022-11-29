@@ -10,8 +10,8 @@ syn-mid = "0.5"
 proc-macro2 = "1.0"
 itertools = "0.10.5"
 
-[dependencies.convert_case]
-version = "0.5"
+[features]
+napi-module = []
 
 [lib]
 proc-macro = true

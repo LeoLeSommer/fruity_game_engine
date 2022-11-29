@@ -6,7 +6,7 @@ use fruity_game_engine::javascript::JsIntrospectObject;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::send_wrapper::SendWrapper;
-use fruity_game_engine::{FruityError, FruityResult, FruityStatus};
+use fruity_game_engine::{FruityError, FruityResult};
 use std::fmt::Debug;
 use std::ops::Deref;
 
@@ -82,16 +82,16 @@ impl TryFromScriptValue for AnyComponent {
                 Ok(value) => Ok(AnyComponent::from(*value)),
                 Err(value) => match value.downcast::<JsIntrospectObject>() {
                     Ok(value) => Ok(AnyComponent::from(*value)),
-                    Err(value) => Err(FruityError::new(
-                        FruityStatus::InvalidArg,
-                        format!("Couldn't convert a {} to Component", value.get_type_name(),),
-                    )),
+                    Err(value) => Err(FruityError::InvalidArg(format!(
+                        "Couldn't convert a {} to Component",
+                        value.get_type_name(),
+                    ))),
                 },
             },
-            value => Err(FruityError::new(
-                FruityStatus::InvalidArg,
-                format!("Couldn't convert {:?} to native object", value),
-            )),
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
         }
     }
 }

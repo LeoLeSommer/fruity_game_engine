@@ -19,7 +19,6 @@ use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
-use fruity_game_engine::FruityStatus;
 use fruity_game_engine::Mutex;
 use fruity_game_engine::RwLock;
 use std::collections::HashMap;
@@ -238,8 +237,7 @@ fruity_export! {
 
                 Ok(())
             } else {
-                Err(FruityError::new(
-                    FruityStatus::GenericFailure,
+                Err(FruityError::GenericFailure(
                     format!("Entity with the id {} not found", entity_id)
                 ))
             }
@@ -286,8 +284,7 @@ fruity_export! {
 
                 Ok(())
             } else {
-                Err(FruityError::new(
-                    FruityStatus::GenericFailure,
+                Err(FruityError::GenericFailure(
                     format!("Entity with the id {} not found", entity_id)
                 ))
             }
@@ -334,8 +331,7 @@ fruity_export! {
 
                 Ok(())
             } else {
-                Err(FruityError::new(
-                    FruityStatus::GenericFailure,
+                Err(FruityError::GenericFailure(
                     format!("Entity with the id {} not found", entity_id)
                 ))
             }

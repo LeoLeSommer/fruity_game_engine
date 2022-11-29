@@ -7,7 +7,7 @@ version = "0.0.0"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-napi = { version = "2.10.0", default-features = false, features = ["napi4", "napi5", "napi6", "compat-mode"] }
+napi = { version = "2.10.0", default-features = false, features = ["napi4", "napi5", "napi6", "compat-mode"], optional = true }
 puffin = "0.12.1"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 yaml-rust = "0.4"
@@ -18,8 +18,11 @@ fruity_game_engine_macro = { path = "../fruity_game_engine_macro" }
 napi-sys = "2.2.2"
 send_wrapper = "0.6.0"
 
+[features]
+napi-module = ["napi", "napi-build"]
+
 [build-dependencies]
-napi-build = "2.0.1"
+napi-build = { version = "2.0.1", optional = true }
 
 [profile.release]
 lto = true
