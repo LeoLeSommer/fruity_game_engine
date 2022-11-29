@@ -18,7 +18,7 @@ use napi::{
 };
 use napi::{check_status, NapiValue};
 use napi::{JsError, NapiRaw};
-use std::{ffi::CString, ops::Deref};
+use std::{ffi::CString, marker::PhantomData, ops::Deref};
 use std::{fmt::Debug, vec};
 use std::{rc::Rc, sync::Arc};
 
@@ -104,7 +104,10 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> Result<JsUnkno
         ScriptValue::Object(value) => {
             match value.downcast::<JsIntrospectObject>() {
                 // First case, it's a native js value
-                Ok(value) => value.inner.into_unknown(),
+                Ok(value) => {
+                    let js_object: JsObject = value.reference.inner();
+                    js_object.into_unknown()
+                }
                 // Second case, we wrap the object into a js object
                 Err(value) => {
                     let mut js_object = env.create_object()?;
@@ -253,7 +256,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
                     Err(_) => {
                         // Third case, the object is a plain javascript object
                         ScriptValue::Object(Box::new(JsIntrospectObject {
-                            inner: js_object,
+                            reference: JsSharedRef::new(env, js_object)?,
                             env: env.clone(),
                         }))
                     }
@@ -264,7 +267,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
             let js_func = JsFunction::try_from(value)?;
 
             ScriptValue::Callback(Rc::new(JsFunctionCallback {
-                reference: env.create_reference(js_func)?,
+                reference: JsSharedRef::new(env, js_func)?,
                 env: env.clone(),
             }))
         }
@@ -274,17 +277,79 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> Result<ScriptVal
     })
 }
 
+struct RefWrapper {
+    reference: Ref<()>,
+    env: Env,
+}
+
+impl Drop for RefWrapper {
+    fn drop(&mut self) {
+        self.reference.unref(self.env.clone()).unwrap();
+    }
+}
+
+struct JsSharedRef<T>
+where
+    T: NapiRaw,
+{
+    reference: Rc<RefWrapper>,
+    env: Env,
+    phantom: PhantomData<T>,
+}
+
+impl<T> Debug for JsSharedRef<T>
+where
+    T: NapiRaw,
+{
+    fn fmt(&self, _: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+        Ok(())
+    }
+}
+
+impl<T> Clone for JsSharedRef<T>
+where
+    T: NapiRaw,
+{
+    fn clone(&self) -> Self {
+        Self {
+            reference: self.reference.clone(),
+            env: self.env.clone(),
+            phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> JsSharedRef<T>
+where
+    T: NapiRaw + NapiValue,
+{
+    pub fn new(env: &Env, value: T) -> FruityResult<Self> {
+        Ok(Self {
+            reference: Rc::new(RefWrapper {
+                reference: env.create_reference(value)?,
+                env: env.clone(),
+            }),
+            env: env.clone(),
+            phantom: Default::default(),
+        })
+    }
+
+    pub fn inner(&self) -> T {
+        self.env
+            .get_reference_value::<T>(&self.reference.reference)
+            .unwrap()
+    }
+}
+
 struct JsFunctionCallback {
-    pub reference: Ref<()>,
-    pub env: Env,
+    reference: JsSharedRef<JsFunction>,
+    env: Env,
 }
 
 impl ScriptCallback for JsFunctionCallback {
     fn call(&self, args: Vec<ScriptValue>) -> Result<ScriptValue> {
         // Get the js func from the reference
-        let js_func = self
-            .env
-            .get_reference_value::<JsFunction>(&self.reference)?;
+        let js_func = self.reference.inner();
 
         // Convert all the others args as a JsUnknown
         let args = args
@@ -302,9 +367,7 @@ impl ScriptCallback for JsFunctionCallback {
 
     fn create_thread_safe_callback(&self) -> Result<Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
         // Get the js func from the reference
-        let js_func = self
-            .env
-            .get_reference_value::<JsFunction>(&self.reference)?;
+        let js_func = self.reference.inner();
 
         // Create the thread safe function
         let thread_safe_func: ThreadsafeFunction<Vec<ScriptValue>, ErrorStrategy::Fatal> = js_func
@@ -327,16 +390,10 @@ impl ScriptCallback for JsFunctionCallback {
     }
 }
 
-impl Drop for JsFunctionCallback {
-    fn drop(&mut self) {
-        self.reference.unref(self.env.clone()).unwrap();
-    }
-}
-
 /// A structure to store a javascript object that can be stored in a ScriptValue
-#[derive(FruityAny)]
+#[derive(FruityAny, Clone)]
 pub struct JsIntrospectObject {
-    pub reference: Ref<()>,
+    reference: JsSharedRef<JsObject>,
     env: Env,
 }
 
@@ -346,42 +403,23 @@ impl Debug for JsIntrospectObject {
     }
 }
 
-impl ScriptObject for JsIntrospectObject {
-    fn duplicate(&self) -> FruityResult<Box<dyn ScriptObject>> {
-        let mut new_js_object = self.env.create_object()?;
-
-        let properties = self.inner.get_property_names()?;
-        let len = properties
-            .get_named_property::<JsNumber>("length")?
-            .get_uint32()?;
-
-        for index in 0..len {
-            let name: JsString = properties.get_element(index)?;
-            let name = name.into_utf8()?.as_str()?.to_string();
-
-            let value: JsUnknown = self.inner.get_named_property(&name.to_case(Case::Camel))?;
-            new_js_object.set_named_property(&name, value)?;
-        }
-
-        Ok(Box::new(Self {
-            inner: new_js_object,
-            env: self.env.clone(),
-        }))
-    }
-}
-
 impl IntrospectObject for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
-        // Ok("js_unknown".to_string())
+        // Get the js func object the reference
+        let js_object = self.reference.inner();
 
         // TODO: Get the class name from prototype
-        let constructor: JsObject = self.inner.get_named_property("constructor")?;
+        let constructor: JsFunction = js_object.get_named_property("constructor")?;
+        let constructor = constructor.coerce_to_object()?;
         let name: JsString = constructor.get_named_property("name")?;
         Ok(name.into_utf8()?.as_str()?.to_string())
     }
 
     fn get_field_names(&self) -> FruityResult<Vec<String>> {
-        let properties = self.inner.get_property_names()?;
+        // Get the js func object the reference
+        let js_object = self.reference.inner();
+
+        let properties = js_object.get_property_names()?;
         let len = properties
             .get_named_property::<JsNumber>("length")?
             .get_uint32()?;
@@ -397,15 +435,20 @@ impl IntrospectObject for JsIntrospectObject {
     }
 
     fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        // Get the js func object the reference
+        let mut js_object = self.reference.inner();
+
         let value = script_value_to_js_value(&self.env, value)?;
-        self.inner
-            .set_named_property(&name.to_case(Case::Camel), value)?;
+        js_object.set_named_property(&name.to_case(Case::Camel), value)?;
 
         Ok(())
     }
 
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
-        let value = self.inner.get_named_property(&name.to_case(Case::Camel))?;
+        // Get the js func object the reference
+        let js_object = self.reference.inner();
+
+        let value = js_object.get_named_property(&name.to_case(Case::Camel))?;
         js_value_to_script_value(&self.env, value)
     }
 

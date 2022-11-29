@@ -45,37 +45,49 @@ fruity_export! {
 
     impl ScriptQuery {
         #[export]
-        pub fn with_entity(&mut self) {
-            self.params.push(Box::new(WithEntity {}));
+        pub fn with_entity(&self) -> ScriptQuery {
+            let mut query = self.clone();
+            query.params.push(Box::new(WithEntity {}));
+            query
         }
 
         #[export]
-        pub fn with_id(&mut self) {
-            self.params.push(Box::new(WithId {}));
+        pub fn with_id(&self) -> ScriptQuery {
+            let mut query = self.clone();
+            query.params.push(Box::new(WithId {}));
+            query
         }
 
         #[export]
-        pub fn with_name(&mut self) {
-            self.params.push(Box::new(WithName {}));
+        pub fn with_name(&self) -> ScriptQuery {
+            let mut query = self.clone();
+            query.params.push(Box::new(WithName {}));
+            query
         }
 
         #[export]
-        pub fn with_enabled(&mut self) {
-            self.params.push(Box::new(WithEnabled {}));
+        pub fn with_enabled(&self) -> ScriptQuery {
+            let mut query = self.clone();
+            query.params.push(Box::new(WithEnabled {}));
+            query
         }
 
         #[export]
-        pub fn with(&mut self, component_identifier: String) {
-            self.params.push(Box::new(With {
+        pub fn with(&self, component_identifier: String) -> ScriptQuery {
+            let mut query = self.clone();
+            query.params.push(Box::new(With {
                 identifier: component_identifier,
             }));
+            query
         }
 
         #[export]
-        pub fn with_optional(&mut self, component_identifier: String) {
-            self.params.push(Box::new(WithOptional {
+        pub fn with_optional(&self, component_identifier: String) -> ScriptQuery {
+            let mut query = self.clone();
+            query.params.push(Box::new(WithOptional {
                 identifier: component_identifier,
             }));
+            query
         }
 
         #[export]
@@ -165,9 +177,8 @@ fruity_export! {
         }
 
         fn archetype_filter(&self) -> Box<dyn Fn(&ArchetypeArcRwLock) -> bool + Send + Sync + 'static> {
-            todo!();
-
-            /*let params = self
+            let params = self
+                .clone()
                 .params
                 .into_iter()
                 .map(|param| param)
@@ -181,7 +192,7 @@ fruity_export! {
                 }
 
                 true
-            })*/
+            })
         }
     }
 }

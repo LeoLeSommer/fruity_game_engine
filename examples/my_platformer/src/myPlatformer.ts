@@ -25,6 +25,7 @@ export default {
     customService.hello("Frame");
 
     const systemService = resourceContainer.get("system_service");
+    const entityService = resourceContainer.get("entity_service");
 
     systemService.addStartupSystem(
       "test startup 1",
@@ -42,8 +43,13 @@ export default {
 
     systemService.addSystem("test 1", () => {
       console.log("A frame is rendered");
-      /*const customService = resourceContainer.get("custom_service");
-      customService.hello("Frame");*/
+
+      entityService
+        .query()
+        .with("ComponentTest")
+        .forEach((componentTest: any) => {
+          console.log("Component", componentTest.value);
+        });
     });
   },
   load_resources: (

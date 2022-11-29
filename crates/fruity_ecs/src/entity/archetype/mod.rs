@@ -205,7 +205,7 @@ impl Archetype {
                 .iter()
                 .map(|(_, storage)| storage.get(index))
                 .flatten()
-                .map(|component| AnyComponent::from_box(Component::duplicate(component)))
+                .map(|component| AnyComponent::from(Component::duplicate(component)))
                 .collect::<Vec<_>>()
         };
 

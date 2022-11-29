@@ -1,10 +1,15 @@
 use crate::entity::archetype::component_collection::ComponentCollection;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::IntrospectObject;
+use fruity_game_engine::javascript::JsIntrospectObject;
+use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
-use fruity_game_engine::FruityResult;
+use fruity_game_engine::send_wrapper::SendWrapper;
+use fruity_game_engine::{FruityError, FruityResult, FruityStatus};
 use std::fmt::Debug;
 use std::ops::Deref;
+
+use super::script_component::ScriptComponent;
 
 /// An abstraction over a component, should be implemented for every component
 pub trait StaticComponent {
@@ -36,13 +41,22 @@ impl AnyComponent {
     }
 
     /// Returns an AnyComponent
-    pub fn from_box(component: Box<dyn Component>) -> AnyComponent {
-        AnyComponent { component }
-    }
-
-    /// Returns an AnyComponent
     pub fn into_box(self) -> Box<dyn Component> {
         self.component
+    }
+}
+
+impl From<Box<dyn Component>> for AnyComponent {
+    fn from(component: Box<dyn Component>) -> Self {
+        Self { component }
+    }
+}
+
+impl From<JsIntrospectObject> for AnyComponent {
+    fn from(value: JsIntrospectObject) -> Self {
+        Self {
+            component: Box::new(ScriptComponent(SendWrapper::new(value))),
+        }
     }
 }
 
@@ -54,36 +68,23 @@ impl Deref for AnyComponent {
     }
 }
 
-impl IntrospectObject for AnyComponent {
-    fn get_class_name(&self) -> FruityResult<String> {
-        self.component.get_class_name()
-    }
-
-    fn get_field_names(&self) -> FruityResult<Vec<String>> {
-        self.component.get_field_names()
-    }
-
-    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
-        self.component.set_field_value(name, value)
-    }
-
-    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
-        self.component.get_field_value(name)
-    }
-
-    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
-        self.component.get_const_method_names()
-    }
-
-    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        self.component.call_const_method(name, args)
-    }
-
-    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
-        self.component.get_mut_method_names()
-    }
-
-    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        self.component.call_mut_method(name, args)
+impl TryFromScriptValue for AnyComponent {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Box<dyn Component>>() {
+                Ok(value) => Ok(AnyComponent::from(*value)),
+                Err(value) => match value.downcast::<JsIntrospectObject>() {
+                    Ok(value) => Ok(AnyComponent::from(*value)),
+                    Err(value) => Err(FruityError::new(
+                        FruityStatus::InvalidArg,
+                        format!("Couldn't convert a {} to Component", value.get_type_name(),),
+                    )),
+                },
+            },
+            value => Err(FruityError::new(
+                FruityStatus::InvalidArg,
+                format!("Couldn't convert {:?} to native object", value),
+            )),
+        }
     }
 }

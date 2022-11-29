@@ -1,7 +1,4 @@
-use super::{
-    resource_container::ResourceContainer, resource_reference::AnyResourceReference,
-    script_resource::ScriptResource,
-};
+use super::{resource_container::ResourceContainer, resource_reference::AnyResourceReference};
 use crate::{
     any::FruityAny,
     javascript::JsIntrospectObject,
@@ -16,7 +13,7 @@ fruity_export! {
     #[derive(FruityAny, Clone, Debug)]
     pub struct ScriptResourceContainer {
         resource_container: ResourceContainer,
-        script_resources: Rc<RefCell<HashMap<String, ScriptResource>>>,
+        script_resources: Rc<RefCell<HashMap<String, JsIntrospectObject>>>,
     }
 
     impl ScriptResourceContainer {
@@ -65,7 +62,6 @@ fruity_export! {
         ///
         #[export]
         pub fn add(&self, identifier: String, resource: JsIntrospectObject) {
-            let resource = ScriptResource::from(resource);
             self.script_resources
                 .borrow_mut()
                 .insert(identifier, resource);
@@ -101,7 +97,7 @@ fruity_export! {
 /// Neither a script or a native resource
 pub enum ScriptOrNativeResource {
     /// A script resource
-    Script(ScriptResource),
+    Script(JsIntrospectObject),
     /// A native resource
     Native(AnyResourceReference),
 }

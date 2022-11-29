@@ -6,6 +6,18 @@
 //! Will be used to make a bridge between the rust ecosystem and the scripting language and by the
 //! data storage
 
+use crate::introspect::IntrospectObject;
+use crate::script_value::convert::TryFromScriptValue;
+use crate::FruityError;
+use crate::FruityResult;
+use crate::FruityStatus;
+use crate::RwLock;
+use lazy_static::__Deref;
+use std::any::Any;
+use std::fmt::Debug;
+use std::rc::Rc;
+use std::sync::Arc;
+
 /// Traits similar to TryInto and TryFrom for ScriptValue
 pub mod convert;
 
@@ -21,19 +33,8 @@ pub mod impl_containers;
 /// Implementation of script value conversions for tuples
 pub mod impl_tuples;
 
-use crate::introspect::IntrospectObject;
-use crate::script_value::convert::TryFromScriptValue;
-use crate::FruityError;
-use crate::FruityResult;
-use crate::FruityStatus;
-use crate::RwLock;
 /// Implementation of script value conversions for tuples
 // pub mod yaml;
-use lazy_static::__Deref;
-use std::any::Any;
-use std::fmt::Debug;
-use std::rc::Rc;
-use std::sync::Arc;
 
 /// a script value
 pub enum ScriptValue {

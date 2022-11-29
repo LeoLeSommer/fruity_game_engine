@@ -13,7 +13,6 @@ use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
 use fruity_game_engine::fruity_export;
-use fruity_game_engine::introspect::IntrospectObject;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::ScriptValue;
