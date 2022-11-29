@@ -194,6 +194,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fruity_hierarchy"
+version = "0.0.0"
+dependencies = [
+ "fruity_ecs",
+ "fruity_game_engine",
+ "napi-build",
+]
+
+[[package]]
 name = "gimli"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

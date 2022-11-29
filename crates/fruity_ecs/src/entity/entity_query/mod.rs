@@ -9,6 +9,7 @@ use fruity_game_engine::inject::Injectable;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::signal::Signal;
+use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
@@ -86,7 +87,10 @@ unsafe impl<T> Send for Query<T> {}
 
 impl<'a, T: QueryParam<'a> + 'static> Query<T> {
     /// Call a function for every entities of an query
-    pub fn for_each(&self, callback: impl Fn(T::Item) + Send + Sync) {
+    pub fn for_each(
+        &self,
+        callback: impl Fn(T::Item) -> FruityResult<()> + Send + Sync,
+    ) -> FruityResult<()> {
         let archetypes = self.archetypes.read();
         let archetype_iter = archetypes
             .iter()
@@ -97,7 +101,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
             .flatten()
             .collect::<Vec<_>>();
 
-        entities.into_iter().par_bridge().for_each(|entity| {
+        entities.into_iter().par_bridge().try_for_each(|entity| {
             let entity_guard = if T::require_write() {
                 RequestedEntityGuard::Write(entity.write())
             } else if T::require_read() {
@@ -112,8 +116,8 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
             };
 
             T::iter_entity_components(entity.clone(), &entity_guard)
-                .for_each(|param| callback(param))
-        });
+                .try_for_each(|param| callback(param))
+        })
     }
 
     /// Call a function for every entities of an query

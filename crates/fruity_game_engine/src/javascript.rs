@@ -1,5 +1,6 @@
 use crate::{
     introspect::IntrospectObject,
+    object_factory_service::ObjectFactory,
     script_value::convert::TryIntoScriptValue,
     script_value::ScriptObject,
     script_value::{ScriptCallback, ScriptValue},
@@ -36,6 +37,17 @@ impl ExportJavascript {
 
     /// Register a class type
     pub fn export_constructor<T>(&mut self, name: &str, value: T) -> Result<()>
+    where
+        T: ObjectFactory,
+    {
+        let js_value = script_value_to_js_value(&self.env, value.into_script_value()?)?;
+        self.exports.set_named_property(&name, js_value)?;
+
+        Ok(())
+    }
+
+    /// Register a class type
+    pub fn export_function_as_constructor<T>(&mut self, name: &str, value: T) -> Result<()>
     where
         T: TryIntoScriptValue,
     {

@@ -1,5 +1,6 @@
 import { World, readSettings } from "fruity_game_engine";
 import fruityEcs from "fruity_ecs";
+import fruityHierarchy from "fruity_hierarchy";
 import myPlatformer, { CustomComponent } from "./myPlatformer";
 
 console.log("Hello world!");
@@ -7,10 +8,9 @@ console.log("Hello world!");
 const settings = readSettings("./assets/settings.yaml");
 const world = new World(settings);
 
-console.log(fruityEcs);
-
 // Register the modules
 world.registerModule(fruityEcs);
+world.registerModule(fruityHierarchy);
 world.registerModule(myPlatformer);
 
 // Setup the world

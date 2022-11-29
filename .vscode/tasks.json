@@ -7,7 +7,11 @@
       "options": {
         "cwd": "${workspaceFolder}/examples/my_platformer"
       },
-      "dependsOn": ["Build fruity_game_engine", "Build fruity_ecs"]
+      "dependsOn": [
+        "Build fruity_game_engine",
+        "Build fruity_ecs",
+        "Build fruity_hierarchy"
+      ]
     },
     {
       "label": "Build fruity_game_engine",
@@ -23,6 +27,14 @@
       "args": ["run", "build:debug"],
       "options": {
         "cwd": "${workspaceFolder}/crates/fruity_ecs"
+      }
+    },
+    {
+      "label": "Build fruity_hierarchy",
+      "command": "npm",
+      "args": ["run", "build:debug"],
+      "options": {
+        "cwd": "${workspaceFolder}/crates/fruity_hierarchy"
       }
     }
   ]

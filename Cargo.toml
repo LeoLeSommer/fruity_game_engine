@@ -3,4 +3,5 @@ resolver = "2"
 members = [
   "./crates/fruity_game_engine",
   "./crates/fruity_ecs",
+  "./crates/fruity_hierarchy",
 ]

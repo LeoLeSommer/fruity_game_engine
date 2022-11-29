@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "fruity_game_engine": "file:../../crates/fruity_game_engine",
-    "fruity_ecs": "file:../../crates/fruity_ecs"
+    "fruity_ecs": "file:../../crates/fruity_ecs",
+    "fruity_hierarchy": "file:../../crates/fruity_hierarchy"
   }
 }

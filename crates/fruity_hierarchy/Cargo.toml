@@ -1,0 +1,17 @@
+[package]
+edition = "2021"
+name = "fruity_hierarchy"
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+fruity_game_engine = { path = "../fruity_game_engine" }
+fruity_ecs = { path = "../fruity_ecs" }
+
+[build-dependencies]
+napi-build = "2.0.1"
+
+[profile.release]
+lto = true

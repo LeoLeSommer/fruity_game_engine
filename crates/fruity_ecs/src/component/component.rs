@@ -1,4 +1,5 @@
 use crate::entity::archetype::component_collection::ComponentCollection;
+pub use fruity_ecs_macro::Component;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::IntrospectObject;
 use fruity_game_engine::javascript::JsIntrospectObject;
@@ -24,6 +25,12 @@ pub trait Component: IntrospectObject + Debug + Send + Sync {
 
     /// Create a new component that is a clone of self
     fn duplicate(&self) -> Box<dyn Component>;
+}
+
+impl Clone for Box<dyn Component> {
+    fn clone(&self) -> Self {
+        self.duplicate()
+    }
 }
 
 /// An container for a component without knowing the instancied type

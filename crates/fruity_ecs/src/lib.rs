@@ -17,8 +17,6 @@ use crate::entity::entity_service::EntityService;
 use crate::extension_component_service::ExtensionComponentService;
 use crate::system_service::SystemService;
 pub use fruity_ecs_macro::Component;
-pub use fruity_ecs_macro::IntrospectObject;
-pub use fruity_ecs_macro::SerializableObject;
 use fruity_game_engine::fruity_module_exports;
 use fruity_game_engine::javascript::ExportJavascript;
 use fruity_game_engine::lazy_static;
