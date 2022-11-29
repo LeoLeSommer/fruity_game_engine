@@ -1,6 +1,6 @@
 import { World, readSettings } from "fruity_game_engine";
 import fruityEcs from "fruity_ecs";
-import myPlatformer from "./myPlatformer";
+import myPlatformer, { CustomComponent } from "./myPlatformer";
 
 console.log("Hello world!");
 
@@ -21,11 +21,10 @@ world.loadResources();
 const resourceContainer = world.getResourceContainer();
 const entityService = resourceContainer.get("entity_service");
 
-class ComponentTest {
-  value: number = 3;
-}
-
-entityService.create("test entity", true, [new ComponentTest()]);
+entityService.create("test entity", true, [
+  new CustomComponent(),
+  new CustomComponent({ value: 1 }),
+]);
 
 // Run the world
 world.run();
