@@ -14,8 +14,14 @@ maplit = "1.0.2"
 fruity_ecs_macro = { path = "../fruity_ecs_macro" }
 fruity_game_engine = { path = "../fruity_game_engine" }
 
+[features]
+napi-module = [
+    "napi-build",
+    "fruity_game_engine/napi-module"
+]
+
 [build-dependencies]
-napi-build = "2.0.1"
+napi-build = { version = "2.0.1", optional = true }
 
 [profile.release]
 lto = true

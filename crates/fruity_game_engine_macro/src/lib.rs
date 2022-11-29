@@ -152,8 +152,8 @@ pub fn derive_fruity_try_from_fruity_any(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-#[cfg(not(feature = "napi-module"))]
 #[proc_macro_attribute]
+#[cfg(not(feature = "napi-module"))]
 pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input: TokenStream2 = input.clone().into();
 
@@ -165,8 +165,8 @@ pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStr
     output.into()
 }
 
-#[cfg(feature = "napi-module")]
 #[proc_macro_attribute]
+#[cfg(feature = "napi-module")]
 pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input_2 = input.clone();
     let fn_input: ItemFn = parse_macro_input!(input_2);

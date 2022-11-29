@@ -10,8 +10,15 @@ crate-type = ["cdylib", "rlib"]
 fruity_game_engine = { path = "../fruity_game_engine" }
 fruity_ecs = { path = "../fruity_ecs" }
 
+[features]
+napi-module = [
+    "napi-build",
+    "fruity_game_engine/napi-module",
+    "fruity_ecs/napi-module"
+]
+
 [build-dependencies]
-napi-build = "2.0.1"
+napi-build = { version = "2.0.1", optional = true }
 
 [profile.release]
 lto = true
