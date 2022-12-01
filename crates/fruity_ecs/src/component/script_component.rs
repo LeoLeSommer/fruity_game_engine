@@ -4,15 +4,19 @@ use crate::entity::archetype::{
 
 use super::component::Component;
 use fruity_game_engine::{
-    any::FruityAny, introspect::IntrospectObject, javascript::JsIntrospectObject,
-    script_value::ScriptValue, send_wrapper::SendWrapper, FruityResult,
+    any::FruityAny,
+    introspect::{IntrospectFields, IntrospectMethods},
+    javascript::JsIntrospectObject,
+    script_value::ScriptValue,
+    send_wrapper::SendWrapper,
+    FruityResult,
 };
 
 /// Provide a component that contains a script value
 #[derive(FruityAny, Debug, Clone)]
 pub struct ScriptComponent(pub SendWrapper<JsIntrospectObject>);
 
-impl IntrospectObject for ScriptComponent {
+impl IntrospectFields for ScriptComponent {
     fn get_class_name(&self) -> FruityResult<String> {
         self.0.get_class_name()
     }
@@ -28,7 +32,9 @@ impl IntrospectObject for ScriptComponent {
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
         self.0.get_field_value(name)
     }
+}
 
+impl IntrospectMethods for ScriptComponent {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         self.0.get_const_method_names()
     }

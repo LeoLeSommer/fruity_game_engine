@@ -1,7 +1,7 @@
 use crate::entity::archetype::component_collection::ComponentCollection;
 pub use fruity_ecs_macro::Component;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::introspect::IntrospectObject;
+use fruity_game_engine::introspect::{IntrospectFields, IntrospectMethods};
 use fruity_game_engine::javascript::JsIntrospectObject;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
@@ -19,7 +19,7 @@ pub trait StaticComponent {
 }
 
 /// An abstraction over a component, should be implemented for every component
-pub trait Component: IntrospectObject + Debug + Send + Sync {
+pub trait Component: IntrospectFields + IntrospectMethods + Debug + Send + Sync {
     /// Get a collection to store this component in the archetype
     fn get_collection(&self) -> Box<dyn ComponentCollection>;
 

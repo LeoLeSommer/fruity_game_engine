@@ -9,7 +9,8 @@ use crate::entity::entity_guard::EntityReadGuard;
 use crate::entity::entity_guard::EntityWriteGuard;
 use crate::entity::entity_reference::EntityReference;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::introspect::IntrospectObject;
+use fruity_game_engine::introspect::IntrospectFields;
+use fruity_game_engine::introspect::IntrospectMethods;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::FruityResult;
 use std::any::TypeId;
@@ -102,7 +103,7 @@ impl Debug for ComponentReference {
     }
 }
 
-impl IntrospectObject for ComponentReference {
+impl IntrospectFields for ComponentReference {
     fn get_class_name(&self) -> FruityResult<String> {
         self.read().get_class_name()
     }
@@ -118,7 +119,9 @@ impl IntrospectObject for ComponentReference {
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
         self.read().get_field_value(name)
     }
+}
 
+impl IntrospectMethods for ComponentReference {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         self.read().get_const_method_names()
     }

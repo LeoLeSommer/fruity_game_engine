@@ -17,7 +17,7 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
         .filter(|field| field.public)
         .collect::<Vec<_>>();
 
-    // Implement the IntrospectStruct functions
+    // Implement the IntrospectFields functions
     let impl_get_class_name = quote! {
         fn get_class_name(&self) -> #current_crate::FruityResult<String> {
             Ok(#struct_name_as_string.to_string())
@@ -99,7 +99,7 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
     };
 
     quote! {
-        impl #current_crate::introspect::IntrospectStruct for #struct_name
+        impl #current_crate::introspect::IntrospectFields for #struct_name
         {
             #impl_get_class_name
             #impl_get_field_names

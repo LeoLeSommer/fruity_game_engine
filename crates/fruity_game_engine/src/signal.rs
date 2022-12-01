@@ -1,5 +1,6 @@
 use crate::any::FruityAny;
-use crate::introspect::IntrospectObject;
+use crate::introspect::IntrospectFields;
+use crate::introspect::IntrospectMethods;
 use crate::lazy_static;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
@@ -132,7 +133,7 @@ impl<T> Debug for Signal<T> {
     }
 }
 
-impl<T> IntrospectObject for Signal<T>
+impl<T> IntrospectFields for Signal<T>
 where
     T: TryFromScriptValue + TryIntoScriptValue + Clone,
 {
@@ -151,7 +152,12 @@ where
     fn get_field_value(&self, _name: &str) -> FruityResult<ScriptValue> {
         unreachable!()
     }
+}
 
+impl<T> IntrospectMethods for Signal<T>
+where
+    T: TryFromScriptValue + TryIntoScriptValue + Clone,
+{
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         Ok(vec!["notify".to_string()])
     }
@@ -268,7 +274,7 @@ impl<T: Send + Sync + Clone + Debug> Debug for SignalProperty<T> {
     }
 }
 
-impl<T> IntrospectObject for SignalProperty<T>
+impl<T> IntrospectFields for SignalProperty<T>
 where
     T: TryIntoScriptValue + TryFromScriptValue + Send + Sync + Clone + Debug,
 {
@@ -296,7 +302,12 @@ where
             _ => unreachable!(),
         }
     }
+}
 
+impl<T> IntrospectMethods for SignalProperty<T>
+where
+    T: TryIntoScriptValue + TryFromScriptValue + Send + Sync + Clone + Debug,
+{
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         Ok(vec![])
     }
@@ -357,7 +368,7 @@ impl<T> ObserverHandler<T> {
     }
 }
 
-impl<T> IntrospectObject for ObserverHandler<T>
+impl<T> IntrospectFields for ObserverHandler<T>
 where
     T: TryFromScriptValue + TryIntoScriptValue,
 {
@@ -376,7 +387,12 @@ where
     fn get_field_value(&self, _name: &str) -> FruityResult<ScriptValue> {
         unreachable!()
     }
+}
 
+impl<T> IntrospectMethods for ObserverHandler<T>
+where
+    T: TryFromScriptValue + TryIntoScriptValue,
+{
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         Ok(vec!["dispose".to_string()])
     }

@@ -1,6 +1,5 @@
 use super::ScriptObject;
 use super::ScriptValue;
-use crate::introspect::IntrospectObject;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::FruityError;
@@ -37,7 +36,7 @@ impl<T: ScriptObject> TryIntoScriptValue for T {
 
 impl<T> TryFromScriptValue for T
 where
-    T: IntrospectObject,
+    T: ScriptObject,
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {

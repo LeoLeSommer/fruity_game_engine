@@ -6,7 +6,8 @@
 //! Will be used to make a bridge between the rust ecosystem and the scripting language and by the
 //! data storage
 
-use crate::introspect::IntrospectObject;
+use crate::introspect::IntrospectFields;
+use crate::introspect::IntrospectMethods;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
@@ -114,7 +115,7 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
 }
 
 /// A trait that can be implemented for an object storable in a ScriptValue
-pub trait ScriptObject: IntrospectObject {
+pub trait ScriptObject: IntrospectFields + IntrospectMethods {
     /// Duplicate the script object
     fn duplicate(&self) -> FruityResult<Box<dyn ScriptObject>>;
 }
@@ -133,7 +134,7 @@ impl dyn ScriptObject {
 
 impl<T> ScriptObject for T
 where
-    T: Clone + IntrospectObject,
+    T: Clone + IntrospectFields + IntrospectMethods,
 {
     fn duplicate(&self) -> FruityResult<Box<dyn ScriptObject>> {
         Ok(Box::new(self.clone()))

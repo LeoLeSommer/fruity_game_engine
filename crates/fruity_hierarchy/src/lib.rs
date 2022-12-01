@@ -67,7 +67,7 @@ lazy_static! {
     });
 }
 
-#[fruity_module_exports]
+/*#[fruity_module_exports]
 fn module_export(mut exports: ExportJavascript) -> FruityResult<()> {
     exports.export_value("name", FRUITY_HIERARCHY_MODULE.name.clone())?;
     exports.export_value("dependencies", FRUITY_HIERARCHY_MODULE.dependencies.clone())?;
@@ -78,3 +78,4 @@ fn module_export(mut exports: ExportJavascript) -> FruityResult<()> {
 
     Ok(())
 }
+*/

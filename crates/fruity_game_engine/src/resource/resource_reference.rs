@@ -1,5 +1,6 @@
 use crate::any::FruityAny;
-use crate::introspect::IntrospectObject;
+use crate::introspect::IntrospectFields;
+use crate::introspect::IntrospectMethods;
 use crate::resource::Resource;
 use crate::script_value::ScriptValue;
 use crate::FruityResult;
@@ -45,7 +46,7 @@ impl AnyResourceReference {
     }
 }
 
-impl IntrospectObject for AnyResourceReference {
+impl IntrospectFields for AnyResourceReference {
     fn get_class_name(&self) -> FruityResult<String> {
         self.resource.get_class_name()
     }
@@ -61,7 +62,9 @@ impl IntrospectObject for AnyResourceReference {
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
         self.resource.get_field_value(name)
     }
+}
 
+impl IntrospectMethods for AnyResourceReference {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         self.resource.get_const_method_names()
     }

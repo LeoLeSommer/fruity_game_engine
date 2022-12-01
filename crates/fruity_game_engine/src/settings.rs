@@ -1,6 +1,7 @@
 use crate::any::FruityAny;
 use crate::export_function;
-use crate::introspect::IntrospectObject;
+use crate::introspect::IntrospectFields;
+use crate::introspect::IntrospectMethods;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptValue;
@@ -369,7 +370,7 @@ impl TryFromScriptValue for Settings {
 #[derive(Debug, Clone, FruityAny)]
 struct SettingsHashMap(HashMap<String, Settings>);
 
-impl IntrospectObject for SettingsHashMap {
+impl IntrospectFields for SettingsHashMap {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("Settings".to_string())
     }
@@ -392,7 +393,9 @@ impl IntrospectObject for SettingsHashMap {
             .clone()
             .into_script_value()
     }
+}
 
+impl IntrospectMethods for SettingsHashMap {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         Ok(vec![])
     }

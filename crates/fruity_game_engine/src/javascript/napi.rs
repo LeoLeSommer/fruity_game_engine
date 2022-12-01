@@ -1,5 +1,5 @@
 use crate::{
-    introspect::IntrospectObject,
+    introspect::{IntrospectFields, IntrospectMethods},
     object_factory_service::ObjectFactory,
     script_value::convert::TryIntoScriptValue,
     script_value::ScriptObject,
@@ -537,7 +537,7 @@ impl Debug for JsIntrospectObject {
     }
 }
 
-impl IntrospectObject for JsIntrospectObject {
+impl IntrospectFields for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
         // Get the js func object the reference
         let js_object = self.reference.inner();
@@ -611,7 +611,9 @@ impl IntrospectObject for JsIntrospectObject {
             .map_err(|e| FruityError::from_napi(e))?;
         js_value_to_script_value(&self.env, value)
     }
+}
 
+impl IntrospectMethods for JsIntrospectObject {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         Ok(vec![])
     }

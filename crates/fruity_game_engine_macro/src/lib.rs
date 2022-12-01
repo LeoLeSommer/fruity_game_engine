@@ -4,7 +4,6 @@ extern crate syn;
 use convert::intern_derive_try_from_script_value;
 use convert_case::Case;
 use fruity_any::intern_derive_fruity_any;
-use impl_introspect_object::impl_introspect_object;
 use introspect::{intern_export_impl, intern_export_struct};
 use napi_function_export::napi_function_export;
 use proc_macro::{self, TokenStream};
@@ -19,7 +18,6 @@ use syn::ItemFn;
 
 mod convert;
 mod fruity_any;
-mod impl_introspect_object;
 mod introspect;
 mod napi_function_export;
 mod parse;
@@ -81,19 +79,6 @@ pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStr
 
             #current_crate::napi::bindgen_prelude::register_module_exports(register)
         }
-    };
-
-    output.into()
-}
-
-#[proc_macro]
-pub fn fruity_export(input: TokenStream) -> TokenStream {
-    let impl_introspect_object = impl_introspect_object(input.clone());
-
-    let input_2: TokenStream2 = input.clone().into();
-    let output = quote! {
-        #input_2
-        #impl_introspect_object
     };
 
     output.into()

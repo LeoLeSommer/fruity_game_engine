@@ -52,7 +52,7 @@ fn derive_component_instantiable_object_trait(input: TokenStream) -> TokenStream
     let output = quote! {
     impl fruity_game_engine::object_factory_service::ObjectFactory for #ident {
         fn get_constructor() -> fruity_game_engine::object_factory_service::Constructor {
-            use fruity_game_engine::introspect::IntrospectObject;
+            use fruity_game_engine::introspect::IntrospectFields;
 
             std::sync::Arc::new(|_resource_container: fruity_game_engine::resource::resource_container::ResourceContainer, mut args: Vec<fruity_game_engine::script_value::ScriptValue>| {
                 let mut new_object = Parent::default();

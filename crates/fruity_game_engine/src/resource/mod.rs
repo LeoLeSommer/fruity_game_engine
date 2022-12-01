@@ -1,4 +1,8 @@
-use crate::{any::FruityAny, introspect::IntrospectObject, RwLock};
+use crate::{
+    any::FruityAny,
+    introspect::{IntrospectFields, IntrospectMethods},
+    RwLock,
+};
 use std::{any::Any, fmt::Debug, sync::Arc};
 
 pub use fruity_game_engine_macro::Resource;
@@ -16,7 +20,7 @@ pub mod resource_container;
 pub mod script_resource_container;
 
 /// A trait that should be implemented by every resources
-pub trait Resource: FruityAny + IntrospectObject + Debug + Send + Sync {
+pub trait Resource: FruityAny + IntrospectFields + IntrospectMethods + Debug + Send + Sync {
     /// Get a box containing a resource as a boxed resource
     fn as_resource_box(self: Box<Self>) -> Box<dyn Resource>;
 
