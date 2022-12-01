@@ -1,10 +1,13 @@
 use crate::any::FruityAny;
+use crate::export_function;
 use crate::introspect::IntrospectObject;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
+use napi::JsUnknown;
+use napi::NapiValue;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -76,6 +79,7 @@ impl Default for Settings {
 }
 
 /// Build a Settings by reading a yaml document
+#[export_function]
 pub fn read_settings(path: String) -> FruityResult<Settings> {
     // Open the file
     let mut reader = File::open(&path)
@@ -99,6 +103,95 @@ pub fn read_settings(path: String) -> FruityResult<Settings> {
         Settings::Object(HashMap::new())
     })
 }
+/*
+#[doc(hidden)]
+#[allow(non_snake_case)]
+extern "C" fn __napi__read_settings(
+    raw_env: napi::bindgen_prelude::sys::napi_env,
+    cb: napi::bindgen_prelude::sys::napi_callback_info,
+) -> napi::bindgen_prelude::sys::napi_value {
+    unsafe {
+        let env = napi::Env::from_raw(raw_env);
+        napi::bindgen_prelude::CallbackInfo::<2usize>::new(raw_env, cb, None)
+            .and_then(|cb| {
+                let arg0 = {
+                    let arg = crate::javascript::js_value_to_script_value(
+                        &env,
+                        napi::JsUnknown::from_raw(raw_env, cb.get_arg(0usize))?,
+                    )
+                    .map_err(|e| e.into_napi())?;
+                    <String>::from_script_value(arg).map_err(|e| e.into_napi())?
+                };
+
+                napi::bindgen_prelude::within_runtime_if_available(move || {
+                    let _ret = { read_settings(arg0) };
+                    let _ret = <FruityResult<Settings>>::into_script_value(_ret)
+                        .map_err(|e| e.into_napi())?;
+                    let _ret = crate::javascript::script_value_to_js_value(&env, _ret)
+                        .map_err(|e| e.into_napi())?;
+
+                    <JsUnknown as napi::bindgen_prelude::ToNapiValue>::to_napi_value(raw_env, _ret)
+                })
+            })
+            .unwrap_or_else(|e| {
+                napi::bindgen_prelude::JsError::from(e).throw_into(raw_env);
+                std::ptr::null_mut::<napi::bindgen_prelude::sys::napi_value__>()
+            })
+    }
+}
+
+#[doc(hidden)]
+#[allow(dead_code)]
+unsafe fn read_settings_js_function(
+    raw_env: napi::bindgen_prelude::sys::napi_env,
+) -> napi::bindgen_prelude::Result<napi::bindgen_prelude::sys::napi_value> {
+    let mut fn_ptr = std::ptr::null_mut();
+    {
+        let c = napi::bindgen_prelude::sys::napi_create_function(
+            raw_env,
+            "readSettings\0".as_ptr() as *const _,
+            13usize,
+            Some(__napi__read_settings),
+            std::ptr::null_mut(),
+            &mut fn_ptr,
+        );
+        match c {
+            ::napi::sys::Status::napi_ok => Ok(()),
+            _ => Err(::napi::Error::new(
+                ::napi::Status::from(c),
+                format!("Failed to register function `{}`", "readSettings"),
+            )),
+        }
+    }?;
+    napi::bindgen_prelude::register_js_function(
+        "readSettings\0",
+        read_settings_js_function,
+        Some(__napi__read_settings),
+    );
+    Ok(fn_ptr)
+}
+
+#[doc(hidden)]
+#[allow(non_snake_case)]
+extern "C" fn __napi_register__read_settings() {
+    napi::bindgen_prelude::register_module_export(
+        None,
+        "readSettings\0",
+        read_settings_js_function,
+    );
+}
+
+#[used]
+#[allow(non_upper_case_globals)]
+#[allow(non_snake_case)]
+#[doc(hidden)]
+#[link_section = "__DATA,__mod_init_func"]
+static __napi_register__read_settings___rust_ctor___ctor: unsafe extern "C" fn() = {
+    unsafe extern "C" fn __napi_register__read_settings___rust_ctor___ctor() {
+        __napi_register__read_settings()
+    }
+    __napi_register__read_settings___rust_ctor___ctor
+};*/
 
 /// Build a Settings by reading a yaml document
 pub fn build_settings_from_yaml(yaml: &Yaml) -> Option<Settings> {

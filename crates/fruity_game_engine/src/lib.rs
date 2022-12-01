@@ -17,14 +17,12 @@ use crate::resource::resource_container::ResourceContainer;
 pub use error::FruityError;
 pub use error::FruityResult;
 pub use fruity_game_engine_macro::export;
+pub use fruity_game_engine_macro::export_function;
 pub use fruity_game_engine_macro::fruity_export;
 pub use fruity_game_engine_macro::fruity_module_exports;
-use javascript::ExportJavascript;
 pub use lazy_static::lazy_static;
 pub use parking_lot::*;
 pub use send_wrapper;
-use settings::read_settings;
-use world::World;
 
 #[cfg(feature = "napi-module")]
 pub use napi;
@@ -74,10 +72,10 @@ pub mod world;
 /// A service for frame management
 pub mod frame_service;
 
-#[fruity_module_exports]
+/*#[fruity_module_exports]
 fn module_export(mut exports: ExportJavascript) -> FruityResult<()> {
-    exports.export_value("read_settings", &read_settings as &(dyn Fn(_) -> _))?;
+    // exports.export_value("read_settings", &read_settings as &(dyn Fn(_) -> _))?;
     exports.export_function_as_constructor("World", &World::new as &(dyn Fn(_) -> _))?;
 
     Ok(())
-}
+}*/

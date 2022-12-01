@@ -42,6 +42,73 @@ pub trait IntrospectObject: Debug + FruityAny {
     fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
 }
 
+/// Trait to implement static introspection to an object
+pub trait IntrospectStruct: Debug + FruityAny {
+    /// Return the class type name
+    fn get_class_name(&self) -> FruityResult<String>;
+
+    /// Return the class type name
+    fn get_field_names(&self) -> FruityResult<Vec<String>>;
+
+    /// Return the class type name
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()>;
+
+    /// Return the class type name
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue>;
+}
+
+/// Trait to implement static introspection to an object
+pub trait IntrospectMethods: Debug + FruityAny {
+    /// Return the class type name
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>>;
+
+    /// Return the class type name
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
+
+    /// Return the class type name
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>>;
+
+    /// Return the class type name
+    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
+}
+
+impl<T> IntrospectObject for T
+where
+    T: IntrospectMethods + IntrospectStruct + ?Sized,
+{
+    fn get_class_name(&self) -> FruityResult<String> {
+        self.get_class_name()
+    }
+
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        self.get_field_names()
+    }
+
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        self.deref_mut().set_field_value(name, value)
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        self.get_field_value(name)
+    }
+
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        self.get_const_method_names()
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.call_const_method(name, args)
+    }
+
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        self.get_mut_method_names()
+    }
+
+    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.call_mut_method(name, args)
+    }
+}
+
 impl<T: IntrospectObject + ?Sized> IntrospectObject for Box<T> {
     fn get_class_name(&self) -> FruityResult<String> {
         self.deref().get_class_name()

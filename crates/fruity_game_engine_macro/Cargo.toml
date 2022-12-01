@@ -9,8 +9,10 @@ quote = "1.0"
 syn-mid = "0.5"
 proc-macro2 = "1.0"
 itertools = "0.10.5"
+convert_case = "0.6.0"
 
 [features]
+default = ["napi-module"]
 napi-module = []
 
 [lib]
