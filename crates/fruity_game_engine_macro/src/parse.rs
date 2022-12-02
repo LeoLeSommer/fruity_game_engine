@@ -29,6 +29,7 @@ pub type AttributeParameters = HashMap<String, TokenStream>;
 
 #[derive(Clone, Debug)]
 pub struct ParsedMethod {
+    pub item_impl_method: ImplItemMethod,
     pub attrs: Vec<Attribute>,
     pub name: TokenStream2,
     pub receiver: ParsedReceiver,
@@ -123,6 +124,7 @@ pub fn parse_impl_method(method: &ImplItemMethod) -> ParsedMethod {
     .*/
 
     ParsedMethod {
+        item_impl_method: method.clone(),
         attrs,
         name: quote! { #name },
         receiver: receiver,

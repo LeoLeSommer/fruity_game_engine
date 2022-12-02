@@ -3,9 +3,11 @@ extern crate syn;
 
 use convert::intern_derive_try_from_script_value;
 use convert_case::Case;
+use convert_case::Casing;
 use fruity_any::intern_derive_fruity_any;
 use introspect::{intern_export_impl, intern_export_struct};
 use napi_function_export::napi_function_export;
+use napi_value_export::napi_value_export;
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use resource::intern_derive_resource;
@@ -20,6 +22,7 @@ mod convert;
 mod fruity_any;
 mod introspect;
 mod napi_function_export;
+mod napi_value_export;
 mod parse;
 mod resource;
 mod utils;
@@ -40,52 +43,12 @@ pub fn derive_try_from_script_value(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-#[cfg(not(feature = "napi-module"))]
-pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStream {
-    let input: TokenStream2 = input.clone().into();
-
-    let output = quote! {
-        #[allow(dead_code)]
-        #input
-    };
-
-    output.into()
-}
-
-#[proc_macro_attribute]
-#[cfg(feature = "napi-module")]
-pub fn fruity_module_exports(_attr: TokenStream, input: TokenStream) -> TokenStream {
-    let input_2 = input.clone();
-    let fn_input: ItemFn = parse_macro_input!(input_2);
-    let fn_ident = fn_input.sig.ident;
-    let current_crate = current_crate();
-    let input: TokenStream2 = input.clone().into();
-
-    let output = quote! {
-        #input
-
-        #[#current_crate::napi::bindgen_prelude::ctor]
-        fn __napi__explicit_module_register() {
-            unsafe fn register(raw_env: #current_crate::napi::sys::napi_env, raw_exports: #current_crate::napi::sys::napi_value) -> #current_crate::napi::Result<()> {
-                use #current_crate::napi::{Env, JsObject, NapiValue};
-
-                let env = Env::from_raw(raw_env);
-                let exports = JsObject::from_raw_unchecked(raw_env, raw_exports);
-                let export_js = #current_crate::javascript::ExportJavascript::new(exports, env);
-
-                let result = #fn_ident(export_js);
-                result.map_err(|e| #current_crate::FruityError::into_napi(e))
-            }
-
-            #current_crate::napi::bindgen_prelude::register_module_exports(register)
-        }
-    };
-
-    output.into()
-}
-
-#[proc_macro_attribute]
 pub fn export(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+#[proc_macro_attribute]
+pub fn export_constructor(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
@@ -107,12 +70,48 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
 pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input2 = input.clone();
     let fn_input: ItemFn = parse_macro_input!(input2);
-    let napi_function_export = napi_function_export(fn_input, Case::Camel);
+    let ident = fn_input.sig.ident.clone();
+
+    let napi_function_export = napi_function_export(
+        fn_input.sig.clone(),
+        quote! {#ident},
+        fn_input.sig.ident.to_string().to_case(Case::Camel),
+    );
 
     let input: TokenStream2 = input.clone().into();
     let output = quote! {
         #input
         #napi_function_export
+    };
+
+    output.into()
+}
+
+#[proc_macro_attribute]
+#[cfg(not(feature = "napi-module"))]
+pub fn export_value(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    let input: TokenStream2 = input.clone().into();
+
+    let output = quote! {
+        #[allow(dead_code)]
+        #input
+    };
+
+    output.into()
+}
+
+#[proc_macro_attribute]
+#[cfg(feature = "napi-module")]
+pub fn export_value(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    let input2 = input.clone();
+    let fn_input: ItemFn = parse_macro_input!(input2);
+
+    let napi_value_export = napi_value_export(fn_input);
+
+    let input: TokenStream2 = input.clone().into();
+    let output = quote! {
+        #input
+        #napi_value_export
     };
 
     output.into()

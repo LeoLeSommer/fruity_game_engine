@@ -1,4 +1,5 @@
-use crate::{current_crate, parse::{parse_struct_fields, parse_impl_method, ParsedReceiver}};
+use crate::{current_crate, parse::{parse_struct_fields, parse_impl_method, ParsedReceiver}, napi_function_export};
+use convert_case::{Casing, Case};
 use quote::quote;
 use syn::{ItemStruct, __private::TokenStream2, ItemImpl};
 
@@ -116,19 +117,29 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
     let struct_name = impl_input.self_ty.clone();
 
     let methods = impl_input
-    .items
-    .into_iter()
-    .filter_map(|item| {
-        if let syn::ImplItem::Method(method) = item {
-            Some(method)
-        } else {
-            None
-        }
-    })
-    .map(|item| parse_impl_method(&item))
-    .collect::<Vec<_>>();
+        .items
+        .into_iter()
+        .filter_map(|item| {
+            if let syn::ImplItem::Method(method) = item {
+                Some(method)
+            } else {
+                None
+            }
+        })
+        .map(|item| parse_impl_method(&item))
+        .collect::<Vec<_>>();
 
     // Prepare the infos
+    let exported_constructors = methods
+        .clone()
+        .into_iter()
+        .filter_map(|method| {
+            method.attrs.iter()
+                .find(|attr| attr.ident.to_string() == "export_constructor")
+                .map(|export_attr| (method.clone(), export_attr.clone()))
+        })
+        .collect::<Vec<_>>();
+
     let exported_const_methods = methods
         .clone()
         .into_iter()
@@ -315,6 +326,28 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
         }
     };
 
+    #[cfg(not(feature = "napi-module"))]
+    let constructor_bindings = quote!{};
+
+    #[cfg(feature = "napi-module")]
+    let constructor_bindings = {
+        let napi_function_exports = exported_constructors
+            .into_iter()
+            .map(|constructor| {
+                let ident = constructor.0.item_impl_method.sig.ident.clone();
+
+                napi_function_export(
+                    constructor.0.item_impl_method.sig.clone(),
+                    quote! {#struct_name::#ident},
+                    quote! {#struct_name}.to_string().to_case(Case::Pascal),
+                )
+            });
+        
+        quote! {
+            #(#napi_function_exports)*
+        }
+    };
+
     quote!{
         impl #current_crate::introspect::IntrospectMethods for #struct_name
         {
@@ -323,5 +356,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
             #impl_get_mut_method_names
             #impl_call_mut_method
         }
+
+        #constructor_bindings
     }
 }

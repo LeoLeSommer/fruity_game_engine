@@ -1,8 +1,7 @@
+use super::component::Component;
 use crate::entity::archetype::{
     component_array::ComponentArray, component_collection::ComponentCollection,
 };
-
-use super::component::Component;
 use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},

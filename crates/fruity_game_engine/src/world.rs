@@ -8,7 +8,7 @@ use crate::settings::Settings;
 use crate::FruityResult;
 use crate::ModulesService;
 use crate::ResourceContainer;
-use crate::{export_impl, export_struct};
+use crate::{export_constructor, export_impl, export_struct};
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -54,7 +54,8 @@ pub struct World {
 #[export_impl]
 impl World {
     /// Returns a World
-    pub fn new(settings: Settings) -> Self {
+    #[export_constructor]
+    pub fn new(settings: Settings) -> World {
         let resource_container = ResourceContainer::new();
         Self::initialize(resource_container.clone(), &settings);
         let module_service = ModulesService::new(resource_container.clone());

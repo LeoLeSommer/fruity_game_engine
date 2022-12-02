@@ -18,6 +18,14 @@ export class CustomComponent {
   value: number = 3;
 }
 
+export class CustomComponent2 {
+  constructor(args?: Partial<CustomComponent2>) {
+    Object.assign(this, args);
+  }
+
+  value: number = 30;
+}
+
 export default {
   name: "my_platformer",
   dependencies: ["fruity_ecs"],
@@ -55,8 +63,13 @@ export default {
       entityService
         .query()
         .with("CustomComponent")
-        .forEach((customComponent: any) => {
-          console.log("Component", customComponent.value);
+        .with("CustomComponent2")
+        .forEach((customComponent: any, customComponent2: any) => {
+          console.log(
+            "Component",
+            customComponent.value,
+            customComponent2.value
+          );
         });
     });
   },

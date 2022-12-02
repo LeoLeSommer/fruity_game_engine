@@ -17,10 +17,11 @@ use crate::resource::resource_container::ResourceContainer;
 pub use error::FruityError;
 pub use error::FruityResult;
 pub use fruity_game_engine_macro::export;
+pub use fruity_game_engine_macro::export_constructor;
 pub use fruity_game_engine_macro::export_function;
 pub use fruity_game_engine_macro::export_impl;
 pub use fruity_game_engine_macro::export_struct;
-pub use fruity_game_engine_macro::fruity_module_exports;
+pub use fruity_game_engine_macro::export_value;
 pub use lazy_static::lazy_static;
 pub use parking_lot::*;
 pub use send_wrapper;
@@ -72,11 +73,3 @@ pub mod world;
 
 /// A service for frame management
 pub mod frame_service;
-
-/*#[fruity_module_exports]
-fn module_export(mut exports: ExportJavascript) -> FruityResult<()> {
-    // exports.export_value("read_settings", &read_settings as &(dyn Fn(_) -> _))?;
-    exports.export_function_as_constructor("World", &World::new as &(dyn Fn(_) -> _))?;
-
-    Ok(())
-}*/

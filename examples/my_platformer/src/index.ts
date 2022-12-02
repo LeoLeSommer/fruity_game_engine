@@ -1,7 +1,10 @@
 import Test from "fruity_game_engine";
 import fruityEcs from "fruity_ecs";
 import fruityHierarchy from "fruity_hierarchy";
-import myPlatformer, { CustomComponent } from "./myPlatformer";
+import myPlatformer, {
+  CustomComponent,
+  CustomComponent2,
+} from "./myPlatformer";
 
 console.log("Hello world!", Test);
 
@@ -24,6 +27,7 @@ const entityService = resourceContainer.get("entity_service");
 entityService.create("test entity", true, [
   new CustomComponent(),
   new CustomComponent({ value: 1 }),
+  new CustomComponent2({ value: 144 }),
 ]);
 
 // Run the world

@@ -1,6 +1,5 @@
 use crate::{
     introspect::{IntrospectFields, IntrospectMethods},
-    object_factory_service::ObjectFactory,
     script_value::convert::TryIntoScriptValue,
     script_value::ScriptObject,
     script_value::{ScriptCallback, ScriptValue},
@@ -22,56 +21,6 @@ use napi::{JsError, NapiRaw};
 use std::{ffi::CString, marker::PhantomData, ops::Deref};
 use std::{fmt::Debug, vec};
 use std::{rc::Rc, sync::Arc};
-
-/// Tool to export javascript modules
-pub struct ExportJavascript {
-    exports: JsObject,
-    env: Env,
-}
-
-impl ExportJavascript {
-    /// Returns an ExportJavascript
-    pub fn new(exports: JsObject, env: Env) -> Self {
-        Self { exports, env }
-    }
-
-    /// Register a class type
-    pub fn export_constructor<T>(&mut self, name: &str, value: T) -> FruityResult<()>
-    where
-        T: ObjectFactory,
-    {
-        /*let js_value = script_value_to_js_value(&self.env, value.into_script_value()?)?;
-        self.exports.set_named_property(&name, js_value)?;*/
-
-        Ok(())
-    }
-
-    /// Register a class type
-    pub fn export_function_as_constructor<T>(&mut self, name: &str, value: T) -> FruityResult<()>
-    where
-        T: TryIntoScriptValue,
-    {
-        let js_value = script_value_to_js_value(&self.env, value.into_script_value()?)?;
-        self.exports
-            .set_named_property(&name, js_value)
-            .map_err(|e| FruityError::from_napi(e))?;
-
-        Ok(())
-    }
-
-    /// Register a class type
-    pub fn export_value<T>(&mut self, name: &str, value: T) -> FruityResult<()>
-    where
-        T: TryIntoScriptValue,
-    {
-        let js_value = script_value_to_js_value(&self.env, value.into_script_value()?)?;
-        self.exports
-            .set_named_property(&name.to_case(Case::Camel), js_value)
-            .map_err(|e| FruityError::from_napi(e))?;
-
-        Ok(())
-    }
-}
 
 /// Create a napi js value from a script value
 pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<JsUnknown> {
@@ -542,7 +491,6 @@ impl IntrospectFields for JsIntrospectObject {
         // Get the js func object the reference
         let js_object = self.reference.inner();
 
-        // TODO: Get the class name from prototype
         let constructor: JsFunction = js_object
             .get_named_property("constructor")
             .map_err(|e| FruityError::from_napi(e))?;
