@@ -1,30 +1,21 @@
-import test from "fruity_game_engine";
-console.log("Hello world!", test);
+import * as all from "fruity_game_engine";
+console.log(all);
 
-(test as any)
-  .then((m: any) => {
-    m.initPanicHook();
-
-    console.log("Hello world!", m);
-    // const settings = m.readSettings("/assets/settings.yaml");
-    const world = new m.World({ test: "test" });
-    console.log("World", world);
-  })
-  .catch(console.error);
-
-/*import Test from "fruity_game_engine";
-import fruityEcs from "fruity_ecs";
+// import { World, readSettings } from "fruity_game_engine";
+/*import fruityEcs from "fruity_ecs";
 import fruityHierarchy from "fruity_hierarchy";
 import myPlatformer, {
   CustomComponent,
   CustomComponent2,
-} from "./myPlatformer";
+} from "./myPlatformer";*/
 
-console.log("Hello world!", Test);
+// console.log("Hello world!", World, readSettings);
 
-const settings = Test.readSettings("./assets/settings.yaml");
-const world = new Test.World(settings);
+// const settings = Test.readSettings("./assets/settings.yaml");
+/*const world = new World({});
+console.log(world);*/
 
+/*
 // Register the modules
 world.registerModule(fruityEcs);
 world.registerModule(fruityHierarchy);

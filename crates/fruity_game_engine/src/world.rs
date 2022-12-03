@@ -82,10 +82,8 @@ impl World {
 
     /// Initialize the world
     pub fn initialize(resource_container: ResourceContainer, _settings: &Settings) {
-        web_sys::console::log_1(&"1".into());
         let frame_service = FrameService::new(resource_container.clone());
         resource_container.add::<FrameService>("frame_service", Box::new(frame_service));
-        web_sys::console::log_1(&"2".into());
 
         let object_factory_service = ObjectFactoryService::new(resource_container.clone());
         resource_container.add::<ObjectFactoryService>(

@@ -210,7 +210,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
                                 )
                                 .map_err(|e| FruityError::from_napi(e))?;
 
-                            Result::Ok(())
+                            FruityResult::Ok(())
                         })?;
 
                     // Define mut method accessors

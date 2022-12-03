@@ -1,24 +1,14 @@
-const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const webpack = require('webpack');
-const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
+import path from 'path';
+import webpack from 'webpack';
+import HtmlWebpackPlugin from 'html-webpack-plugin';
+import {fileURLToPath} from 'url';
 
-module.exports = {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default {
     entry: './src/index.ts',
-    module: {
-      rules: [
-        {
-          test: /\.ts?$/,
-          use: 'ts-loader',
-          exclude: /node_modules/,
-        },
-      ],
-    },
     resolve: {
-        fallback: {
-            fs: false,
-            path: false
-        },
         extensions: ['.tsx', '.ts', '.js'],
     },
     output: {
@@ -28,12 +18,22 @@ module.exports = {
     plugins: [
         new HtmlWebpackPlugin(),
         new webpack.ProvidePlugin({
-          TextDecoder: ['text-encoding', 'TextDecoder'],
-          TextEncoder: ['text-encoding', 'TextEncoder']
+            TextDecoder: ['text-encoding', 'TextDecoder'],
+            TextEncoder: ['text-encoding', 'TextEncoder']
         })
     ],
+    module: {
+      rules: [
+        {
+          test: /\.tsx?$/,
+          use: 'ts-loader',
+          exclude: /node_modules/,
+        },
+      ],
+    },
     mode: 'development',
     experiments: {
-        asyncWebAssembly: true
+        asyncWebAssembly: true,
+        topLevelAwait: true
    }
 };

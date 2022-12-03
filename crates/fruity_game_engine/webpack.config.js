@@ -1,42 +1,34 @@
-const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const webpack = require('webpack');
-const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
+import path from 'path';
+import webpack from 'webpack';
+import WasmPackPlugin from '@wasm-tool/wasm-pack-plugin';
+import HtmlWebpackPlugin from 'html-webpack-plugin';
+import {fileURLToPath} from 'url';
 
-module.exports = {
-    entry: './index.js',
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default {
+    entry: './index_browser.js',
     output: {
-        path: path.resolve(__dirname, 'dist'),
-        filename: 'index.js',
-    },
-    resolve: {
-        fallback: {
-            fs: false,
-            path: false
-        },
+        path: path.resolve(__dirname, 'dist/browser'),
+        filename: 'index_browser.js',
     },
     plugins: [
         new HtmlWebpackPlugin(),
         new WasmPackPlugin({
             crateDirectory: path.resolve(__dirname, ".")
         }),
-        // Have this example work in Edge which doesn't ship `TextEncoder` or
-        // `TextDecoder` at this time.
         new webpack.ProvidePlugin({
           TextDecoder: ['text-encoding', 'TextDecoder'],
           TextEncoder: ['text-encoding', 'TextEncoder']
-        }),
+        })
     ],
     mode: 'development',
     experiments: {
         asyncWebAssembly: true
     },
-    module: {
-        rules: [
-            {
-                test: /\.node$/,
-                loader: "node-loader",
-            },
-        ],
-    },
+    devServer: {
+        transportMode: 'ws', 
+        injectClient: false,
+    }
 };

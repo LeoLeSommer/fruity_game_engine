@@ -5,9 +5,6 @@ use syn::{ItemStruct, __private::TokenStream2, ItemImpl};
 use crate::wasm_function_export::wasm_function_export;
 
 #[cfg(feature = "napi-module")]
-use convert_case::{Casing, Case};
-
-#[cfg(feature = "napi-module")]
 use crate::napi_function_export;
 
 pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {

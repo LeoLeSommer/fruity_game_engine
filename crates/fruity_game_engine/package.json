@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "main": "index.js",
   "types": "index.d.ts",
+  "type": "module",
   "napi": {
     "name": "fruity_game_engine",
     "triples": {
@@ -40,6 +41,6 @@
     "prepublishOnly": "napi prepublish -t npm",
     "version": "napi version",
     "build-wasm": "webpack",
-    "serve-wasm": "webpack serve"
+    "serve": "webpack serve"
   }
 }
