@@ -1,5 +1,7 @@
 #![allow(missing_docs)]
 
+pub mod wasm;
+
 #[cfg(feature = "napi-module")]
 pub mod napi;
 

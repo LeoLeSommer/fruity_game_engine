@@ -197,6 +197,34 @@ impl World {
     }
 }
 
+#[allow(non_upper_case_globals)]
+#[allow(non_snake_case)]
+#[allow(unused_attributes)]
+#[automatically_derived]
+const __wasm_bindgen_generated_World__const: () = {
+    pub unsafe extern "C" fn __wasm_bindgen_generated_World__const(
+        arg0: <crate::wasm_bindgen::JsValue as crate::wasm_bindgen::convert::FromWasmAbi>::Abi,
+    ) -> <crate::wasm_bindgen::JsValue as crate::wasm_bindgen::convert::ReturnWasmAbi>::Abi {
+        use crate::script_value::convert::TryFromScriptValue;
+        use crate::script_value::convert::TryIntoScriptValue;
+
+        let _ret = {
+            let arg0 = unsafe {
+                let arg = <crate::wasm_bindgen::JsValue as crate::wasm_bindgen::convert::FromWasmAbi>::from_abi(arg0);
+                let arg = crate::javascript::wasm::js_value_to_script_value(arg).unwrap();
+                <Settings>::from_script_value(arg).unwrap()
+            };
+
+            let _ret = World::new(arg0);
+            <World>::into_script_value(_ret).unwrap()
+        };
+
+        <crate::wasm_bindgen::JsValue as crate::wasm_bindgen::convert::ReturnWasmAbi>::return_abi(
+            crate::javascript::wasm::script_value_to_js_value(_ret).unwrap(),
+        )
+    }
+};
+
 impl Debug for World {
     fn fmt(
         &self,

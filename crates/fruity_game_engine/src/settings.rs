@@ -103,6 +103,31 @@ pub fn read_settings(path: String) -> FruityResult<Settings> {
     })
 }
 
+#[allow(non_upper_case_globals)]
+#[allow(non_snake_case)]
+#[allow(unused_attributes)]
+#[automatically_derived]
+const __wasm_bindgen_generated_read_settings__const: () = {
+    pub unsafe extern "C" fn __wasm_bindgen_generated_read_settings__const(
+        arg0: <crate::wasm_bindgen::JsValue as crate::wasm_bindgen::convert::FromWasmAbi>::Abi,
+    ) -> <crate::wasm_bindgen::JsValue as crate::wasm_bindgen::convert::ReturnWasmAbi>::Abi {
+        let _ret = {
+            let arg0 = unsafe {
+                let arg = <crate::wasm_bindgen::JsValue as crate::wasm_bindgen::convert::FromWasmAbi>::from_abi(arg0);
+                let arg = crate::javascript::wasm::js_value_to_script_value(arg).unwrap();
+                <String>::from_script_value(arg).unwrap()
+            };
+
+            let _ret = read_settings(arg0);
+            <FruityResult<Settings>>::into_script_value(_ret).unwrap()
+        };
+
+        <crate::wasm_bindgen::JsValue as crate::wasm_bindgen::convert::ReturnWasmAbi>::return_abi(
+            crate::javascript::wasm::script_value_to_js_value(_ret).unwrap(),
+        )
+    }
+};
+
 /// Build a Settings by reading a yaml document
 pub fn build_settings_from_yaml(yaml: &Yaml) -> Option<Settings> {
     match yaml {

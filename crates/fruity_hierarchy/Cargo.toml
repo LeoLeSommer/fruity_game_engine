@@ -11,7 +11,7 @@ fruity_game_engine = { path = "../fruity_game_engine" }
 fruity_ecs = { path = "../fruity_ecs" }
 
 [features]
-default = ["napi-module"]
+# default = ["napi-module"]
 napi-module = [
     "napi-build",
     "fruity_game_engine/napi-module",

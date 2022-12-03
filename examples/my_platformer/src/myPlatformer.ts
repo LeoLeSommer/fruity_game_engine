@@ -64,7 +64,7 @@ export default {
         .query()
         .with("CustomComponent")
         .with("CustomComponent2")
-        .forEach((customComponent: any, customComponent2: any) => {
+        .forEach(([customComponent, customComponent2]: any[]) => {
           console.log(
             "Component",
             customComponent.value,

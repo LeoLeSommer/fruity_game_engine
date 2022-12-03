@@ -1,5 +1,4 @@
 use super::{ScriptCallback, ScriptValue};
-use crate::introspect::IntrospectFields;
 use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::utils::introspect::ArgumentCaster;
 use crate::FruityError;
@@ -15,18 +14,6 @@ impl ScriptCallback for Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue
         &self,
     ) -> FruityResult<std::sync::Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
         unimplemented!()
-    }
-}
-
-impl TryFromScriptValue for Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>> {
-    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Callback(value) => Ok(Rc::new(move |args| value.call(args))),
-            _ => Err(FruityError::FunctionExpected(format!(
-                "Couldn't convert {:?} to native callback ",
-                value
-            ))),
-        }
     }
 }
 
@@ -47,7 +34,7 @@ impl<R: TryFromScriptValue> TryFromScriptValue for Rc<dyn Fn() -> FruityResult<R
     }
 }
 
-impl<T1: TryIntoScriptValue, R: TryFromScriptValue + IntrospectFields> TryFromScriptValue
+impl<T1: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
     for Rc<dyn Fn(T1) -> FruityResult<R>>
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {

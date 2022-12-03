@@ -29,6 +29,8 @@ pub use send_wrapper;
 #[cfg(feature = "napi-module")]
 pub use napi;
 
+pub use wasm_bindgen;
+
 pub mod error;
 
 /// The any trait

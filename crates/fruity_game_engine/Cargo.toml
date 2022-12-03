@@ -9,6 +9,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 napi = { version = "2.10.0", default-features = false, features = ["napi4", "napi5", "napi6", "compat-mode"], optional = true }
 napi-derive = "2.9.1"
+wasm-bindgen = { version = "0.2.83" }
+js-sys = { version = "0.3.60" }
 puffin = "0.12.1"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 yaml-rust = "0.4"
@@ -20,7 +22,7 @@ napi-sys = "2.2.2"
 send_wrapper = "0.6.0"
 
 [features]
-default = ["napi-module"]
+# default = ["napi-module"]
 napi-module = [
     "napi",
     "napi-build",
