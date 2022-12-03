@@ -28,8 +28,8 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --platform --release --features napi-module",
-    "build:debug": "napi build --platform --features napi-module",
+    "build-napi": "napi build --platform --release --features napi-module",
+    "build-napi:debug": "napi build --platform --features napi-module",
     "prepublishOnly": "napi prepublish -t npm",
     "version": "napi version"
   }

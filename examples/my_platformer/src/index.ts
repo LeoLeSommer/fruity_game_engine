@@ -1,4 +1,17 @@
-import Test from "fruity_game_engine";
+import test from "fruity_game_engine";
+console.log("Hello world!", test);
+
+(test as any)
+  .then((m: any) => {
+    m.initPanicHook();
+
+    console.log("Hello world!", m);
+    const settings = m.readSettings("/assets/settings.yaml");
+    console.log(settings);
+  })
+  .catch(console.error);
+
+/*import Test from "fruity_game_engine";
 import fruityEcs from "fruity_ecs";
 import fruityHierarchy from "fruity_hierarchy";
 import myPlatformer, {
@@ -32,3 +45,4 @@ entityService.create("test entity", true, [
 
 // Run the world
 world.run();
+*/

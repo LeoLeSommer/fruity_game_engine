@@ -18,7 +18,14 @@
   "license": "MIT",
   "devDependencies": {
     "@napi-rs/cli": "^2.12.0",
-    "ava": "^4.3.3"
+    "@wasm-tool/wasm-pack-plugin": "1.5.0",
+    "ava": "^4.3.3",
+    "html-webpack-plugin": "^5.3.2",
+    "node-loader": "^2.0.0",
+    "text-encoding": "^0.7.0",
+    "webpack": "^5.49.0",
+    "webpack-cli": "^4.7.2",
+    "webpack-dev-server": "^3.11.2"
   },
   "ava": {
     "timeout": "3m"
@@ -28,9 +35,11 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --platform --release --features napi-module",
-    "build:debug": "napi build --platform --features napi-module",
+    "build-napi": "napi build --platform --release --features napi-module",
+    "build-napi:debug": "napi build --platform --features napi-module",
     "prepublishOnly": "napi prepublish -t npm",
-    "version": "napi version"
+    "version": "napi version",
+    "build-wasm": "webpack",
+    "serve-wasm": "webpack serve"
   }
 }

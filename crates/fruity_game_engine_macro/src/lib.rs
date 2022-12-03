@@ -2,30 +2,37 @@ extern crate quote;
 extern crate syn;
 
 use convert::intern_derive_try_from_script_value;
-use convert_case::Case;
-use convert_case::Casing;
+use convert_case::{Case, Casing};
 use fruity_any::intern_derive_fruity_any;
 use introspect::{intern_export_impl, intern_export_struct};
-use napi_function_export::napi_function_export;
-use napi_value_export::napi_value_export;
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use resource::intern_derive_resource;
+use syn::ItemFn;
 use syn::__private::TokenStream2;
 use syn::{parse_macro_input, ItemImpl, ItemStruct};
 use utils::current_crate;
+use wasm_function_export::wasm_function_export;
 
 #[cfg(feature = "napi-module")]
-use syn::ItemFn;
+use napi_function_export::napi_function_export;
+
+#[cfg(feature = "napi-module")]
+use napi_value_export::napi_value_export;
+
+#[cfg(feature = "napi-module")]
+mod napi_function_export;
+
+#[cfg(feature = "napi-module")]
+mod napi_value_export;
 
 mod convert;
 mod fruity_any;
 mod introspect;
-mod napi_function_export;
-mod napi_value_export;
 mod parse;
 mod resource;
 mod utils;
+mod wasm_function_export;
 
 #[proc_macro_derive(FruityAny)]
 pub fn derive_fruity_any(input: TokenStream) -> TokenStream {
@@ -53,35 +60,38 @@ pub fn export_constructor(_attr: TokenStream, item: TokenStream) -> TokenStream 
 }
 
 #[proc_macro_attribute]
-#[cfg(not(feature = "napi-module"))]
 pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
-    let input: TokenStream2 = input.clone().into();
-
-    let output = quote! {
-        #[allow(dead_code)]
-        #input
+    #[cfg(feature = "napi-module")]
+    let napi_function_export = {
+        let input = input.clone();
+        let fn_input: ItemFn = parse_macro_input!(input);
+        let ident = fn_input.sig.ident.clone();
+        napi_function_export(
+            fn_input.sig.clone(),
+            quote! {#ident},
+            fn_input.sig.ident.to_string().to_case(Case::Camel),
+        )
     };
 
-    output.into()
-}
+    #[cfg(not(feature = "napi-module"))]
+    let napi_function_export = quote! {};
 
-#[proc_macro_attribute]
-#[cfg(feature = "napi-module")]
-pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
-    let input2 = input.clone();
-    let fn_input: ItemFn = parse_macro_input!(input2);
-    let ident = fn_input.sig.ident.clone();
-
-    let napi_function_export = napi_function_export(
-        fn_input.sig.clone(),
-        quote! {#ident},
-        fn_input.sig.ident.to_string().to_case(Case::Camel),
-    );
+    let wasm_function_export = {
+        let input = input.clone();
+        let fn_input: ItemFn = parse_macro_input!(input);
+        let ident = fn_input.sig.ident.clone();
+        wasm_function_export(
+            fn_input.sig.clone(),
+            quote! {#ident},
+            fn_input.sig.ident.to_string().to_case(Case::Camel),
+        )
+    };
 
     let input: TokenStream2 = input.clone().into();
     let output = quote! {
         #input
         #napi_function_export
+        #wasm_function_export
     };
 
     output.into()
