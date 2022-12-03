@@ -254,7 +254,10 @@ pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
                 .try_collect::<Vec<_>>()?,
         )
     } else if value.is_object() {
-        todo!()
+        let js_object: js_sys::Object = value.into();
+        ScriptValue::Object(Box::new(JsIntrospectObject {
+            reference: Rc::new(js_object),
+        }))
     } else if value.is_bigint() {
         todo!()
     } else {

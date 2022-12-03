@@ -22,7 +22,8 @@ pub(crate) fn wasm_function_export(
     };
 
     let exported_name = syn::Ident::new(&exported_name, Span::call_site());
-    let wasm_func_ident = syn::Ident::new(&format!("__wasm_{}", fn_identifier), Span::call_site());
+    let wasm_func_ident =
+        syn::Ident::new(&format!("__wasm_{}", sig_input.ident), Span::call_site());
 
     let args_names = sig_input
         .inputs
@@ -76,6 +77,10 @@ pub(crate) fn wasm_function_export(
         pub fn #wasm_func_ident(
             #(#function_args),*
         ) -> Result<#current_crate::wasm_bindgen::JsValue, #current_crate::wasm_bindgen::JsError> {
+            use #current_crate::script_value::convert::TryFromScriptValue;
+            use #current_crate::script_value::convert::TryIntoScriptValue;
+
+
             let _ret = {
                 #(#args_converters)*
 

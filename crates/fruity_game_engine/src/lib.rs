@@ -30,6 +30,7 @@ pub use send_wrapper;
 pub use napi;
 
 pub use wasm_bindgen;
+pub use web_sys;
 
 pub mod error;
 

@@ -6,8 +6,9 @@ console.log("Hello world!", test);
     m.initPanicHook();
 
     console.log("Hello world!", m);
-    const settings = m.readSettings("/assets/settings.yaml");
-    console.log(settings);
+    // const settings = m.readSettings("/assets/settings.yaml");
+    const world = new m.World({ test: "test" });
+    console.log("World", world);
   })
   .catch(console.error);
 
