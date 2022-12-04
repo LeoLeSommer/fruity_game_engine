@@ -1,4 +1,4 @@
-use crate::{current_crate, parse::{parse_struct_fields, parse_impl_method, ParsedReceiver}};
+use crate::{fruity_crate, parse::{parse_struct_fields, parse_impl_method, ParsedReceiver}};
 use quote::quote;
 use syn::{ItemStruct, __private::TokenStream2, ItemImpl};
 
@@ -12,7 +12,7 @@ use crate::wasm_function_export::wasm_function_export;
 use crate::napi_function_export;
 
 pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
-    let current_crate = current_crate();
+    let fruity_crate = fruity_crate();
 
     // Parse the block
     let struct_name = struct_input.ident.clone();
@@ -28,7 +28,7 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
 
     // Implement the IntrospectFields functions
     let impl_get_class_name = quote! {
-        fn get_class_name(&self) -> #current_crate::FruityResult<String> {
+        fn get_class_name(&self) -> #fruity_crate::FruityResult<String> {
             Ok(#struct_name_as_string.to_string())
         }
     };
@@ -37,7 +37,7 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
         let fields_names = exported_fields.iter().map(|field| field.name.to_string());
 
         quote! {
-            fn get_field_names(&self) -> #current_crate::FruityResult<Vec<String>> {
+            fn get_field_names(&self) -> #fruity_crate::FruityResult<Vec<String>> {
                 Ok(vec![#(#fields_names.to_string(),)*])
             }
         }
@@ -56,20 +56,20 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
 
         if fields_setters.len() > 0 {
             quote! {
-                fn set_field_value(&mut self, name: &str, value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<()> {
-                    use #current_crate::script_value::convert::TryFromScriptValue;
+                fn set_field_value(&mut self, name: &str, value: #fruity_crate::script_value::ScriptValue) -> #fruity_crate::FruityResult<()> {
+                    use #fruity_crate::script_value::convert::TryFromScriptValue;
 
                     match name {
                         #(#fields_setters)*
                         _ => unreachable!(),
                     };
 
-                    #current_crate::FruityResult::Ok(())
+                    #fruity_crate::FruityResult::Ok(())
                 }
             }
         } else {
             quote! {
-                fn set_field_value(&mut self, name: &str, value: #current_crate::script_value::ScriptValue) -> #current_crate::FruityResult<()> {
+                fn set_field_value(&mut self, name: &str, value: #fruity_crate::script_value::ScriptValue) -> #fruity_crate::FruityResult<()> {
                     unreachable!()
                 }
             }
@@ -89,8 +89,8 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
 
         if fields_getters.len() > 0 {
             quote! {
-                fn get_field_value(&self, name: &str) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
-                    use #current_crate::script_value::convert::TryIntoScriptValue;
+                fn get_field_value(&self, name: &str) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
+                    use #fruity_crate::script_value::convert::TryIntoScriptValue;
 
                     match name {
                         #(#fields_getters)*
@@ -100,7 +100,7 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
             }
         } else {
             quote! {
-                fn get_field_value(&self, name: &str) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                fn get_field_value(&self, name: &str) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
                     unreachable!()
                 }
             }
@@ -108,7 +108,7 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
     };
 
     quote! {
-        impl #current_crate::introspect::IntrospectFields for #struct_name
+        impl #fruity_crate::introspect::IntrospectFields for #struct_name
         {
             #impl_get_class_name
             #impl_get_field_names
@@ -119,7 +119,7 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
 }
 
 pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
-    let current_crate = current_crate();
+    let fruity_crate = fruity_crate();
 
     // Parse the block
     let struct_name = impl_input.self_ty.clone();
@@ -186,7 +186,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
             });
 
         quote! {
-            fn get_const_method_names(&self) -> #current_crate::FruityResult<Vec<String>> {
+            fn get_const_method_names(&self) -> #fruity_crate::FruityResult<Vec<String>> {
                 Ok(vec![#(#method_names.to_string(),)*])
             }
         }
@@ -217,7 +217,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
     
                         Some(
                             quote! {
-                                let mut __caster = #current_crate::utils::introspect::ArgumentCaster::new(__args);
+                                let mut __caster = #fruity_crate::utils::introspect::ArgumentCaster::new(__args);
                                 #(#args_cast)*
                             }
                         )
@@ -235,8 +235,8 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
 
         if method_callers.len() > 0 {
             quote! {
-                fn call_const_method(&self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
-                    use #current_crate::script_value::convert::TryIntoScriptValue;
+                fn call_const_method(&self, name: &str, __args: Vec<#fruity_crate::script_value::ScriptValue>) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
+                    use #fruity_crate::script_value::convert::TryIntoScriptValue;
     
                     match name {
                         #(#method_callers)*
@@ -246,7 +246,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
             }
         } else {
             quote! {
-                fn call_const_method(&self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                fn call_const_method(&self, name: &str, __args: Vec<#fruity_crate::script_value::ScriptValue>) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
                     unreachable!()
                 }
             }
@@ -267,7 +267,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
             });
 
         quote! {
-            fn get_mut_method_names(&self) -> #current_crate::FruityResult<Vec<String>> {
+            fn get_mut_method_names(&self) -> #fruity_crate::FruityResult<Vec<String>> {
                 Ok(vec![#(#method_names.to_string(),)*])
             }
         }
@@ -298,7 +298,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
     
                         Some(
                             quote! {
-                                let mut __caster = #current_crate::utils::introspect::ArgumentCaster::new(__args);
+                                let mut __caster = #fruity_crate::utils::introspect::ArgumentCaster::new(__args);
                                 #(#args_cast)*
                             }
                         )
@@ -317,8 +317,8 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
 
         if method_callers.len() > 0 {
             quote! {
-                fn call_mut_method(&mut self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
-                    use #current_crate::script_value::convert::TryIntoScriptValue;
+                fn call_mut_method(&mut self, name: &str, __args: Vec<#fruity_crate::script_value::ScriptValue>) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
+                    use #fruity_crate::script_value::convert::TryIntoScriptValue;
     
                     match name {
                         #(#method_callers)*
@@ -328,7 +328,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
             }
         } else {
             quote! {
-                fn call_mut_method(&mut self, name: &str, __args: Vec<#current_crate::script_value::ScriptValue>) -> #current_crate::FruityResult<#current_crate::script_value::ScriptValue> {
+                fn call_mut_method(&mut self, name: &str, __args: Vec<#fruity_crate::script_value::ScriptValue>) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
                     unreachable!()
                 }
             }
@@ -382,7 +382,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
     };
 
     quote!{
-        impl #current_crate::introspect::IntrospectMethods for #struct_name
+        impl #fruity_crate::introspect::IntrospectMethods for #struct_name
         {
             #impl_get_const_method_names
             #impl_call_const_method

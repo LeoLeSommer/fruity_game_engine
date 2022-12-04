@@ -2,7 +2,7 @@ use fruity_ecs::entity::entity::EntityId;
 use fruity_ecs::Component;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::signal::SignalProperty;
-use fruity_game_engine::{export_impl, export_struct};
+use fruity_game_engine::{export_constructor, export_impl, export_struct};
 
 /// A component for an entity that as a parent or at least is part of the hierarchy
 #[derive(Debug, Clone, Default, Component, FruityAny)]
@@ -18,4 +18,10 @@ pub struct Parent {
 }
 
 #[export_impl]
-impl Parent {}
+impl Parent {
+    /// Returns a new Parent
+    #[export_constructor]
+    pub fn new() -> Parent {
+        Self::default()
+    }
+}

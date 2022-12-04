@@ -73,7 +73,7 @@ pub fn setup(world: World, _settings: Settings) -> FruityResult<()> {
 
 lazy_static! {
     /// The ecs module, ready to be registered into the fruity_game_engine
-    pub static ref FRUITY_ECS_MODULE: SendWrapper<Module> = SendWrapper::new(Module {
+    pub static ref FRUITY_HIERARCHY_MODULE: SendWrapper<Module> = SendWrapper::new(Module {
         name: name(),
         dependencies: dependencies(),
         setup: Some(Rc::new(setup)),

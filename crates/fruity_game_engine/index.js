@@ -243,7 +243,5 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-console.log("Fruity game engine loaded from napi")
-
 export const World = nativeBinding.World
 export const readSettings = nativeBinding.readSettings

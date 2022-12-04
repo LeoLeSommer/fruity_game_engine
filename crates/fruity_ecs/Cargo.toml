@@ -10,13 +10,12 @@ crate-type = ["cdylib", "rlib"]
 log = "0.4.14"
 rayon = "1.5"
 itertools = "0.10.1"
-maplit = "1.0.2"
 fruity_ecs_macro = { path = "../fruity_ecs_macro" }
 fruity_game_engine = { path = "../fruity_game_engine" }
 wasm-bindgen = { version = "0.2.83", optional = true }
 
 [features]
-# default = ["napi-module", "wasm-module"]
+# default = ["wasm-module"]
 napi-module = [
     "napi-build",
     "fruity_game_engine/napi-module"

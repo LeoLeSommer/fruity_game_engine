@@ -1,11 +1,11 @@
-use crate::utils::current_crate;
+use crate::utils::fruity_crate;
 use convert_case::{Case, Casing};
 use proc_macro2::Span;
 use quote::quote;
 use syn::{ItemFn, __private::TokenStream2};
 
 pub(crate) fn napi_value_export(fn_input: ItemFn) -> TokenStream2 {
-    let current_crate = current_crate();
+    let fruity_crate = fruity_crate();
 
     let ident = fn_input.sig.ident;
     let ty = match fn_input.sig.output {
@@ -36,23 +36,23 @@ pub(crate) fn napi_value_export(fn_input: ItemFn) -> TokenStream2 {
         #[allow(non_snake_case)]
         #[allow(clippy::all)]
         unsafe fn #napi_register_default_callback(
-            raw_env: #current_crate::napi::sys::napi_env,
-        ) -> #current_crate::napi::Result<#current_crate::napi::sys::napi_value> {
-            use #current_crate::script_value::convert::TryIntoScriptValue;
+            raw_env: #fruity_crate::napi::sys::napi_env,
+        ) -> #fruity_crate::napi::Result<#fruity_crate::napi::sys::napi_value> {
+            use #fruity_crate::script_value::convert::TryIntoScriptValue;
 
-            let env = #current_crate::napi::Env::from_raw(raw_env);
+            let env = #fruity_crate::napi::Env::from_raw(raw_env);
             let ret = <#ty>::into_script_value(#ident())
                 .map_err(|e| e.into_napi())?;
-            let ret = #current_crate::javascript::script_value_to_js_value(&env, ret)
+            let ret = #fruity_crate::javascript::script_value_to_js_value(&env, ret)
                 .map_err(|e| e.into_napi())?;
 
-            <#current_crate::napi::JsUnknown as #current_crate::napi::bindgen_prelude::ToNapiValue>::to_napi_value(raw_env, ret)
+            <#fruity_crate::napi::JsUnknown as #fruity_crate::napi::bindgen_prelude::ToNapiValue>::to_napi_value(raw_env, ret)
         }
 
         #[allow(non_snake_case)]
         #[allow(clippy::all)]
         extern "C" fn #napi_register_ident() {
-            #current_crate::napi::bindgen_prelude::register_module_export(
+            #fruity_crate::napi::bindgen_prelude::register_module_export(
                 None,
                 #script_identifier_c,
                 #napi_register_default_callback,

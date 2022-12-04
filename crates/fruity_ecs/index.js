@@ -1,5 +1,12 @@
-const { existsSync, readFileSync } = require('fs')
-const { join } = require('path')
+// Try to load the napi module
+const { existsSync, readFileSync } = await import('fs')
+const { join, dirname } = await import('path')
+const { fileURLToPath } = await import('url')
+import { createRequire } from "module";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const require = createRequire(import.meta.url);
 
 const { platform, arch } = process
 
@@ -236,4 +243,8 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-module.exports = nativeBinding
+export default {
+  name: nativeBinding.name,
+  dependencies: nativeBinding.dependencies,
+  setup: nativeBinding.setup,
+}

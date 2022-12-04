@@ -9,7 +9,7 @@ use quote::quote;
 use resource::intern_derive_resource;
 use syn::__private::TokenStream2;
 use syn::{parse_macro_input, ItemImpl, ItemStruct};
-use utils::current_crate;
+use utils::fruity_crate;
 
 #[cfg(any(feature = "napi-module", feature = "wasm-module"))]
 use syn::ItemFn;
