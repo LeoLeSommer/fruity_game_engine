@@ -136,6 +136,7 @@ dependencies = [
  "maplit",
  "napi-build",
  "rayon",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -188,6 +189,7 @@ dependencies = [
  "fruity_ecs",
  "fruity_game_engine",
  "napi-build",
+ "wasm-bindgen",
 ]
 
 [[package]]

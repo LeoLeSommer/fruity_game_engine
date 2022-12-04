@@ -103,11 +103,6 @@ pub fn read_settings(path: String) -> FruityResult<Settings> {
     })
 }
 
-#[crate::wasm_bindgen::prelude::wasm_bindgen(js_name = initPanicHook)]
-pub fn init_panic_hook() {
-    console_error_panic_hook::set_once();
-}
-
 /// Build a Settings by reading a yaml document
 pub fn build_settings_from_yaml(yaml: &Yaml) -> Option<Settings> {
     match yaml {

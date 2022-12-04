@@ -2,16 +2,22 @@ extern crate quote;
 extern crate syn;
 
 use convert::intern_derive_try_from_script_value;
-use convert_case::{Case, Casing};
 use fruity_any::intern_derive_fruity_any;
 use introspect::{intern_export_impl, intern_export_struct};
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use resource::intern_derive_resource;
-use syn::ItemFn;
 use syn::__private::TokenStream2;
 use syn::{parse_macro_input, ItemImpl, ItemStruct};
 use utils::current_crate;
+
+#[cfg(any(feature = "napi-module", feature = "wasm-module"))]
+use syn::ItemFn;
+
+#[cfg(any(feature = "napi-module", feature = "wasm-module"))]
+use convert_case::{Case, Casing};
+
+#[cfg(feature = "wasm-module")]
 use wasm_function_export::wasm_function_export;
 
 #[cfg(feature = "napi-module")]
@@ -26,13 +32,15 @@ mod napi_function_export;
 #[cfg(feature = "napi-module")]
 mod napi_value_export;
 
+#[cfg(feature = "wasm-module")]
+mod wasm_function_export;
+
 mod convert;
 mod fruity_any;
 mod introspect;
 mod parse;
 mod resource;
 mod utils;
-mod wasm_function_export;
 
 #[proc_macro_derive(FruityAny)]
 pub fn derive_fruity_any(input: TokenStream) -> TokenStream {
@@ -61,6 +69,9 @@ pub fn export_constructor(_attr: TokenStream, item: TokenStream) -> TokenStream 
 
 #[proc_macro_attribute]
 pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    #[cfg(not(feature = "napi-module"))]
+    let napi_function_export = quote! {};
+
     #[cfg(feature = "napi-module")]
     let napi_function_export = {
         let input = input.clone();
@@ -73,9 +84,10 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
         )
     };
 
-    #[cfg(not(feature = "napi-module"))]
-    let napi_function_export = quote! {};
+    #[cfg(not(feature = "wasm-module"))]
+    let wasm_function_export = quote! {};
 
+    #[cfg(feature = "wasm-module")]
     let wasm_function_export = {
         let input = input.clone();
         let fn_input: ItemFn = parse_macro_input!(input);
@@ -98,7 +110,7 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-#[cfg(not(feature = "napi-module"))]
+#[cfg(not(any(feature = "napi-module", feature = "wasm-module")))]
 pub fn export_value(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input: TokenStream2 = input.clone().into();
 
@@ -125,6 +137,12 @@ pub fn export_value(_attr: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     output.into()
+}
+
+#[proc_macro_attribute]
+#[cfg(not(any(feature = "napi-module", feature = "wasm-module")))]
+pub fn export_value(attr: TokenStream, input: TokenStream) -> TokenStream {
+    export_function(attr, input)
 }
 
 #[proc_macro_attribute]

@@ -13,12 +13,17 @@ itertools = "0.10.1"
 maplit = "1.0.2"
 fruity_ecs_macro = { path = "../fruity_ecs_macro" }
 fruity_game_engine = { path = "../fruity_game_engine" }
+wasm-bindgen = { version = "0.2.83", optional = true }
 
 [features]
-# default = ["napi-module"]
+# default = ["wasm-module", "napi-module"]
 napi-module = [
     "napi-build",
     "fruity_game_engine/napi-module"
+]
+wasm-module = [
+    "wasm-bindgen",
+    "fruity_game_engine/wasm-module"
 ]
 
 [build-dependencies]

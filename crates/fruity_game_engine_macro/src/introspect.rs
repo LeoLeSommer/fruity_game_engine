@@ -1,7 +1,11 @@
 use crate::{current_crate, parse::{parse_struct_fields, parse_impl_method, ParsedReceiver}};
-use convert_case::{Casing, Case};
 use quote::quote;
 use syn::{ItemStruct, __private::TokenStream2, ItemImpl};
+
+#[cfg(any(feature = "napi-module", feature = "wasm-module"))]
+use convert_case::{Casing, Case};
+
+#[cfg(feature = "wasm-module")]
 use crate::wasm_function_export::wasm_function_export;
 
 #[cfg(feature = "napi-module")]
@@ -134,6 +138,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
         .collect::<Vec<_>>();
 
     // Prepare the infos
+    #[cfg(any(feature = "napi-module", feature = "wasm-module"))]
     let exported_constructors = methods
         .clone()
         .into_iter()
@@ -353,6 +358,10 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
         }
     };
 
+    #[cfg(not(feature = "wasm-module"))]
+    let wasm_constructor_bindings = quote!{};
+
+    #[cfg(feature = "wasm-module")]
     let wasm_constructor_bindings = {
         let napi_function_exports = exported_constructors
             .clone()

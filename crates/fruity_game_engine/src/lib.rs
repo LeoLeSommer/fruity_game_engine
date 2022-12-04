@@ -26,10 +26,16 @@ pub use lazy_static::lazy_static;
 pub use parking_lot::*;
 pub use send_wrapper;
 
+#[cfg(all(feature = "napi-module", feature = "wasm-module"))]
+compile_error!("wasm-module and wasm-module are mutually exclusive and cannot be enabled together");
+
 #[cfg(feature = "napi-module")]
 pub use napi;
 
+#[cfg(feature = "wasm-module")]
 pub use wasm_bindgen;
+
+#[cfg(feature = "wasm-module")]
 pub use web_sys;
 
 pub mod error;

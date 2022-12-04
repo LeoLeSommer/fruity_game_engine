@@ -12,8 +12,9 @@ itertools = "0.10.5"
 convert_case = "0.6.0"
 
 [features]
-# default = ["napi-module"]
+# default = ["wasm-module", "napi-module"]
 napi-module = []
+wasm-module = []
 
 [lib]
 proc-macro = true
