@@ -23,7 +23,6 @@ pub(crate) fn wasm_function_export(
         syn::ReturnType::Type(_, ty) => ty,
     };
 
-    let exported_name = syn::Ident::new(&exported_name, Span::call_site());
     let wasm_func_ident = syn::Ident::new(
         &format!("__wasm_{}__{}", current_crate, sig_input.ident),
         Span::call_site(),

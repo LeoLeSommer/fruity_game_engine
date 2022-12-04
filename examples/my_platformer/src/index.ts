@@ -4,9 +4,7 @@ import fruityHierarchy from "fruity_hierarchy";
 import myPlatformer, {
   CustomComponent,
   CustomComponent2,
-} from "./myPlatformer.js";
-
-console.log("Hello world!", World, readSettings);
+} from "./myPlatformer";
 
 // const settings = Test.readSettings("./assets/settings.yaml");
 const world = new World({});

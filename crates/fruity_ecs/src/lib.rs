@@ -38,7 +38,7 @@ pub mod extension_component_service;
 
 /// Name of the module
 #[export_value]
-pub fn name() -> String {
+fn name() -> String {
     "fruity_ecs".to_string()
 }
 
