@@ -3,9 +3,6 @@ edition = "2021"
 name = "fruity_hierarchy"
 version = "0.0.0"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 fruity_game_engine = { path = "../fruity_game_engine" }
 fruity_ecs = { path = "../fruity_ecs" }
@@ -14,7 +11,6 @@ wasm-bindgen = { version = "0.2.83", optional = true }
 [features]
 # default = ["wasm-module"]
 napi-module = [
-    "napi-build",
     "fruity_game_engine/napi-module",
     "fruity_ecs/napi-module"
 ]
@@ -23,9 +19,6 @@ wasm-module = [
     "fruity_game_engine/wasm-module",
     "fruity_ecs/wasm-module"
 ]
-
-[build-dependencies]
-napi-build = { version = "2.0.1", optional = true }
 
 [profile.release]
 lto = true

@@ -133,7 +133,6 @@ dependencies = [
  "fruity_game_engine",
  "itertools",
  "log",
- "napi-build",
  "rayon",
  "wasm-bindgen",
 ]
@@ -158,7 +157,6 @@ dependencies = [
  "lazy_static",
  "linked-hash-map",
  "napi",
- "napi-build",
  "napi-derive",
  "napi-sys",
  "parking_lot",
@@ -167,6 +165,16 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "yaml-rust",
+]
+
+[[package]]
+name = "fruity_game_engine_bundle"
+version = "0.0.0"
+dependencies = [
+ "fruity_ecs",
+ "fruity_game_engine",
+ "fruity_hierarchy",
+ "napi-build",
 ]
 
 [[package]]
@@ -187,7 +195,6 @@ version = "0.0.0"
 dependencies = [
  "fruity_ecs",
  "fruity_game_engine",
- "napi-build",
  "wasm-bindgen",
 ]
 

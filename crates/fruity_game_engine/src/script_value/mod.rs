@@ -6,6 +6,7 @@
 //! Will be used to make a bridge between the rust ecosystem and the scripting language and by the
 //! data storage
 
+use crate::any::FruityAny;
 use crate::introspect::IntrospectFields;
 use crate::introspect::IntrospectMethods;
 use crate::script_value::convert::TryFromScriptValue;
@@ -14,6 +15,7 @@ use crate::FruityResult;
 use crate::RwLock;
 use lazy_static::__Deref;
 use std::any::Any;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -226,5 +228,60 @@ impl Clone for ScriptValue {
             Self::Callback(value) => Self::Callback(value.clone()),
             Self::Object(value) => Self::Object(value.duplicate().unwrap()),
         }
+    }
+}
+
+/// A script object implemented from an hashmap of script values
+#[derive(Debug, Clone, FruityAny)]
+pub struct HashMapScriptObject {
+    /// The object class name
+    pub class_name: String,
+    /// The object field values
+    pub fields: HashMap<String, ScriptValue>,
+}
+
+impl IntrospectFields for HashMapScriptObject {
+    fn get_class_name(&self) -> FruityResult<String> {
+        Ok(self.class_name.clone())
+    }
+
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        Ok(self.fields.keys().map(|key| key.clone()).collect())
+    }
+
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        self.fields.entry(name.to_string()).or_insert_with(|| value);
+
+        Ok(())
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        Ok(self
+            .fields
+            .get(name)
+            .unwrap_or_else(|| unreachable!())
+            .clone())
+    }
+}
+
+impl IntrospectMethods for HashMapScriptObject {
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
     }
 }

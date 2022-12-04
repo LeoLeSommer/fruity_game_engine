@@ -53,3 +53,51 @@ pub fn intern_derive_try_from_script_value(input: TokenStream) -> TokenStream {
 
     output.into()
 }
+
+pub fn intern_derive_try_into_script_value(input: TokenStream) -> TokenStream {
+    let DeriveInput { ident, data, .. } = parse_macro_input!(input);
+    let fruity_crate = fruity_crate();
+    let ident_as_string = ident.to_string();
+
+    let output = match data {
+        Data::Struct(ref data) => {
+            // Create a list with all field names,
+            let fields: Vec<_> = parse_struct_fields(&data.fields);
+
+            let convert_args = fields.iter().map(|ParsedField { name, ty, public }| {
+                if *public {
+                    let name_as_string = name.to_string();
+
+                    Some(quote! {
+                        fields.insert(#name_as_string.to_string(), <#ty>::into_script_value(self.#name)?);
+                    })
+                } else {
+                    None
+                }
+            });
+
+            quote! {
+                impl #fruity_crate::script_value::convert::TryIntoScriptValue for #ident {
+                    fn into_script_value(self) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
+                        let mut fields = std::collections::HashMap::new();
+
+                        #(#convert_args)*
+
+                        let script_object = #fruity_crate::script_value::HashMapScriptObject {
+                            class_name: #ident_as_string.to_string(),
+                            fields,
+                        };
+
+                        Ok(#fruity_crate::script_value::ScriptValue::Object(Box::new(
+                            script_object,
+                        )))
+                    }
+                }
+            }
+        }
+        Data::Union(_) => unimplemented!("Union not supported"),
+        Data::Enum(_) => unimplemented!("Enum not supported"),
+    };
+
+    output.into()
+}

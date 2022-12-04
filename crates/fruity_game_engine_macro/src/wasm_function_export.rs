@@ -1,4 +1,3 @@
-use crate::utils::current_crate;
 use crate::utils::fruity_crate;
 use proc_macro2::Span;
 use quote::quote;
@@ -11,7 +10,6 @@ pub(crate) fn wasm_function_export(
     exported_name: String,
 ) -> TokenStream2 {
     let fruity_crate = fruity_crate();
-    let current_crate = current_crate();
 
     let return_ty = match sig_input.output {
         syn::ReturnType::Default => Box::new(syn::Type::Tuple(syn::TypeTuple {
@@ -23,10 +21,8 @@ pub(crate) fn wasm_function_export(
         syn::ReturnType::Type(_, ty) => ty,
     };
 
-    let wasm_func_ident = syn::Ident::new(
-        &format!("__wasm_{}__{}", current_crate, sig_input.ident),
-        Span::call_site(),
-    );
+    let wasm_func_ident =
+        syn::Ident::new(&format!("__wasm__{}", sig_input.ident), Span::call_site());
 
     let args_names = sig_input
         .inputs

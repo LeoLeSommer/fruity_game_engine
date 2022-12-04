@@ -1,6 +1,7 @@
 use super::ScriptValue;
 use crate::FruityResult;
 pub use fruity_game_engine_macro::TryFromScriptValue;
+pub use fruity_game_engine_macro::TryIntoScriptValue;
 
 /// Traits similar to TryInto for ScriptValue
 pub trait TryIntoScriptValue: Sized {

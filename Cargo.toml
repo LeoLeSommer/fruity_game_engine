@@ -6,4 +6,5 @@ members = [
   "./crates/fruity_ecs",
   "./crates/fruity_ecs_macro",
   "./crates/fruity_hierarchy",
+  "./examples/my_platformer/fruity_game_engine_bundle",
 ]

@@ -1,0 +1,32 @@
+[package]
+edition = "2021"
+name = "fruity_game_engine_bundle"
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+fruity_ecs = { path = "../../../crates/fruity_ecs" }
+fruity_game_engine = { path = "../../../crates/fruity_game_engine" }
+fruity_hierarchy= { path = "../../../crates/fruity_hierarchy" }
+
+[features]
+# default = ["wasm-module"]
+napi-module = [
+    "napi-build",
+    "fruity_ecs/napi-module",
+    "fruity_game_engine/napi-module",
+    "fruity_hierarchy/napi-module"
+]
+wasm-module = [
+    "fruity_ecs/wasm-module",
+    "fruity_game_engine/wasm-module",
+    "fruity_hierarchy/wasm-module"
+]
+
+[build-dependencies]
+napi-build = { version = "2.0.1", optional = true }
+
+[profile.release]
+lto = true

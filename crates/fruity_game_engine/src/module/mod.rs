@@ -1,4 +1,4 @@
-use crate::script_value::convert::TryFromScriptValue;
+use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::settings::Settings;
 use crate::world::World;
 use crate::FruityResult;
@@ -8,7 +8,7 @@ use std::rc::Rc;
 pub mod modules_service;
 
 /// A module for the engine
-#[derive(Clone, TryFromScriptValue, Default)]
+#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
 pub struct Module {
     /// The name of the module
     pub name: String,
