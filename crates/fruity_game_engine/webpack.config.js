@@ -16,7 +16,8 @@ export default {
     plugins: [
         new HtmlWebpackPlugin(),
         new WasmPackPlugin({
-            crateDirectory: path.resolve(__dirname, ".")
+            crateDirectory: path.resolve(__dirname, "."),
+            extraArgs: '--features wasm-module',
         }),
         new webpack.ProvidePlugin({
           TextDecoder: ['text-encoding', 'TextDecoder'],

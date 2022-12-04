@@ -16,7 +16,7 @@
     {
       "label": "Build napi fruity_game_engine",
       "command": "npm",
-      "args": ["run", "build-napi:debug"],
+      "args": ["run", "napi-build:debug"],
       "options": {
         "cwd": "${workspaceFolder}/crates/fruity_game_engine"
       }
@@ -24,7 +24,7 @@
     {
       "label": "Build napi fruity_ecs",
       "command": "npm",
-      "args": ["run", "build-napi:debug"],
+      "args": ["run", "napi-build:debug"],
       "options": {
         "cwd": "${workspaceFolder}/crates/fruity_ecs"
       }
@@ -32,7 +32,7 @@
     {
       "label": "Build napi fruity_hierarchy",
       "command": "npm",
-      "args": ["run", "build-napi:debug"],
+      "args": ["run", "napi-build:debug"],
       "options": {
         "cwd": "${workspaceFolder}/crates/fruity_hierarchy"
       }
@@ -40,7 +40,7 @@
     {
       "label": "Build wasm fruity_game_engine",
       "command": "npm",
-      "args": ["run", "build-wasm"],
+      "args": ["run", "wasm-build"],
       "options": {
         "cwd": "${workspaceFolder}/crates/fruity_game_engine"
       }

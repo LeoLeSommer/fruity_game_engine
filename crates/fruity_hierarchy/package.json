@@ -27,10 +27,10 @@
     "node": ">= 10"
   },
   "scripts": {
-    "artifacts": "napi artifacts",
-    "build-napi": "napi build --platform --release --features napi-module",
-    "build-napi:debug": "napi build --platform --features napi-module",
-    "prepublishOnly": "napi prepublish -t npm",
-    "version": "napi version"
+    "napi-artifacts": "napi artifacts",
+    "napi-build": "napi build --platform --release --features napi-module",
+    "napi-build:debug": "napi build --platform --features napi-module",
+    "napi-prepublish-only": "napi prepublish -t npm",
+    "napi-version": "napi version"
   }
 }

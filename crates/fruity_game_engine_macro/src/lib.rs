@@ -140,7 +140,7 @@ pub fn export_value(_attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-#[cfg(not(any(feature = "napi-module", feature = "wasm-module")))]
+#[cfg(feature = "wasm-module")]
 pub fn export_value(attr: TokenStream, input: TokenStream) -> TokenStream {
     export_function(attr, input)
 }

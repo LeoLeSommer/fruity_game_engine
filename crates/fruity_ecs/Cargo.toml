@@ -16,7 +16,7 @@ fruity_game_engine = { path = "../fruity_game_engine" }
 wasm-bindgen = { version = "0.2.83", optional = true }
 
 [features]
-# default = ["wasm-module", "napi-module"]
+# default = ["napi-module", "wasm-module"]
 napi-module = [
     "napi-build",
     "fruity_game_engine/napi-module"
