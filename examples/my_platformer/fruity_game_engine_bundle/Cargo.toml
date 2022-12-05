@@ -12,7 +12,7 @@ fruity_game_engine = { path = "../../../crates/fruity_game_engine" }
 fruity_hierarchy= { path = "../../../crates/fruity_hierarchy" }
 
 [features]
-# default = ["wasm-module"]
+default = ["napi-module"]
 napi-module = [
     "napi-build",
     "fruity_ecs/napi-module",
