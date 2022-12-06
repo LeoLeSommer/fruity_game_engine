@@ -7,8 +7,7 @@
       "name": "Debug node my_platformer",
       "program": "node",
       "args": ["${workspaceFolder}/examples/my_platformer/dist/src/index.js"],
-      "cwd": "${workspaceFolder}/examples/my_platformer/",
-      "preLaunchTask": "Build napi my_platformer"
+      "cwd": "${workspaceFolder}/examples/my_platformer/"
     },
     {
       "name": "Debug web my_platformer",
@@ -16,8 +15,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}/examples/my_platformer/",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "serve"],
-      "preLaunchTask": "Build wasm my_platformer"
+      "runtimeArgs": ["run", "serve"]
     }
   ]
 }

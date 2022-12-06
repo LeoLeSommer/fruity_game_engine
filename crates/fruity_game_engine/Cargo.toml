@@ -21,7 +21,7 @@ napi-sys = "2.2.2"
 send_wrapper = "0.6.0"
 
 [features]
-# default = ["wasm-module"]
+default = ["wasm-module"]
 napi-module = [
     "napi",
     "napi-derive",

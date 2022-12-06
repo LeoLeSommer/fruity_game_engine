@@ -63,8 +63,8 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                 },
             )
                 as Box<dyn Fn(_, _, _, _, _, _, _) -> _ + 'static>);
-            let closure: js_sys::Function = closure.as_ref().clone().unchecked_into();
-            closure.into()
+
+            closure.into_js_value()
         }
         ScriptValue::Object(value) => {
             let js_object = js_sys::Object::new();
@@ -92,7 +92,6 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                         },
                     )
                         as Box<dyn Fn() -> _ + 'static>);
-                    let getter: js_sys::Function = getter.as_ref().clone().unchecked_into();
 
                     // Define setter
                     let rust_object_2 = rust_object.clone();
@@ -111,13 +110,12 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                         },
                     )
                         as Box<dyn Fn(_) -> _ + 'static>);
-                    let setter: js_sys::Function = setter.as_ref().clone().unchecked_into();
 
                     // Define accessors object for define_property
                     let js_descriptor = js_sys::Object::new();
-                    js_sys::Reflect::set(&js_descriptor, &"get".into(), &getter.into())
+                    js_sys::Reflect::set(&js_descriptor, &"get".into(), &getter.into_js_value())
                         .map_err(|err| FruityError::from(err))?;
-                    js_sys::Reflect::set(&js_descriptor, &"set".into(), &setter.into())
+                    js_sys::Reflect::set(&js_descriptor, &"set".into(), &setter.into_js_value())
                         .map_err(|err| FruityError::from(err))?;
 
                     js_sys::Object::define_property(
@@ -164,12 +162,11 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                         },
                     )
                         as Box<dyn Fn(_, _, _, _, _, _, _) -> _ + 'static>);
-                    let closure: js_sys::Function = closure.as_ref().clone().unchecked_into();
 
                     js_sys::Reflect::set(
                         &js_object,
                         &method_name.clone().to_case(Case::Camel).into(),
-                        &closure.into(),
+                        &closure.into_js_value(),
                     )
                     .map_err(|err| FruityError::from(err))?;
 
@@ -211,12 +208,11 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                         },
                     )
                         as Box<dyn Fn(_, _, _, _, _, _, _) -> _ + 'static>);
-                    let closure: js_sys::Function = closure.as_ref().clone().unchecked_into();
 
                     js_sys::Reflect::set(
                         &js_object,
                         &method_name.clone().to_case(Case::Camel).into(),
-                        &closure.into(),
+                        &closure.into_js_value(),
                     )
                     .map_err(|err| FruityError::from(err))?;
 
@@ -271,12 +267,14 @@ struct JsFunctionCallback {
 
 impl ScriptCallback for JsFunctionCallback {
     fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        web_sys::console::log_1(&"CALL1".into());
         // Convert all the others args as a JsUnknown
         let args = args
             .into_iter()
             .map(|elem| script_value_to_js_value(elem))
             .try_collect::<Vec<_>>()?;
 
+        web_sys::console::log_1(&"CALL2".into());
         let js_array = js_sys::Array::new();
         args.into_iter()
             .try_for_each(|elem| {
@@ -286,6 +284,7 @@ impl ScriptCallback for JsFunctionCallback {
             .map_err(|err| JsError::from(err))?;
 
         // Call the function
+        web_sys::console::log_1(&"CALL3".into());
         let result = self
             .reference
             .deref()
@@ -293,6 +292,7 @@ impl ScriptCallback for JsFunctionCallback {
             .map_err(|err| FruityError::from(err))?;
 
         // Return the result
+        web_sys::console::log_1(&"CALL4".into());
         let result = js_value_to_script_value(result)?;
         Ok(result)
     }

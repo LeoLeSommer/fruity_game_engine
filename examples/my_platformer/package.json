@@ -5,9 +5,9 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "tsc && node dist/src/index.js",
-    "serve": "tsc && webpack serve"
+    "build": "cd fruity_game_engine_bundle && npm run napi-build && cd .. && tsc",
+    "start": "cd fruity_game_engine_bundle && npm run napi-build && cd .. && tsc && node dist/src/index.js",
+    "serve": "cd fruity_game_engine_bundle && npm run wasm-build && cd .. && tsc && webpack serve"
   },
   "keywords": [],
   "author": "",

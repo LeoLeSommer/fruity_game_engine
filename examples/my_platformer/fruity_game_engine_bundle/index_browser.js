@@ -1,1 +1,1 @@
-export * from './pkg/index.js'
+export * from './pkg/index_bg.js'

@@ -4,6 +4,33 @@ import {
   createFruityEcsModule,
   createFruityHierarchyModule,
 } from "fruity_game_engine_bundle";
+
+const world = new (World as any)({});
+
+world.registerModule(createFruityEcsModule());
+world.registerModule({
+  name: "my_platformer",
+  dependencies: [],
+  setup: (world: any) => {
+    console.log("setup", world);
+  },
+  loadResources: (resourceContainer: any, settings: any) => {
+    console.log("loadResources");
+  },
+});
+
+world.setupModules();
+world.loadResources();
+
+/*import * as test from "fruity_game_engine_bundle";
+console.log(test);*/
+
+/*import {
+  World,
+  readSettings,
+  createFruityEcsModule,
+  createFruityHierarchyModule,
+} from "fruity_game_engine_bundle";
 import myPlatformer, {
   CustomComponent,
   CustomComponent2,
@@ -34,3 +61,4 @@ entityService.create("test entity", true, [
 
 // Run the world
 world.run();
+*/
