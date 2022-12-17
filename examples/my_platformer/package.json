@@ -5,9 +5,9 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "build": "cd fruity_game_engine_bundle && npm run napi-build && cd .. && tsc",
-    "start": "cd fruity_game_engine_bundle && npm run napi-build && cd .. && tsc && node dist/src/index.js",
-    "serve": "cd fruity_game_engine_bundle && npm run wasm-build && cd .. && tsc && webpack serve"
+    "build": "cd ../../ && cargo build && cd examples/my_platformer/ && tsc",
+    "start": "cd ../../ && cargo build && cd examples/my_platformer/ && node dist/src/index.js",
+    "serve": "cd ../../ && cargo build && cd examples/my_platformer/ && tsc && webpack serve"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +23,8 @@
     "webpack-dev-server": "^3.11.2"
   },
   "dependencies": { 
-    "fruity_game_engine_bundle": "file:./fruity_game_engine_bundle"
+    "fruity_game_engine": "file:../../crates/fruity_game_engine",
+    "fruity_ecs": "file:../../crates/fruity_ecs",
+    "fruity_hierarchy": "file:../../crates/fruity_hierarchy"
   }
 }

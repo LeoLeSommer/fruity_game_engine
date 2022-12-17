@@ -4,7 +4,7 @@ name = "fruity_game_engine_bundle"
 version = "0.0.0"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["rlib", "cdylib"]
 
 [build]
 rustflags = ["tunnelling"]
@@ -17,7 +17,7 @@ fruity_game_engine = { path = "../../../crates/fruity_game_engine" }
 fruity_hierarchy= { path = "../../../crates/fruity_hierarchy" }
 
 [features]
-default = ["wasm-module"]
+# default = []
 napi-module = [
     "napi-build",
     "fruity_ecs/napi-module",
@@ -35,3 +35,4 @@ napi-build = { version = "2.0.1", optional = true }
 
 [profile.release]
 lto = true
+incremental = false

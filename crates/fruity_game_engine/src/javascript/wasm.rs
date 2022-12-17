@@ -70,6 +70,14 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
             let js_object = js_sys::Object::new();
             let rust_object: Rc<RefCell<Box<dyn ScriptObject>>> = Rc::from(RefCell::new(value));
 
+            // Store the shared ptr of the native object into the js_object
+            // TODO: This is highly unsafe and should be reworked
+            let ref_ptr_value = Rc::into_raw(rust_object.clone()) as *const () as u32;
+            let ref_ptr_js_value = JsValue::from_f64(ref_ptr_value.into());
+
+            js_sys::Reflect::set(&js_object, &"__rust_reference".into(), &ref_ptr_js_value)
+                .map_err(|err| FruityError::from(err))?;
+
             // Define const method accessors
             rust_object
                 .borrow()
@@ -250,10 +258,37 @@ pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
                 .try_collect::<Vec<_>>()?,
         )
     } else if value.is_object() {
-        let js_object: js_sys::Object = value.into();
-        ScriptValue::Object(Box::new(JsIntrospectObject {
-            reference: Rc::new(js_object),
-        }))
+        // Try to get the wrapped native value
+        match js_sys::Reflect::get(&value, &"__rust_reference".into()) {
+            Ok(ref_ptr_js_value) => {
+                if !ref_ptr_js_value.is_undefined() && !ref_ptr_js_value.is_null() {
+                    // Get the shared ptr of the native object from the js_object
+                    // TODO: This is highly unsafe and should be reworked
+                    let ref_ptr_value = ref_ptr_js_value.as_f64().unwrap();
+                    let ref_ptr_value = unsafe {
+                        Rc::from_raw(
+                            ref_ptr_value as u32 as *const ()
+                                as *const RefCell<Box<dyn ScriptObject>>,
+                        )
+                    };
+                    let native_object = ref_ptr_value.borrow().duplicate()?;
+                    ScriptValue::Object(native_object)
+                } else {
+                    // Second case, the object is a js object
+                    let js_object: js_sys::Object = value.into();
+                    ScriptValue::Object(Box::new(JsIntrospectObject {
+                        reference: Rc::new(js_object),
+                    }))
+                }
+            }
+            Err(_) => {
+                // Second case, the object is a js object
+                let js_object: js_sys::Object = value.into();
+                ScriptValue::Object(Box::new(JsIntrospectObject {
+                    reference: Rc::new(js_object),
+                }))
+            }
+        }
     } else if value.is_bigint() {
         todo!()
     } else {
@@ -267,14 +302,12 @@ struct JsFunctionCallback {
 
 impl ScriptCallback for JsFunctionCallback {
     fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        web_sys::console::log_1(&"CALL1".into());
         // Convert all the others args as a JsUnknown
         let args = args
             .into_iter()
             .map(|elem| script_value_to_js_value(elem))
             .try_collect::<Vec<_>>()?;
 
-        web_sys::console::log_1(&"CALL2".into());
         let js_array = js_sys::Array::new();
         args.into_iter()
             .try_for_each(|elem| {
@@ -284,7 +317,6 @@ impl ScriptCallback for JsFunctionCallback {
             .map_err(|err| JsError::from(err))?;
 
         // Call the function
-        web_sys::console::log_1(&"CALL3".into());
         let result = self
             .reference
             .deref()
@@ -292,7 +324,6 @@ impl ScriptCallback for JsFunctionCallback {
             .map_err(|err| FruityError::from(err))?;
 
         // Return the result
-        web_sys::console::log_1(&"CALL4".into());
         let result = js_value_to_script_value(result)?;
         Ok(result)
     }

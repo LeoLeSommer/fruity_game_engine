@@ -18,6 +18,7 @@ export default {
         new WasmPackPlugin({
             crateDirectory: path.resolve(__dirname, "."),
             extraArgs: '--features wasm-module',
+            forceMode: "development",
         }),
         new webpack.ProvidePlugin({
           TextDecoder: ['text-encoding', 'TextDecoder'],

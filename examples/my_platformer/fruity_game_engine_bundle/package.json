@@ -6,7 +6,6 @@
     "./index.js": "./index_browser.js"
   },
   "types": "index.d.ts",
-  "type": "module",
   "napi": {
     "name": "fruity_game_engine_bundle",
     "triples": {

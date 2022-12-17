@@ -110,11 +110,8 @@ impl World {
         let module_service = self.module_service.deref().borrow();
 
         module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
-            web_sys::console::log_1(&"MOD1".into());
             if let Some(setup) = module.setup {
-                web_sys::console::log_1(&"MOD2".into());
                 setup(self.clone(), settings.clone())?;
-                web_sys::console::log_1(&"MOD3".into());
             }
 
             Ok(())

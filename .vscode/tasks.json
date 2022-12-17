@@ -1,0 +1,49 @@
+{
+  "tasks": [
+    {
+      "label": "Build napi my_platformer",
+      "command": "npm",
+      "args": ["run", "build"],
+      "options": {
+        "cwd": "${workspaceFolder}/examples/my_platformer"
+      },
+      "dependsOn": [
+        "Build napi fruity_game_engine",
+        "Build napi fruity_ecs",
+        "Build napi fruity_hierarchy"
+      ]
+    },
+    {
+      "label": "Build napi fruity_game_engine",
+      "command": "npm",
+      "args": ["run", "napi-build:debug"],
+      "options": {
+        "cwd": "${workspaceFolder}/crates/fruity_game_engine"
+      }
+    },
+    {
+      "label": "Build napi fruity_ecs",
+      "command": "npm",
+      "args": ["run", "napi-build:debug"],
+      "options": {
+        "cwd": "${workspaceFolder}/crates/fruity_ecs"
+      }
+    },
+    {
+      "label": "Build napi fruity_hierarchy",
+      "command": "npm",
+      "args": ["run", "napi-build:debug"],
+      "options": {
+        "cwd": "${workspaceFolder}/crates/fruity_hierarchy"
+      }
+    },
+    {
+      "label": "Build wasm fruity_game_engine",
+      "command": "npm",
+      "args": ["run", "wasm-build"],
+      "options": {
+        "cwd": "${workspaceFolder}/crates/fruity_game_engine"
+      }
+    }
+  ]
+}
