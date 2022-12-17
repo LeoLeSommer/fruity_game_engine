@@ -236,4 +236,5 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-module.exports = nativeBinding
+module.exports.readSettings = nativeBinding.readSettings
+module.exports.World = nativeBinding.World

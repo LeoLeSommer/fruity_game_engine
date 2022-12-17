@@ -236,4 +236,5 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-module.exports = nativeBinding
+module.exports.createFruityHierarchyModule = nativeBinding.createFruityHierarchyModule
+module.exports.Parent = nativeBinding.Parent

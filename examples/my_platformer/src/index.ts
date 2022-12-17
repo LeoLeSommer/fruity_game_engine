@@ -1,15 +1,6 @@
-import * as test1 from "fruity_game_engine";
-import * as test2 from "fruity_ecs";
-import * as test3 from "fruity_hierarchy";
-
-console.log(test1, test2, test3);
-
-/*import {
-  World,
-  readSettings,
-  createFruityEcsModule,
-  createFruityHierarchyModule,
-} from "fruity_game_engine_bundle";
+import { World } from "fruity_game_engine";
+import { createFruityEcsModule } from "fruity_ecs";
+import { createFruityHierarchyModule } from "fruity_hierarchy";
 
 class CustomService {
   index = 1;
@@ -35,27 +26,27 @@ export class CustomComponent2 {
   value: number = 30;
 }
 
-const world = new (World as any)({});
+const world = new World({});
 
 world.registerModule(createFruityEcsModule());
+world.registerModule(createFruityHierarchyModule());
 world.registerModule({
   name: "my_platformer",
-  dependencies: ["fruity_ecs"],
+  dependencies: ["fruity_ecs", "fruity_hierarchy"],
   setup: (world: any) => {
     console.log("setup", world);
-    const resourceContainer = world.getResourceContainer();*/
-
-/*resourceContainer.add("custom_service", new CustomService());
+    const resourceContainer = world.getResourceContainer();
+    resourceContainer.add("custom_service", new CustomService());
 
     const customService = resourceContainer.get("custom_service");
     console.log("customService", customService);
 
-    customService.hello("Frame");*/
+    customService.hello("Frame");
 
-/*const systemService = resourceContainer.get("system_service");
-    const entityService = resourceContainer.get("entity_service");*/
+    const systemService = resourceContainer.get("system_service");
+    const entityService = resourceContainer.get("entity_service");
 
-/*systemService.addStartupSystem(
+    systemService.addStartupSystem(
       "test startup 1",
       () => {
         console.log("The engine has been turned on");
@@ -83,53 +74,13 @@ world.registerModule({
             customComponent2.value
           );
         });
-    });*/
-/*},
+    });
+  },
   loadResources: (resourceContainer: any, settings: any) => {
     console.log("loadResources");
   },
 });
 
-world.setupModules();
-world.loadResources();*/
-
-// Setup the scene
-/*const resourceContainer = world.getResourceContainer();
-const entityService = resourceContainer.get("entity_service");
-
-entityService.create("test entity", true, [
-  new CustomComponent(),
-  new CustomComponent({ value: 1 }),
-  new CustomComponent2({ value: 144 }),
-]);*/
-
-// Run the world
-// world.run();
-
-/*import * as test from "fruity_game_engine_bundle";
-console.log(test);*/
-
-/*import {
-  World,
-  readSettings,
-  createFruityEcsModule,
-  createFruityHierarchyModule,
-} from "fruity_game_engine_bundle";
-import myPlatformer, {
-  CustomComponent,
-  CustomComponent2,
-} from "./myPlatformer";
-
-// const settings = Test.readSettings("./assets/settings.yaml");
-const world = new (World as any)({});
-console.log(world);
-
-// Register the modules
-world.registerModule(createFruityEcsModule());
-world.registerModule(createFruityHierarchyModule());
-world.registerModule(myPlatformer);
-
-// Setup the world
 world.setupModules();
 world.loadResources();
 
@@ -145,4 +96,3 @@ entityService.create("test entity", true, [
 
 // Run the world
 world.run();
-*/

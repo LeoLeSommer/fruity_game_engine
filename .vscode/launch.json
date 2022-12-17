@@ -17,7 +17,7 @@
       "cwd": "${workspaceFolder}/examples/my_platformer/",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "serve"],
-      "preLaunchTask": "Build wasm fruity_game_engine"
+      "preLaunchTask": "Build wasm my_platformer"
     }
   ]
 }

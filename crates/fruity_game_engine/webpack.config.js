@@ -1,13 +1,9 @@
-import path from 'path';
-import webpack from 'webpack';
-import WasmPackPlugin from '@wasm-tool/wasm-pack-plugin';
-import HtmlWebpackPlugin from 'html-webpack-plugin';
-import {fileURLToPath} from 'url';
+const path = require('path');
+const webpack = require('webpack');
+const WasmPackPlugin = require('@wasm-tool/wasm-pack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-export default {
+module.exports = {
     entry: './index_browser.js',
     output: {
         path: path.resolve(__dirname, 'dist/browser'),
