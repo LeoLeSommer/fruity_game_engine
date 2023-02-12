@@ -5,6 +5,7 @@ use fruity_ecs::entity::entity_query::Query;
 use fruity_ecs::entity::entity_service::EntityService;
 use fruity_ecs::system_service::StartupDisposeSystemCallback;
 use fruity_game_engine::inject::Ref;
+use fruity_game_engine::FruityResult;
 use std::ops::Deref;
 
 /// An internal system to update the nested level of a hierarchy component
@@ -13,7 +14,7 @@ use std::ops::Deref;
 pub fn update_nested_level(
     entity_service: Ref<EntityService>,
     query: Query<(WithEntity, WithMut<Parent>)>,
-) -> StartupDisposeSystemCallback {
+) -> FruityResult<StartupDisposeSystemCallback> {
     let handle = query.on_created(move |(entity, mut parent)| {
         // Get the parent entity reference
         let parent_entity = if let Some(parent_id) = &parent.parent_id.deref() {
@@ -64,7 +65,8 @@ pub fn update_nested_level(
         }))
     });
 
-    Some(Box::new(move || {
-        handle.dispose_by_ref();
-    }))
+    Ok(Some(Box::new(move || {
+        handle.dispose();
+        Ok(())
+    })))
 }

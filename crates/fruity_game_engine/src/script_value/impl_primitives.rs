@@ -169,3 +169,79 @@ impl TryIntoScriptValue for bool {
         Ok(ScriptValue::Bool(self))
     }
 }
+
+impl<T: TryFromScriptValue> TryFromScriptValue for [T; 3] {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Array(mut value) => {
+                if value.len() == 3 {
+                    Ok([
+                        T::from_script_value(value.remove(0))?,
+                        T::from_script_value(value.remove(0))?,
+                        T::from_script_value(value.remove(0))?,
+                    ])
+                } else {
+                    Err(FruityError::ArrayExpected(format!(
+                        "Couldn't convert {:?} to 3 size array",
+                        value
+                    )))
+                }
+            }
+            _ => Err(FruityError::ArrayExpected(format!(
+                "Couldn't convert {:?} to array",
+                value
+            ))),
+        }
+    }
+}
+
+impl<T: TryIntoScriptValue> TryIntoScriptValue for [T; 4] {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        let mut vec = self.into_iter().collect::<Vec<_>>();
+
+        Ok(ScriptValue::Array(vec![
+            vec.remove(0).into_script_value()?,
+            vec.remove(0).into_script_value()?,
+            vec.remove(0).into_script_value()?,
+            vec.remove(0).into_script_value()?,
+        ]))
+    }
+}
+
+impl<T: TryFromScriptValue> TryFromScriptValue for [T; 4] {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Array(mut value) => {
+                if value.len() == 3 {
+                    Ok([
+                        T::from_script_value(value.remove(0))?,
+                        T::from_script_value(value.remove(0))?,
+                        T::from_script_value(value.remove(0))?,
+                        T::from_script_value(value.remove(0))?,
+                    ])
+                } else {
+                    Err(FruityError::ArrayExpected(format!(
+                        "Couldn't convert {:?} to 3 size array",
+                        value
+                    )))
+                }
+            }
+            _ => Err(FruityError::ArrayExpected(format!(
+                "Couldn't convert {:?} to array",
+                value
+            ))),
+        }
+    }
+}
+
+impl<T: TryIntoScriptValue> TryIntoScriptValue for [T; 3] {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        let mut vec = self.into_iter().collect::<Vec<_>>();
+
+        Ok(ScriptValue::Array(vec![
+            vec.remove(0).into_script_value()?,
+            vec.remove(0).into_script_value()?,
+            vec.remove(0).into_script_value()?,
+        ]))
+    }
+}

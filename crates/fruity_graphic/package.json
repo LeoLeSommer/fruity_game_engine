@@ -1,0 +1,47 @@
+{
+  "name": "fruity_graphic",
+  "version": "0.0.0",
+  "main": "index.js",
+  "browser": {
+    "./index.js": "./index_browser.js"
+  },
+  "types": "index.d.ts",
+  "napi": {
+    "name": "fruity_graphic",
+    "triples": {
+      "additional": [
+        "aarch64-apple-darwin",
+        "aarch64-linux-android",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "aarch64-pc-windows-msvc"
+      ]
+    }
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@napi-rs/cli": "^2.12.0",
+    "@wasm-tool/wasm-pack-plugin": "1.5.0",
+    "ava": "^4.3.3",
+    "html-webpack-plugin": "^5.3.2",
+    "node-loader": "^2.0.0",
+    "text-encoding": "^0.7.0",
+    "webpack": "^5.49.0",
+    "webpack-cli": "^4.7.2",
+    "webpack-dev-server": "^3.11.2"
+  },
+  "ava": {
+    "timeout": "3m"
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "scripts": {
+    "napi-artifacts": "napi artifacts",
+    "napi-build": "napi build --platform --release --features napi-module",
+    "napi-build:debug": "napi build --platform --features napi-module",
+    "napi-prepublish-only": "napi prepublish -t npm",
+    "napi-version": "napi version",
+    "wasm-build": "webpack"
+  }
+}

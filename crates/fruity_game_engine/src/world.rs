@@ -27,9 +27,11 @@ pub type EndMiddleware = Rc<dyn Fn(&World) -> FruityResult<()>>;
 pub type RunMiddleware = Rc<
     dyn Fn(
         &World,
-        &(dyn Fn(&World) -> FruityResult<()>),
-        &(dyn Fn(&World) -> FruityResult<()>),
-        &(dyn Fn(&World) -> FruityResult<()>),
+        &Settings,
+        Rc<dyn Fn(&World) -> FruityResult<()>>,
+        Rc<dyn Fn(&World) -> FruityResult<()>>,
+        Rc<dyn Fn(&World) -> FruityResult<()>>,
+        Rc<dyn Fn(&World) -> FruityResult<()>>,
     ) -> FruityResult<()>,
 >;
 
@@ -67,7 +69,8 @@ impl World {
                 start_middleware: Rc::new(|_| Ok(())),
                 frame_middleware: Rc::new(|_| Ok(())),
                 end_middleware: Rc::new(|_| Ok(())),
-                run_middleware: Rc::new(|world, start, frame, end| {
+                run_middleware: Rc::new(|world, _settings, load_resources, start, frame, end| {
+                    load_resources(world)?;
                     start(world)?;
                     frame(world)?;
                     end(world)?;
@@ -138,6 +141,7 @@ impl World {
     pub fn run(&self) -> FruityResult<()> {
         crate::profile::profile_function!();
 
+        let settings = self.inner.deref().borrow().settings.clone();
         let run_middleware = self.inner.deref().borrow().run_middleware.clone();
         let start_middleware = self.inner.deref().borrow().start_middleware.clone();
         let frame_middleware = self.inner.deref().borrow().frame_middleware.clone();
@@ -145,9 +149,11 @@ impl World {
 
         run_middleware(
             self,
-            start_middleware.deref(),
-            frame_middleware.deref(),
-            end_middleware.deref(),
+            &settings,
+            Rc::new(Self::load_resources),
+            start_middleware.clone(),
+            frame_middleware.clone(),
+            end_middleware.clone(),
         )
     }
 

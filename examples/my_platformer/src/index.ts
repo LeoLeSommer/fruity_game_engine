@@ -81,9 +81,6 @@ world.registerModule({
   },
 });
 
-world.setupModules();
-world.loadResources();
-
 // Setup the scene
 const resourceContainer = world.getResourceContainer();
 const entityService = resourceContainer.get("entity_service");

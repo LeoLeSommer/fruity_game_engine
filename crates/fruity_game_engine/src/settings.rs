@@ -1,5 +1,4 @@
 use crate::any::FruityAny;
-use crate::export_function;
 use crate::introspect::IntrospectFields;
 use crate::introspect::IntrospectMethods;
 use crate::script_value::convert::TryFromScriptValue;
@@ -8,7 +7,6 @@ use crate::script_value::ScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::Read;
 use yaml_rust::Yaml;
 use yaml_rust::YamlLoader;
@@ -78,12 +76,8 @@ impl Default for Settings {
 }
 
 /// Build a Settings by reading a yaml document
-#[export_function]
-pub fn read_settings(path: String) -> FruityResult<Settings> {
+pub fn read_settings(reader: &mut dyn Read, path: &str) -> FruityResult<Settings> {
     // Open the file
-    let mut reader = File::open(&path)
-        .map_err(|_| FruityError::GenericFailure(format!("File couldn't be opened: {:?}", path)))?;
-
     let mut buffer = String::new();
     reader
         .read_to_string(&mut buffer)
@@ -212,6 +206,17 @@ impl<T: TryFrom<Settings> + ?Sized> TryFrom<Settings> for Vec<T> {
                 "Couldn't convert {:?} to array",
                 value
             ))),
+        }
+    }
+}
+
+impl TryFrom<Settings> for Option<String> {
+    type Error = FruityError;
+
+    fn try_from(value: Settings) -> FruityResult<Self> {
+        match String::try_from(value) {
+            Ok(e) => Ok(Some(e)),
+            Err(_) => Ok(None),
         }
     }
 }

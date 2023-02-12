@@ -7,6 +7,8 @@ use crate::{
 use crate::{export, export_impl, export_struct};
 use std::{collections::HashMap, sync::Arc};
 
+pub use fruity_game_engine_macro::ObjectFactory;
+
 /// Trait to implement a generic constructor from a ScriptValue
 pub trait ObjectFactory {
     /// Get a constructor to instantiate an object

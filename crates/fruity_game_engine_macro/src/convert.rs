@@ -9,6 +9,31 @@ pub fn intern_derive_try_from_script_value(input: TokenStream) -> TokenStream {
     let fruity_crate = fruity_crate();
 
     let output = match data {
+        /*Data::Enum(ref data) => {
+            let enum_idents = data.variants.into_iter().map(|elem| elem.ident);
+
+            quote! {
+                impl #fruity_crate::script_value::convert::TryFromScriptValue for #ident {
+                    fn from_script_value(value: #fruity_crate::script_value::ScriptValue) -> #fruity_crate::FruityResult<Self> {
+                        match value {
+                            #fruity_crate::script_value::ScriptValue::Object(value) => {
+                                match value.downcast::<Self>() {
+                                    Ok(value) => Ok(*value),
+                                    Err(value) => {
+                                        Ok(Self {
+                                            #(#convert_args)*
+                                        })
+                                    }
+                                }
+                            }
+                            _ => Err(#fruity_crate::FruityError::InvalidArg(
+                                format!("Couldn't convert {:?} to native object", value),
+                             )),
+                        }
+                    }
+                }
+            }
+        }*/
         Data::Struct(ref data) => {
             // Create a list with all field names,
             let fields: Vec<_> = parse_struct_fields(&data.fields);

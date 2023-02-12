@@ -5,13 +5,14 @@ use fruity_ecs::entity::entity_query::Query;
 use fruity_ecs::entity::entity_service::EntityService;
 use fruity_ecs::system_service::StartupDisposeSystemCallback;
 use fruity_game_engine::inject::Ref;
+use fruity_game_engine::FruityResult;
 use std::ops::Deref;
 
 /// Delete the childs of a parent when it's deleted
 pub fn delete_cascade(
     entity_service: Ref<EntityService>,
     query: Query<(WithEntity, With<Parent>)>,
-) -> StartupDisposeSystemCallback {
+) -> FruityResult<StartupDisposeSystemCallback> {
     let entity_service_reader = entity_service.read();
     let handle = entity_service_reader
         .on_deleted
@@ -44,5 +45,8 @@ pub fn delete_cascade(
             })
         });
 
-    Some(Box::new(move || handle.dispose()))
+    Ok(Some(Box::new(move || {
+        handle.dispose();
+        Ok(())
+    })))
 }

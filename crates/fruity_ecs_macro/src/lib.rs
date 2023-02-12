@@ -55,7 +55,7 @@ fn derive_component_instantiable_object_trait(input: TokenStream) -> TokenStream
             use fruity_game_engine::introspect::IntrospectFields;
 
             std::sync::Arc::new(|_resource_container: fruity_game_engine::resource::resource_container::ResourceContainer, mut args: Vec<fruity_game_engine::script_value::ScriptValue>| {
-                let mut new_object = Parent::default();
+                let mut new_object = Self::default();
 
                 if args.len() > 0 {
                     let arg1 = args.remove(0);

@@ -1,6 +1,7 @@
 use crate::{fruity_crate, parse::{parse_struct_fields, parse_impl_method, ParsedReceiver}};
+use proc_macro::TokenStream;
 use quote::quote;
-use syn::{ItemStruct, __private::TokenStream2, ItemImpl};
+use syn::{ItemStruct, __private::TokenStream2, ItemImpl, DeriveInput, parse_macro_input};
 
 #[cfg(any(feature = "napi-module", feature = "wasm-module"))]
 use convert_case::{Casing, Case};
@@ -393,4 +394,36 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
         #napi_constructor_bindings
         #wasm_constructor_bindings
     }
+}
+
+pub fn intern_derive_object_factory(input: TokenStream) -> TokenStream {
+    let DeriveInput { ident, .. } = parse_macro_input!(input);
+
+    let output = quote! {
+        impl fruity_game_engine::object_factory_service::ObjectFactory for #ident {
+            fn get_constructor() -> fruity_game_engine::object_factory_service::Constructor {
+                use fruity_game_engine::introspect::IntrospectFields;
+
+                std::sync::Arc::new(|_resource_container: fruity_game_engine::resource::resource_container::ResourceContainer, mut args: Vec<fruity_game_engine::script_value::ScriptValue>| {
+                    let mut new_object = Self::default();
+
+                    if args.len() > 0 {
+                        let arg1 = args.remove(0);
+
+                        if let fruity_game_engine::script_value::ScriptValue::Object(arg1) =
+                        arg1
+                        {
+                            arg1.get_field_names()?.into_iter().try_for_each(|field_name| {
+                                new_object.set_field_value(&field_name, arg1.get_field_value(&field_name)?)
+                            })?;
+                        };
+                    };
+
+                    Ok(fruity_game_engine::script_value::ScriptValue::Object(Box::new(new_object) as Box<dyn fruity_game_engine::script_value::ScriptObject>))
+                })
+            }
+        }
+    };
+
+    output.into()
 }

@@ -1,0 +1,36 @@
+[package]
+edition = "2021"
+name = "fruity_graphic_wgpu"
+version = "0.0.0"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+wgpu = "0.15.1"
+bytemuck = { version = "1.4", features = [ "derive" ] }
+image = "0.23.14"
+winit = "0.28.1"
+tokio = { version = "1.12", features = ["rt", "rt-multi-thread", "time"] }
+fruity_game_engine = { path = "../fruity_game_engine" }
+fruity_graphic = { path = "../fruity_graphic" }
+fruity_windows = { path = "../fruity_windows" }
+fruity_windows_winit = { path = "../fruity_windows_winit" }
+wasm-bindgen = { version = "0.2.83", optional = true }
+
+[build-dependencies]
+napi-build = { version = "2.0.1", optional = true }
+
+[features]
+# default = []
+napi-module = [
+    "napi-build",
+    "fruity_game_engine/napi-module"
+]
+wasm-module = [
+    "wasm-bindgen",
+    "fruity_game_engine/wasm-module"
+]
+
+[profile.release]
+lto = true

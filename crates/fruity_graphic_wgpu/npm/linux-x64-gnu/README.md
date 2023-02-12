@@ -1,0 +1,3 @@
+# `fruity_graphic_wgpu-linux-x64-gnu`
+
+This is the **x86_64-unknown-linux-gnu** binary for `fruity_graphic_wgpu`

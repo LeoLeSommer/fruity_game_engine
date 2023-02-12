@@ -153,6 +153,46 @@ impl<T: Resource + ?Sized> Clone for ResourceReference<T> {
     }
 }
 
+impl<T: Resource + ?Sized> IntrospectFields for ResourceReference<T> {
+    fn get_class_name(&self) -> FruityResult<String> {
+        self.resource.get_class_name()
+    }
+
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        self.resource.get_field_names()
+    }
+
+    fn set_field_value(&mut self, _name: &str, _value: ScriptValue) -> FruityResult<()> {
+        unreachable!()
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        self.resource.get_field_value(name)
+    }
+}
+
+impl<T: Resource + ?Sized> IntrospectMethods for ResourceReference<T> {
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        self.resource.get_const_method_names()
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        self.resource.call_const_method(name, args)
+    }
+
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+}
+
 /// A read guard for a resource reference
 pub struct ResourceReadGuard<T: Resource + ?Sized> {
     _referenced: Arc<RwLock<Box<T>>>,

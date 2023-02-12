@@ -22,14 +22,15 @@ use std::sync::Arc;
 use std::thread;
 
 /// A callback for a system called every frame
-pub type SystemCallback = dyn Fn(ResourceContainer) + Sync + Send + 'static;
+pub type SystemCallback = dyn Fn(ResourceContainer) -> FruityResult<()> + Sync + Send + 'static;
 
 /// A callback for a startup system dispose callback
-pub type StartupDisposeSystemCallback = Option<Box<dyn FnOnce() + Sync + Send + 'static>>;
+pub type StartupDisposeSystemCallback =
+    Option<Box<dyn FnOnce() -> FruityResult<()> + Sync + Send + 'static>>;
 
 /// A callback for a startup system
 pub type StartupSystemCallback =
-    dyn Fn(ResourceContainer) -> StartupDisposeSystemCallback + Sync + Send + 'static;
+    dyn Fn(ResourceContainer) -> FruityResult<StartupDisposeSystemCallback> + Sync + Send + 'static;
 
 /// Params for a system
 #[derive(Debug, Clone, TryFromScriptValue)]
@@ -74,7 +75,7 @@ struct StartupSystem {
 
 struct StartupDisposeSystem {
     identifier: String,
-    callback: Box<dyn FnOnce() + Sync + Send + 'static>,
+    callback: Box<dyn FnOnce() -> FruityResult<()> + Sync + Send + 'static>,
 }
 
 #[derive(Clone)]
@@ -170,7 +171,7 @@ impl SystemService {
     /// * `system` - A function that will compute the world
     /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
     ///
-    pub fn add_system<T: Inject<()>>(
+    pub fn add_system<T: Inject<FruityResult<()>>>(
         &mut self,
         identifier: &str,
         callback: T,
@@ -205,7 +206,7 @@ impl SystemService {
     /// * `system` - A function that will compute the world
     /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
     ///
-    pub fn add_startup_system<T: Inject<StartupDisposeSystemCallback>>(
+    pub fn add_startup_system<T: Inject<FruityResult<StartupDisposeSystemCallback>>>(
         &mut self,
         identifier: &str,
         callback: T,
@@ -296,19 +297,21 @@ impl SystemService {
                     // Run the threaded systems
                     let resource_container = world.get_resource_container();
                     let handler = thread::spawn(move || {
-                        pool.systems.iter().par_bridge().for_each(|system| {
+                        pool.systems.iter().par_bridge().try_for_each(|system| {
                             if !is_paused || system.ignore_pause {
-                                let _profiler_scope = profile_scope(&system.identifier);
+                                profile_scope(&system.identifier);
                                 (system.callback)(resource_container.clone())
+                            } else {
+                                Ok(())
                             }
-                        });
+                        })
                     });
 
                     // Run the script systems
                     let script_resource_container = world.get_script_resource_container();
                     pool.script_systems.iter().try_for_each(|system| {
                         if !is_paused || system.ignore_pause {
-                            let _profiler_scope = profile_scope(&system.identifier);
+                            profile_scope(&system.identifier);
                             system.callback.call(vec![script_resource_container
                                 .clone()
                                 .into_script_value()?])?;
@@ -318,7 +321,7 @@ impl SystemService {
                     })?;
 
                     // Wait all the threaded systems
-                    handler.join().unwrap();
+                    handler.join().unwrap()?;
                 }
 
                 FruityResult::Ok(())
@@ -332,10 +335,10 @@ impl SystemService {
         self.startup_systems
             .par_iter()
             .filter(|system| system.ignore_pause)
-            .for_each(|system| {
-                let _profiler_scope = profile_scope(&system.identifier);
+            .try_for_each(|system| {
+                profile_scope(&system.identifier);
 
-                let dispose_callback = (system.callback)(resource_container.clone());
+                let dispose_callback = (system.callback)(resource_container.clone())?;
 
                 if let Some(dispose_callback) = dispose_callback {
                     let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
@@ -344,7 +347,9 @@ impl SystemService {
                         callback: dispose_callback,
                     });
                 }
-            });
+
+                FruityResult::Ok(())
+            })?;
 
         // Run the script systems
         let script_resource_container = world.get_script_resource_container();
@@ -352,7 +357,7 @@ impl SystemService {
             .iter()
             .filter(|system| system.ignore_pause)
             .try_for_each(|system| {
-                let _profiler_scope = profile_scope(&system.identifier);
+                profile_scope(&system.identifier);
 
                 let dispose_callback = system.callback.call(vec![script_resource_container
                     .clone()
@@ -370,7 +375,7 @@ impl SystemService {
             })?;
 
         if !self.is_paused() {
-            self.run_unpause_start();
+            self.run_unpause_start()?;
         }
 
         Result::Ok(())
@@ -379,7 +384,7 @@ impl SystemService {
     /// Run all startup dispose callbacks
     pub(crate) fn run_end(&mut self, _world: &World) -> FruityResult<()> {
         if !self.is_paused() {
-            self.run_unpause_end();
+            self.run_unpause_end()?;
         }
 
         // Run the threaded systems
@@ -387,16 +392,16 @@ impl SystemService {
         startup_dispose_callbacks
             .drain(..)
             .par_bridge()
-            .for_each(|system| {
-                let _profiler_scope = profile_scope(&system.identifier);
+            .try_for_each(|system| {
+                profile_scope(&system.identifier);
                 (system.callback)()
-            });
+            })?;
 
         // Run the script systems
         self.script_startup_dispose_callbacks
             .drain(..)
             .try_for_each(|system| {
-                let _profiler_scope = profile_scope(&system.identifier);
+                profile_scope(&system.identifier);
                 system.callback.call(vec![]).map(|_| ())
             })?;
 
@@ -404,14 +409,14 @@ impl SystemService {
     }
 
     /// Run all the startup systems that start when pause is stopped
-    fn run_unpause_start(&self) {
+    fn run_unpause_start(&self) -> FruityResult<()> {
         self.startup_systems
             .iter()
             .filter(|system| !system.ignore_pause)
-            .for_each(|system| {
-                let _profiler_scope = profile_scope(&system.identifier);
+            .try_for_each(|system| {
+                profile_scope(&system.identifier);
 
-                let dispose_callback = (system.callback)(self.resource_container.clone());
+                let dispose_callback = (system.callback)(self.resource_container.clone())?;
 
                 if let Some(dispose_callback) = dispose_callback {
                     let mut startup_dispose_callbacks = self.startup_pause_dispose_callbacks.lock();
@@ -420,16 +425,20 @@ impl SystemService {
                         callback: dispose_callback,
                     });
                 }
-            });
+
+                FruityResult::Ok(())
+            })
     }
 
     /// Run all the startup dispose callbacks of systems that start when pause is stopped
-    fn run_unpause_end(&self) {
+    fn run_unpause_end(&self) -> FruityResult<()> {
         let mut startup_dispose_callbacks = self.startup_pause_dispose_callbacks.lock();
-        startup_dispose_callbacks.drain(..).for_each(|system| {
-            let _profiler_scope = profile_scope(&system.identifier);
+        startup_dispose_callbacks.drain(..).try_for_each(|system| {
+            profile_scope(&system.identifier);
             (system.callback)()
-        });
+        })?;
+
+        Ok(())
     }
 
     /// Enable a pool
@@ -458,15 +467,16 @@ impl SystemService {
     /// * `paused` - The paused value
     ///
     #[export]
-    pub fn set_paused(&self, paused: bool) {
+    pub fn set_paused(&self, paused: bool) -> FruityResult<()> {
         if !paused && self.is_paused() {
-            self.run_unpause_start();
+            self.run_unpause_start()?;
         }
 
         if paused && !self.is_paused() {
-            self.run_unpause_end();
+            self.run_unpause_end()?;
         }
 
         self.pause.store(paused, Ordering::Relaxed);
+        Ok(())
     }
 }

@@ -15,7 +15,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 /// A a function that is used to load a resource
-pub type ResourceLoader = fn(&str, &mut dyn Read, Settings, ResourceContainer);
+pub type ResourceLoader = fn(&str, &mut dyn Read, Settings, ResourceContainer) -> FruityResult<()>;
 
 pub(crate) struct InnerResourceContainer {
     resources: HashMap<String, AnyResourceReference>,
@@ -210,8 +210,7 @@ impl ResourceContainer {
             }?
         };
 
-        resource_loader(identifier, reader, settings, self.clone());
-        Ok(())
+        resource_loader(identifier, reader, settings, self.clone())
     }
 
     /// Load many resources for settings

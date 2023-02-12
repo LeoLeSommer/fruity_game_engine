@@ -4,6 +4,7 @@ extern crate syn;
 use convert::intern_derive_try_from_script_value;
 use convert::intern_derive_try_into_script_value;
 use fruity_any::intern_derive_fruity_any;
+use introspect::intern_derive_object_factory;
 use introspect::{intern_export_impl, intern_export_struct};
 use proc_macro::{self, TokenStream};
 use quote::quote;
@@ -55,6 +56,11 @@ pub fn derive_try_from_script_value(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(TryIntoScriptValue)]
 pub fn derive_try_into_script_value(input: TokenStream) -> TokenStream {
     intern_derive_try_into_script_value(input)
+}
+
+#[proc_macro_derive(ObjectFactory)]
+pub fn derive_object_factory(input: TokenStream) -> TokenStream {
+    intern_derive_object_factory(input)
 }
 
 #[proc_macro_attribute]
