@@ -154,7 +154,9 @@ impl World {
             start_middleware.clone(),
             frame_middleware.clone(),
             end_middleware.clone(),
-        )
+        )?;
+
+        Ok(())
     }
 
     /// Add a run start middleware

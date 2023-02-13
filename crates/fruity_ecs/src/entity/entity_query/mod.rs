@@ -11,10 +11,14 @@ use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
-use rayon::iter::ParallelBridge;
-use rayon::iter::ParallelIterator;
 use std::marker::PhantomData;
 use std::sync::Arc;
+
+#[cfg(feature = "multi-threaded")]
+use rayon::iter::ParallelBridge;
+
+#[cfg(feature = "multi-threaded")]
+use rayon::iter::ParallelIterator;
 
 /// Queries for scripting languages
 pub(crate) mod script;
@@ -101,7 +105,13 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
             .flatten()
             .collect::<Vec<_>>();
 
-        entities.into_iter().par_bridge().try_for_each(|entity| {
+        #[cfg(feature = "multi-threaded")]
+        let mut iterator = entities.into_iter().par_bridge();
+
+        #[cfg(not(feature = "multi-threaded"))]
+        let mut iterator = entities.into_iter();
+
+        iterator.try_for_each(|entity| {
             let entity_guard = if T::require_write() {
                 RequestedEntityGuard::Write(entity.write())
             } else if T::require_read() {

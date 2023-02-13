@@ -8,7 +8,7 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 log = "0.4.14"
-rayon = "1.5"
+rayon = { version = "1.5", optional = true }
 itertools = "0.10.1"
 fruity_ecs_macro = { path = "../fruity_ecs_macro" }
 fruity_game_engine = { path = "../fruity_game_engine" }
@@ -21,9 +21,13 @@ napi-build = { version = "2.0.1", optional = true }
 default = []
 napi-module = [
     "napi-build",
+    "multi-threaded",
     "fruity_game_engine/napi-module"
 ]
 wasm-module = [
     "wasm-bindgen",
     "fruity_game_engine/wasm-module"
+]
+multi-threaded = [
+    "rayon"
 ]

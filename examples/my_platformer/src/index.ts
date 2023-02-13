@@ -91,9 +91,6 @@ world.registerModule({
 // Initialize modules
 world.setupModules();
 
-// Load resources
-world.loadResources();
-
 // Setup the scene
 const resourceContainer = world.getResourceContainer();
 const entityService = resourceContainer.get<EntityService>("entity_service");

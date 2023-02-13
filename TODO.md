@@ -93,7 +93,8 @@
 ## Others
 
 [ ] WASM Module
-[ ] NAPI Module
+[X] WASM doesn't support multithread, so adapt the code to this constraint
+[X] NAPI Module
 [X] Implements a profiling tool
 [ ] Implement a basic sound features
 

@@ -12,14 +12,18 @@ use fruity_game_engine::world::World;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
 use fruity_game_engine::{export, export_impl, export_struct};
-use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+
+#[cfg(feature = "multi-threaded")]
 use std::thread;
+
+#[cfg(feature = "multi-threaded")]
+use rayon::prelude::*;
 
 /// A callback for a system called every frame
 pub type SystemCallback = dyn Fn(ResourceContainer) -> FruityResult<()> + Sync + Send + 'static;
@@ -296,8 +300,15 @@ impl SystemService {
                 if pool.enabled {
                     // Run the threaded systems
                     let resource_container = world.get_resource_container();
-                    let handler = thread::spawn(move || {
-                        pool.systems.iter().par_bridge().try_for_each(|system| {
+
+                    let execute_frame_systems_closure = move || {
+                        #[cfg(feature = "multi-threaded")]
+                        let iterator = pool.systems.iter().par_bridge();
+
+                        #[cfg(not(feature = "multi-threaded"))]
+                        let mut iterator = pool.systems.iter();
+
+                        iterator.try_for_each(|system| {
                             if !is_paused || system.ignore_pause {
                                 profile_scope(&system.identifier);
                                 (system.callback)(resource_container.clone())
@@ -305,7 +316,13 @@ impl SystemService {
                                 Ok(())
                             }
                         })
-                    });
+                    };
+
+                    #[cfg(feature = "multi-threaded")]
+                    let handler = thread::spawn(execute_frame_systems_closure);
+
+                    #[cfg(not(feature = "multi-threaded"))]
+                    execute_frame_systems_closure()?;
 
                     // Run the script systems
                     let script_resource_container = world.get_script_resource_container();
@@ -321,6 +338,7 @@ impl SystemService {
                     })?;
 
                     // Wait all the threaded systems
+                    #[cfg(feature = "multi-threaded")]
                     handler.join().unwrap()?;
                 }
 
@@ -332,8 +350,14 @@ impl SystemService {
     pub(crate) fn run_start(&mut self, world: &World) -> FruityResult<()> {
         // Run the threaded systems
         let resource_container = world.get_resource_container();
-        self.startup_systems
-            .par_iter()
+
+        #[cfg(feature = "multi-threaded")]
+        let iterator = self.startup_systems.par_iter();
+
+        #[cfg(not(feature = "multi-threaded"))]
+        let iterator = self.startup_systems.iter();
+
+        iterator
             .filter(|system| system.ignore_pause)
             .try_for_each(|system| {
                 profile_scope(&system.identifier);
@@ -389,13 +413,17 @@ impl SystemService {
 
         // Run the threaded systems
         let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
-        startup_dispose_callbacks
-            .drain(..)
-            .par_bridge()
-            .try_for_each(|system| {
-                profile_scope(&system.identifier);
-                (system.callback)()
-            })?;
+
+        #[cfg(feature = "multi-threaded")]
+        let mut iterator = startup_dispose_callbacks.drain(..).par_bridge();
+
+        #[cfg(not(feature = "multi-threaded"))]
+        let mut iterator = startup_dispose_callbacks.drain(..);
+
+        iterator.try_for_each(|system| {
+            profile_scope(&system.identifier);
+            (system.callback)()
+        })?;
 
         // Run the script systems
         self.script_startup_dispose_callbacks

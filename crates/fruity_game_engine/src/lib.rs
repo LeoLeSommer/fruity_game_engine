@@ -25,6 +25,9 @@ pub use lazy_static::lazy_static;
 pub use parking_lot::*;
 pub use send_wrapper;
 
+#[cfg(feature = "wasm-module")]
+use web_sys::console;
+
 #[cfg(all(feature = "napi-module", feature = "wasm-module"))]
 compile_error!("wasm-module and wasm-module are mutually exclusive and cannot be enabled together");
 
@@ -81,3 +84,15 @@ pub mod world;
 
 /// A service for frame management
 pub mod frame_service;
+
+#[cfg(feature = "wasm-module")]
+/// Log a message into a console
+pub fn console_log(message: &str) {
+    console::log_1(&message.into());
+}
+
+#[cfg(not(feature = "wasm-module"))]
+/// Log a message into a console
+pub fn console_log(message: &str) {
+    println!("{}", message);
+}
