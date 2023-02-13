@@ -347,6 +347,7 @@ impl Debug for JsIntrospectObject {
     }
 }
 
+//#[typegen = "type JsIntrospectObject = unknown"]
 impl IntrospectFields for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
         // Get the js func object the reference
@@ -453,6 +454,7 @@ impl From<FruityError> for JsError {
             FruityError::ArrayBufferExpected(message) => JsError::new(&message),
             FruityError::DetachableArraybufferExpected(message) => JsError::new(&message),
             FruityError::WouldDeadlock(message) => JsError::new(&message),
+            FruityError::NoExternalBuffersAllowed(message) => JsError::new(&message),
             FruityError::Unknown(message) => JsError::new(&message),
         }
     }

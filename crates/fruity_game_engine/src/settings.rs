@@ -284,6 +284,7 @@ impl TryFromScriptValue for Settings {
 #[derive(Debug, Clone, FruityAny)]
 struct SettingsHashMap(HashMap<String, Settings>);
 
+//#[typegen = "type SettingsHashMap = unknown"]
 impl IntrospectFields for SettingsHashMap {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("Settings".to_string())

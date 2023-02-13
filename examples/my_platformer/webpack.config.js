@@ -35,5 +35,10 @@ export default {
     experiments: {
         asyncWebAssembly: true,
         topLevelAwait: true
-   }
+   },
+   resolve: {
+      alias: {
+        fruity_native_bundle: path.resolve(__dirname, './fruity_native_bundle/'),
+      },
+   },
 };

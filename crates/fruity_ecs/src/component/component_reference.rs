@@ -103,6 +103,7 @@ impl Debug for ComponentReference {
     }
 }
 
+//#[typegen = "type ComponentReference = unknown"]
 impl IntrospectFields for ComponentReference {
     fn get_class_name(&self) -> FruityResult<String> {
         self.read().get_class_name()

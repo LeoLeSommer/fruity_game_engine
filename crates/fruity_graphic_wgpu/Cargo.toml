@@ -22,7 +22,7 @@ wasm-bindgen = { version = "0.2.83", optional = true }
 napi-build = { version = "2.0.1", optional = true }
 
 [features]
-# default = []
+default = []
 napi-module = [
     "napi-build",
     "fruity_game_engine/napi-module"
@@ -31,6 +31,3 @@ wasm-module = [
     "wasm-bindgen",
     "fruity_game_engine/wasm-module"
 ]
-
-[profile.release]
-lto = true

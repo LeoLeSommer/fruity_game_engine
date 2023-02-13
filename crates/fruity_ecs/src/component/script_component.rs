@@ -15,6 +15,7 @@ use fruity_game_engine::{
 #[derive(FruityAny, Debug, Clone)]
 pub struct ScriptComponent(pub SendWrapper<JsIntrospectObject>);
 
+//#[typegen = "type ScriptComponent = unknown"]
 impl IntrospectFields for ScriptComponent {
     fn get_class_name(&self) -> FruityResult<String> {
         self.0.get_class_name()

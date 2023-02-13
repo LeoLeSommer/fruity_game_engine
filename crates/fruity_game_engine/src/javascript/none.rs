@@ -9,6 +9,7 @@ use crate::{
 #[derive(FruityAny, Clone, Debug)]
 pub struct JsIntrospectObject {}
 
+//#[typegen = "type JsIntrospectObject = unknown"]
 impl IntrospectFields for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("unknown".to_string())

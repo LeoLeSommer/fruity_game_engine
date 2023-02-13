@@ -28,5 +28,6 @@ pub enum FruityError {
     ArrayBufferExpected(String),
     DetachableArraybufferExpected(String),
     WouldDeadlock(String),
+    NoExternalBuffersAllowed(String),
     Unknown(String),
 }

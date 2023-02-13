@@ -240,6 +240,7 @@ pub struct HashMapScriptObject {
     pub fields: HashMap<String, ScriptValue>,
 }
 
+//#[typegen = "type HashMapScriptObject = unknown"]
 impl IntrospectFields for HashMapScriptObject {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok(self.class_name.clone())

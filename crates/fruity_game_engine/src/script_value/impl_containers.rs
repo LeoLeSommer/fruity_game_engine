@@ -109,6 +109,7 @@ impl<T: TryFromScriptValue + Eq + Hash> TryFromScriptValue for HashSet<T> {
 #[derive(Debug, Clone, FruityAny)]
 struct ScriptValueHashMap(HashMap<String, ScriptValue>);
 
+//#[typegen = "type ScriptValueHashMap = unknown"]
 impl IntrospectFields for ScriptValueHashMap {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("unknown".to_string())
@@ -155,7 +156,7 @@ impl<T: TryIntoScriptValue> TryIntoScriptValue for HashMap<String, T> {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Object(Box::new(ScriptValueHashMap(
             self.into_iter()
-                .map(|(key, value)| Ok((key, value.into_script_value()?)))
+                .map(|(key, value)| FruityResult::Ok((key, value.into_script_value()?)))
                 .try_collect::<HashMap<_, _>>()?,
         ))))
     }

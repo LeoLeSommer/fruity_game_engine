@@ -1,0 +1,1 @@
+export * as default from './pkg/index_bg.js'

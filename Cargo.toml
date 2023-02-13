@@ -10,6 +10,8 @@ members = [
   "./crates/fruity_hierarchy",
   "./crates/fruity_input",
   "./crates/fruity_input_winit",
+  "./crates/fruity_native_bundle",
   "./crates/fruity_windows",
   "./crates/fruity_windows_winit",
+  "./examples/my_platformer/fruity_native_bundle",
 ]

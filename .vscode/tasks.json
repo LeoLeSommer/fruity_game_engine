@@ -6,39 +6,7 @@
       "args": ["run", "build"],
       "options": {
         "cwd": "${workspaceFolder}/examples/my_platformer"
-      },
-      "dependsOn": [
-        "Build napi fruity_game_engine",
-        "Build napi fruity_ecs",
-        "Build napi fruity_hierarchy"
-      ]
-    },
-    {
-      "label": "Build napi fruity_game_engine",
-      "command": "npm",
-      "args": ["run", "napi-build"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_game_engine"
-      },
-      "dependsOn": ["Install npm dependencies fruity_game_engine"]
-    },
-    {
-      "label": "Build napi fruity_ecs",
-      "command": "npm",
-      "args": ["run", "napi-build"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_ecs"
-      },
-      "dependsOn": ["Install npm dependencies fruity_ecs"]
-    },
-    {
-      "label": "Build napi fruity_hierarchy",
-      "command": "npm",
-      "args": ["run", "napi-build"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_hierarchy"
-      },
-      "dependsOn": ["Install npm dependencies fruity_hierarchy"]
+      }
     },
     {
       "label": "Build wasm my_platformer",
@@ -46,62 +14,6 @@
       "args": ["run", "build"],
       "options": {
         "cwd": "${workspaceFolder}/examples/my_platformer"
-      },
-      "dependsOn": [
-        "Build wasm fruity_game_engine",
-        "Build wasm fruity_ecs",
-        "Build wasm fruity_hierarchy"
-      ]
-    },
-    {
-      "label": "Build wasm fruity_game_engine",
-      "command": "npm",
-      "args": ["run", "wasm-build"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_game_engine"
-      },
-      "dependsOn": ["Install npm dependencies fruity_game_engine"]
-    },
-    {
-      "label": "Build wasm fruity_ecs",
-      "command": "npm",
-      "args": ["run", "wasm-build"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_ecs"
-      },
-      "dependsOn": ["Install npm dependencies fruity_ecs"]
-    },
-    {
-      "label": "Build wasm fruity_hierarchy",
-      "command": "npm",
-      "args": ["run", "wasm-build"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_hierarchy"
-      },
-      "dependsOn": ["Install npm dependencies fruity_hierarchy"]
-    },
-    {
-      "label": "Install npm dependencies fruity_game_engine",
-      "command": "npm",
-      "args": ["install"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_game_engine"
-      }
-    },
-    {
-      "label": "Install npm dependencies fruity_ecs",
-      "command": "npm",
-      "args": ["install"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_ecs"
-      }
-    },
-    {
-      "label": "Install npm dependencies fruity_hierarchy",
-      "command": "npm",
-      "args": ["install"],
-      "options": {
-        "cwd": "${workspaceFolder}/crates/fruity_hierarchy"
       }
     }
   ]

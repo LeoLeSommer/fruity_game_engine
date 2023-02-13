@@ -106,7 +106,7 @@ pub(crate) fn napi_function_export(
 
         #[doc(hidden)]
         #[allow(dead_code)]
-        unsafe fn #napi_js_func_ident(
+        pub unsafe fn #napi_js_func_ident(
             raw_env: #fruity_crate::napi::bindgen_prelude::sys::napi_env,
         ) -> #fruity_crate::napi::bindgen_prelude::Result<#fruity_crate::napi::bindgen_prelude::sys::napi_value> {
             let mut fn_ptr = std::ptr::null_mut();
@@ -137,7 +137,7 @@ pub(crate) fn napi_function_export(
 
         #[doc(hidden)]
         #[allow(non_snake_case)]
-        extern "C" fn #napi_register_ident() {
+        pub extern "C" fn #napi_register_ident() {
             #fruity_crate::napi::bindgen_prelude::register_module_export(
                 None,
                 #fn_identifier_c,
@@ -149,8 +149,9 @@ pub(crate) fn napi_function_export(
         #[allow(non_upper_case_globals)]
         #[allow(non_snake_case)]
         #[doc(hidden)]
+        #[no_mangle]
         #[link_section = "__DATA,__mod_init_func"]
-        static #napi_register_ctor_ident: unsafe extern "C" fn() = {
+        pub static #napi_register_ctor_ident: unsafe extern "C" fn() = {
             unsafe extern "C" fn #napi_register_ctor_ident() {
                 #napi_register_ident()
             }

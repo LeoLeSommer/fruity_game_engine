@@ -46,6 +46,7 @@ impl AnyResourceReference {
     }
 }
 
+//#[typegen = "type AnyResourceReference = unknown"]
 impl IntrospectFields for AnyResourceReference {
     fn get_class_name(&self) -> FruityResult<String> {
         self.resource.get_class_name()
@@ -153,6 +154,7 @@ impl<T: Resource + ?Sized> Clone for ResourceReference<T> {
     }
 }
 
+//#[typegen = "type ResourceReference<T> = T"]
 impl<T: Resource + ?Sized> IntrospectFields for ResourceReference<T> {
     fn get_class_name(&self) -> FruityResult<String> {
         self.resource.get_class_name()

@@ -10,9 +10,6 @@ use fruity_game_engine_macro::FruityAny;
 use napi::{
     bindgen_prelude::CallbackInfo,
     sys::{napi_env, napi_value},
-    threadsafe_function::{
-        ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
-    },
     Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, PropertyAttributes, Ref,
     ValueType,
 };
@@ -447,6 +444,9 @@ impl ScriptCallback for JsFunctionCallback {
     fn create_thread_safe_callback(
         &self,
     ) -> FruityResult<Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
+        todo!()
+
+        /*
         // Get the js func from the reference
         let js_func = self.reference.inner();
 
@@ -470,6 +470,7 @@ impl ScriptCallback for JsFunctionCallback {
             // Execute the function
             thread_safe_func.call(args, ThreadsafeFunctionCallMode::Blocking);
         }))
+        */
     }
 }
 
@@ -486,6 +487,7 @@ impl Debug for JsIntrospectObject {
     }
 }
 
+//#[typegen = "type JsIntrospectObject = unknown"]
 impl IntrospectFields for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
         // Get the js func object the reference
@@ -725,6 +727,9 @@ impl FruityError {
                 FruityError::DetachableArraybufferExpected(err.reason.to_string())
             }
             napi::Status::WouldDeadlock => FruityError::WouldDeadlock(err.reason.to_string()),
+            napi::Status::NoExternalBuffersAllowed => {
+                FruityError::NoExternalBuffersAllowed(err.reason.to_string())
+            }
             napi::Status::Unknown => FruityError::Unknown(err.reason.to_string()),
         }
     }
@@ -787,6 +792,9 @@ impl FruityError {
             }
             FruityError::WouldDeadlock(message) => {
                 napi::Error::new(napi::Status::WouldDeadlock, message)
+            }
+            FruityError::NoExternalBuffersAllowed(message) => {
+                napi::Error::new(napi::Status::NoExternalBuffersAllowed, message)
             }
             FruityError::Unknown(message) => napi::Error::new(napi::Status::Unknown, message),
         }

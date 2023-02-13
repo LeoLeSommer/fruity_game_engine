@@ -1,5 +1,9 @@
-import { World } from "fruity_game_engine";
-import { createFruityEcsModule } from "fruity_ecs";
+import { Settings, World } from "fruity_game_engine";
+import {
+  createFruityEcsModule,
+  EntityService,
+  SystemService,
+} from "fruity_ecs";
 import { createFruityHierarchyModule } from "fruity_hierarchy";
 
 class CustomService {
@@ -33,18 +37,21 @@ world.registerModule(createFruityHierarchyModule());
 world.registerModule({
   name: "my_platformer",
   dependencies: ["fruity_ecs", "fruity_hierarchy"],
-  setup: (world: any) => {
+  setup: (world: World) => {
     console.log("setup", world);
     const resourceContainer = world.getResourceContainer();
     resourceContainer.add("custom_service", new CustomService());
 
-    const customService = resourceContainer.get("custom_service");
+    const customService =
+      resourceContainer.get<CustomService>("custom_service");
     console.log("customService", customService);
 
     customService.hello("Frame");
 
-    const systemService = resourceContainer.get("system_service");
-    const entityService = resourceContainer.get("entity_service");
+    const systemService =
+      resourceContainer.get<SystemService>("system_service");
+    const entityService =
+      resourceContainer.get<EntityService>("entity_service");
 
     systemService.addStartupSystem(
       "test startup 1",
@@ -65,9 +72,9 @@ world.registerModule({
 
       entityService
         .query()
-        .with("CustomComponent")
-        .with("CustomComponent2")
-        .forEach(([customComponent, customComponent2]: any[]) => {
+        .with<CustomComponent>("CustomComponent")
+        .with<CustomComponent2>("CustomComponent2")
+        .forEach(([customComponent, customComponent2]) => {
           console.log(
             "Component",
             customComponent.value,
@@ -76,14 +83,20 @@ world.registerModule({
         });
     });
   },
-  loadResources: (resourceContainer: any, settings: any) => {
+  loadResources: (world: World, settings: Settings) => {
     console.log("loadResources");
   },
 });
 
+// Initialize modules
+world.setupModules();
+
+// Load resources
+world.loadResources();
+
 // Setup the scene
 const resourceContainer = world.getResourceContainer();
-const entityService = resourceContainer.get("entity_service");
+const entityService = resourceContainer.get<EntityService>("entity_service");
 
 entityService.create("test entity", true, [
   new CustomComponent(),

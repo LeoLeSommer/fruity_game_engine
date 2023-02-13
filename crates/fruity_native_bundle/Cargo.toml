@@ -1,0 +1,31 @@
+[package]
+edition = "2021"
+name = "fruity_native_bundle_my_platformer"
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+fruity_game_engine = { path = "../fruity_game_engine" }
+napi = { version = "2.10.16", optional = true, default-features = false, features = ["napi4"] }
+napi-derive = { version = "2.10.1", optional = true, features = ["compat-mode", "strict"] }
+wasm-bindgen = { version = "0.2.83", optional = true }
+
+[build-dependencies]
+napi-build = { version = "2.0.1", optional = true }
+
+[features]
+napi-module = [
+    "napi",
+    "napi-derive",
+    "napi-build",
+    "fruity_game_engine/napi-module"
+]
+wasm-module = [
+    "wasm-bindgen",
+    "fruity_game_engine/wasm-module"
+]
+
+# [profile.release]
+# lto = true

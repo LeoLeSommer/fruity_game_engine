@@ -299,12 +299,6 @@ dependencies = [
 
 [[package]]
 name = "convert_case"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb4a24b1aaf0fd0ce8b45161144d6f42cd91677fd5940fd431183eb023b3a2b8"
-
-[[package]]
-name = "convert_case"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
@@ -530,7 +524,7 @@ name = "fruity_game_engine"
 version = "0.0.0"
 dependencies = [
  "console_error_panic_hook",
- "convert_case 0.6.0",
+ "convert_case",
  "fruity_game_engine_macro",
  "js-sys",
  "lazy_static 1.4.0",
@@ -551,7 +545,7 @@ dependencies = [
 name = "fruity_game_engine_macro"
 version = "0.1.0"
 dependencies = [
- "convert_case 0.6.0",
+ "convert_case",
  "itertools",
  "proc-macro2",
  "quote",
@@ -620,6 +614,30 @@ dependencies = [
  "napi-build",
  "wasm-bindgen",
  "winit",
+]
+
+[[package]]
+name = "fruity_native_bundle"
+version = "0.0.0"
+dependencies = [
+ "fruity_ecs",
+ "fruity_game_engine",
+ "fruity_hierarchy",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "fruity_native_bundle_my_platformer"
+version = "0.0.0"
+dependencies = [
+ "fruity_game_engine",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1058,9 +1076,9 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.10.1"
+version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "466b16c759694cb07fbb023b0bde55afcc2ae35e8c0264b070c86a3e9a18cb6c"
+checksum = "2412d19892730f62fd592f8af41606ca6717ea1eca026103cd44b447829f00c1"
 dependencies = [
  "bitflags",
  "ctor",
@@ -1077,11 +1095,11 @@ checksum = "882a73d9ef23e8dc2ebbffb6a6ae2ef467c0f18ac10711e4cc59c5485d41df0e"
 
 [[package]]
 name = "napi-derive"
-version = "2.9.1"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39f3d8b02ef355898ea98f69082d9a183c8701c836942c2daf3e92364e88a0fa"
+checksum = "03f15c1ac0eac01eca2a24c27905ab47f7411acefd829d0d01fb131dc39befd7"
 dependencies = [
- "convert_case 0.5.0",
+ "convert_case",
  "napi-derive-backend",
  "proc-macro2",
  "quote",
@@ -1090,11 +1108,11 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.38"
+version = "1.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c35640513eb442fcbd1653a1c112fb6b2cc12b54d82f9c141f5859c721cab36"
+checksum = "4930d5fa70f5663b9e7d6b4f0816b70d095574ee7f3c865fdb8c43b0f7e6406d"
 dependencies = [
- "convert_case 0.5.0",
+ "convert_case",
  "once_cell",
  "proc-macro2",
  "quote",
@@ -1104,9 +1122,9 @@ dependencies = [
 
 [[package]]
 name = "napi-sys"
-version = "2.2.2"
+version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "529671ebfae679f2ce9630b62dd53c72c56b3eb8b2c852e7e2fa91704ff93d67"
+checksum = "166b5ef52a3ab5575047a9fe8d4a030cdd0f63c96f071cd6907674453b07bae3"
 dependencies = [
  "libloading",
 ]
@@ -1496,9 +1514,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.7.0"
+version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e076559ef8e241f2ae3479e36f97bd5741c0330689e217ad51ce2c76808b868a"
+checksum = "48aaa5748ba571fb95cd2c85c09f629215d3a6ece942baa100950af03a34f733"
 dependencies = [
  "aho-corasick",
  "memchr",
