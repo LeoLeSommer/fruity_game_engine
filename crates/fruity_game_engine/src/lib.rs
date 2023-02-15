@@ -21,6 +21,7 @@ pub use fruity_game_engine_macro::export_constructor;
 pub use fruity_game_engine_macro::export_function;
 pub use fruity_game_engine_macro::export_impl;
 pub use fruity_game_engine_macro::export_struct;
+pub use fruity_game_engine_macro::export_trait;
 pub use lazy_static::lazy_static;
 pub use parking_lot::*;
 pub use send_wrapper;

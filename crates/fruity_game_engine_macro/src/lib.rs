@@ -64,6 +64,11 @@ pub fn derive_object_factory(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
+pub fn export_trait(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+#[proc_macro_attribute]
 pub fn export(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }

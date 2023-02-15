@@ -7,6 +7,13 @@
 [ ] Generate js import files for modules
 [ ] Generate ts typedef for modules
 
+## Script Language Interface
+
+[X] WASM Module
+[X] WASM doesn't support multithread, so adapt the code to this constraint
+[X] NAPI Module
+[ ] A bug remains due to the multithread functions issues, impossible to do onCreated query with a finalizer
+
 ## ECS
 
 [X] Make the archetype able to store datas in plain array for performances
@@ -92,9 +99,6 @@
 
 ## Others
 
-[ ] WASM Module
-[X] WASM doesn't support multithread, so adapt the code to this constraint
-[X] NAPI Module
 [X] Implements a profiling tool
 [ ] Implement a basic sound features
 

@@ -1,6 +1,7 @@
 use crate::math::matrix4::Matrix4;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
+use fruity_game_engine::export_constructor;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
 use fruity_game_engine::object_factory_service::ObjectFactory;
@@ -41,6 +42,7 @@ pub struct Vector3d {
 #[export_impl]
 impl Vector3d {
     /// Create a new `Vector3D` with the provided components.
+    #[export_constructor]
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
     }
@@ -136,25 +138,25 @@ impl Vector3d {
 
     /// Add two vectors
     #[export]
-    pub fn add(&self, rhs: Vector3d) -> Vector3d {
+    pub fn add(&self, rhs: Self) -> Self {
         return *self + rhs;
     }
 
     /// Subtract two vectors
     #[export]
-    pub fn sub(&self, rhs: Vector3d) -> Vector3d {
+    pub fn sub(&self, rhs: Self) -> Self {
         return *self + rhs;
     }
 
     /// Multiply a vector by a number
     #[export]
-    pub fn mul(&self, rhs: f32) -> Vector3d {
+    pub fn mul(&self, rhs: f32) -> Self {
         return *self * rhs;
     }
 
     /// Divide a vector by a number
     #[export]
-    pub fn div(&self, rhs: f32) -> Vector3d {
+    pub fn div(&self, rhs: f32) -> Self {
         return *self / rhs;
     }
 }

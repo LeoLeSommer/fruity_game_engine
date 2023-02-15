@@ -1,5 +1,6 @@
 use crate::graphic_service::GraphicService;
 use fruity_game_engine::{
+    export, export_trait,
     resource::{resource_container::ResourceContainer, Resource},
     settings::Settings,
     FruityError, FruityResult,
@@ -8,7 +9,9 @@ use std::io::Read;
 
 pub struct TextureResourceSettings {}
 
+#[export_trait]
 pub trait TextureResource: Resource {
+    #[export]
     fn get_size(&self) -> (u32, u32);
 }
 

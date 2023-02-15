@@ -44,8 +44,6 @@ world.registerModule({
 
     const customService =
       resourceContainer.get<CustomService>("custom_service");
-    console.log("customService", customService);
-
     customService.hello("Frame");
 
     const systemService =
@@ -95,7 +93,7 @@ world.setupModules();
 const resourceContainer = world.getResourceContainer();
 const entityService = resourceContainer.get<EntityService>("entity_service");
 
-entityService.create("test entity", true, [
+const entityId = entityService.create("test entity", true, [
   new CustomComponent(),
   new CustomComponent({ value: 1 }),
   new CustomComponent2({ value: 144 }),

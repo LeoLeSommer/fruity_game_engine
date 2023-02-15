@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use css_color_parser::Color as CssColor;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::object_factory_service::ObjectFactory;
-use fruity_game_engine::{export_impl, export_struct};
+use fruity_game_engine::{export_constructor, export_impl, export_struct};
 use std::str::FromStr;
 
 pub mod matrix3;
@@ -22,6 +22,7 @@ pub struct Color {
 
 #[export_impl]
 impl Color {
+    #[export_constructor]
     pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }

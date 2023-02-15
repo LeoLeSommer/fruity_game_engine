@@ -2,6 +2,7 @@ use crate::math::matrix3::Matrix3;
 use crate::math::matrix4::Matrix4;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
+use fruity_game_engine::export_constructor;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
 use fruity_game_engine::object_factory_service::ObjectFactory;
@@ -39,6 +40,7 @@ pub struct Vector2d {
 #[export_impl]
 impl Vector2d {
     /// Create a new `Vector2D` with the provided components.
+    #[export_constructor]
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }

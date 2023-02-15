@@ -404,15 +404,51 @@ impl IntrospectMethods for JsIntrospectObject {
     }
 
     fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec![])
+        let prototype = js_sys::Object::get_prototype_of(&self.reference);
+        let keys = js_sys::Object::get_own_property_names(prototype.unchecked_ref());
+
+        let test = keys
+            .iter()
+            .filter_map(|key| {
+                let key: js_sys::JsString = key.into();
+                key.as_string()
+            })
+            .collect();
+
+        Ok(test)
     }
 
-    fn call_mut_method(
-        &mut self,
-        _name: &str,
-        _args: Vec<ScriptValue>,
-    ) -> FruityResult<ScriptValue> {
-        unreachable!()
+    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        // Convert all the others args as a JsUnknown
+        let args = args
+            .into_iter()
+            .map(|elem| script_value_to_js_value(elem))
+            .try_collect::<Vec<_>>()?;
+
+        let js_array = js_sys::Array::new();
+        args.into_iter()
+            .try_for_each(|elem| {
+                js_array.push(&elem);
+                FruityResult::Ok(())
+            })
+            .map_err(|err| JsError::from(err))?;
+
+        // Call the function
+        let prototype = js_sys::Object::get_prototype_of(&self.reference);
+        let method = js_sys::Reflect::get(
+            prototype.unchecked_ref(),
+            &name.clone().to_case(Case::Camel).into(),
+        )
+        .map_err(|err| FruityError::from(err))?;
+        let method: js_sys::Function = method.into();
+
+        let result = method
+            .apply(&self.reference, &js_array)
+            .map_err(|err| FruityError::from(err))?;
+
+        // Return the result
+        let result = js_value_to_script_value(result)?;
+        Ok(result)
     }
 }
 

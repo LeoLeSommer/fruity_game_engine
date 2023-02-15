@@ -49,6 +49,7 @@ export interface ScriptResourceContainer {
 
 export interface Signal<T> {
   notify(event: T);
+  addObserver(callback: (value: T) => void);
 }
 
 export interface SignalProperty<T> {
@@ -59,3 +60,5 @@ export interface SignalProperty<T> {
 export interface ObserverHandler {
   dispose();
 }
+
+export type ResourceReference<T> = T;
