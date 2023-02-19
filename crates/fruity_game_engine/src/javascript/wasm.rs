@@ -347,7 +347,6 @@ impl Debug for JsIntrospectObject {
     }
 }
 
-//#[typegen = "type JsIntrospectObject = unknown"]
 impl IntrospectFields for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
         // Get the js func object the reference

@@ -3,6 +3,7 @@ use crate::introspect::IntrospectFields;
 use crate::introspect::IntrospectMethods;
 use crate::resource::Resource;
 use crate::script_value::ScriptValue;
+use crate::typescript;
 use crate::FruityResult;
 use crate::RwLock;
 use crate::RwLockReadGuard;
@@ -89,6 +90,7 @@ impl IntrospectMethods for AnyResourceReference {
 
 /// A reference over a resource that is supposed to be used by components
 #[derive(Debug, FruityAny)]
+#[typescript("type ResourceReference<T> = T")]
 pub struct ResourceReference<T: Resource + ?Sized> {
     /// The name of the resource
     pub name: String,

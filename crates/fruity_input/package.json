@@ -1,0 +1,11 @@
+{
+    "name": "fruity_input",
+    "type": "module",
+    "version": "0.0.0",
+    "main": "index.js",
+    "types": "index.d.ts",
+    "dependencies": {
+      "fruity_game_engine": "file:../fruity_game_engine",
+      "fruity_native_bundle": "file:../fruity_native_bundle"
+    }
+}

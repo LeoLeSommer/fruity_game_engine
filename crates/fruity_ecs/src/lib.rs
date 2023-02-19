@@ -20,6 +20,7 @@ pub use fruity_ecs_macro::Component;
 use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::typescript_import;
 
 /// All related with components
 pub mod component;
@@ -32,6 +33,8 @@ pub mod system_service;
 
 /// A service to store components extensions
 pub mod extension_component_service;
+
+#[typescript_import({Signal, ScriptCallback, ObserverHandler, Module} from "fruity_game_engine")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]

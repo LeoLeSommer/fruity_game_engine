@@ -1,19 +1,22 @@
 use crate::utils::fruity_crate;
+use convert_case::{Case, Casing};
+use fruity_game_engine_code_parser::FruityExportFn;
 use proc_macro2::Span;
 use quote::quote;
-use syn::Signature;
-use syn::__private::TokenStream2;
+use syn::{Ident, __private::TokenStream2};
 
-pub(crate) fn napi_function_export(
-    sig_input: Signature,
-    fn_identifier: TokenStream2,
-    exported_name: String,
-) -> TokenStream2 {
+pub(crate) fn napi_function_export(exported_fn: FruityExportFn, case: Case) -> TokenStream2 {
     let fruity_crate = fruity_crate();
+
+    let fn_identifier = Ident::new(&exported_fn.name, Span::call_site());
+    let exported_name = exported_fn
+        .name_overwrite
+        .unwrap_or(exported_fn.name)
+        .to_case(case);
 
     let fn_identifier_c = format!("{}\0", exported_name);
     let fn_identifier_size = fn_identifier_c.len();
-    let return_ty = match sig_input.output {
+    let return_ty = match exported_fn.return_ty {
         syn::ReturnType::Default => Box::new(syn::Type::Tuple(syn::TypeTuple {
             paren_token: syn::token::Paren {
                 span: Span::call_site(),
@@ -35,40 +38,28 @@ pub(crate) fn napi_function_export(
         Span::call_site(),
     );
 
-    let args_names = sig_input
-        .inputs
+    let args_names = exported_fn
+        .args
         .iter()
-        .filter_map(|input| match input {
-            syn::FnArg::Receiver(_) => None,
-            syn::FnArg::Typed(input) => Some(input),
-        })
         .enumerate()
         .map(|(index, _)| syn::Ident::new(&format!("arg_{}", index), Span::call_site()));
 
-    let args_converters = sig_input
-        .inputs
-        .iter()
-        .filter_map(|input| match input {
-            syn::FnArg::Receiver(_) => None,
-            syn::FnArg::Typed(input) => Some(input),
-        })
-        .enumerate()
-        .map(|(index, input)| {
-            let arg_name = syn::Ident::new(&format!("arg_{}", index), Span::call_site());
-            let arg_index = index;
-            let ty = input.ty.clone();
+    let args_converters = exported_fn.args.iter().enumerate().map(|(index, input)| {
+        let arg_name = syn::Ident::new(&format!("arg_{}", index), Span::call_site());
+        let arg_index = index;
+        let ty = input.ty.clone();
 
-            quote! {
-                let #arg_name = {
-                    let arg = #fruity_crate::javascript::js_value_to_script_value(
-                        &env,
-                        #fruity_crate::napi::JsUnknown::from_raw(raw_env, cb.get_arg(#arg_index))?,
-                    )
-                    .map_err(|e| e.into_napi())?;
-                    <#ty>::from_script_value(arg).map_err(|e| e.into_napi())?
-                };
-            }
-        });
+        quote! {
+            let #arg_name = {
+                let arg = #fruity_crate::javascript::js_value_to_script_value(
+                    &env,
+                    #fruity_crate::napi::JsUnknown::from_raw(raw_env, cb.get_arg(#arg_index))?,
+                )
+                .map_err(|e| e.into_napi())?;
+                <#ty>::from_script_value(arg).map_err(|e| e.into_napi())?
+            };
+        }
+    });
 
     quote! {
         #[doc(hidden)]

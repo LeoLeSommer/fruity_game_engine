@@ -1,6 +1,7 @@
 use crate::graphic_service::GraphicService;
 use fruity_game_engine::{
     any::FruityAny,
+    export_enum, export_trait,
     resource::{resource_container::ResourceContainer, Resource},
     script_value::convert::{TryFromScriptValue, TryIntoScriptValue},
     settings::Settings,
@@ -8,6 +9,7 @@ use fruity_game_engine::{
 };
 use std::io::Read;
 
+#[export_trait]
 pub trait ShaderResource: Resource {}
 
 #[derive(Debug, Default, TryFromScriptValue, TryIntoScriptValue, Clone, FruityAny)]
@@ -28,6 +30,7 @@ pub struct ShaderBinding {
 }
 
 #[derive(Debug, Clone)]
+#[export_enum]
 pub enum ShaderBindingVisibility {
     Vertex,
     Fragment,
@@ -39,47 +42,8 @@ impl Default for ShaderBindingVisibility {
     }
 }
 
-impl fruity_game_engine::script_value::convert::TryFromScriptValue for ShaderBindingVisibility {
-    fn from_script_value(
-        value: fruity_game_engine::script_value::ScriptValue,
-    ) -> fruity_game_engine::error::FruityResult<Self> {
-        if let fruity_game_engine::script_value::ScriptValue::String(value) = &value {
-            match value as &str {
-                "vertex" => Ok(ShaderBindingVisibility::Vertex),
-                "fragment" => Ok(ShaderBindingVisibility::Fragment),
-                _ => Err(fruity_game_engine::error::FruityError::GenericFailure(
-                    format!(
-                        "Couldn't convert {:?} to {:?}",
-                        value, "ShaderBindingVisibility"
-                    ),
-                )),
-            }
-        } else {
-            Err(fruity_game_engine::error::FruityError::GenericFailure(
-                format!(
-                    "Couldn't convert {:?} to {:?}",
-                    value, "ShaderBindingVisibility"
-                ),
-            ))
-        }
-    }
-}
-
-impl fruity_game_engine::script_value::convert::TryIntoScriptValue for ShaderBindingVisibility {
-    fn into_script_value(
-        self,
-    ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
-        Ok(fruity_game_engine::script_value::ScriptValue::String(
-            match self {
-                ShaderBindingVisibility::Vertex => "vertex",
-                ShaderBindingVisibility::Fragment => "fragment",
-            }
-            .to_string(),
-        ))
-    }
-}
-
 #[derive(Debug, Clone)]
+#[export_enum]
 pub enum ShaderBindingType {
     Texture,
     Sampler,
@@ -92,42 +56,6 @@ impl Default for ShaderBindingType {
     }
 }
 
-impl fruity_game_engine::script_value::convert::TryFromScriptValue for ShaderBindingType {
-    fn from_script_value(
-        value: fruity_game_engine::script_value::ScriptValue,
-    ) -> fruity_game_engine::error::FruityResult<Self> {
-        if let fruity_game_engine::script_value::ScriptValue::String(value) = &value {
-            match value as &str {
-                "texture" => Ok(ShaderBindingType::Texture),
-                "sampler" => Ok(ShaderBindingType::Sampler),
-                "uniform" => Ok(ShaderBindingType::Uniform),
-                _ => Err(fruity_game_engine::error::FruityError::GenericFailure(
-                    format!("Couldn't convert {:?} to {:?}", value, "ShaderBindingType"),
-                )),
-            }
-        } else {
-            Err(fruity_game_engine::error::FruityError::GenericFailure(
-                format!("Couldn't convert {:?} to {:?}", value, "ShaderBindingType"),
-            ))
-        }
-    }
-}
-
-impl fruity_game_engine::script_value::convert::TryIntoScriptValue for ShaderBindingType {
-    fn into_script_value(
-        self,
-    ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
-        Ok(fruity_game_engine::script_value::ScriptValue::String(
-            match self {
-                ShaderBindingType::Texture => "texture",
-                ShaderBindingType::Sampler => "sampler",
-                ShaderBindingType::Uniform => "uniform",
-            }
-            .to_string(),
-        ))
-    }
-}
-
 #[derive(Debug, Default, Clone, FruityAny, TryFromScriptValue, TryIntoScriptValue)]
 pub struct ShaderInstanceAttribute {
     pub location: u32,
@@ -135,6 +63,7 @@ pub struct ShaderInstanceAttribute {
 }
 
 #[derive(Debug, Clone)]
+#[export_enum]
 pub enum ShaderInstanceAttributeType {
     Int,
     UInt,
@@ -146,52 +75,6 @@ pub enum ShaderInstanceAttributeType {
 impl Default for ShaderInstanceAttributeType {
     fn default() -> Self {
         ShaderInstanceAttributeType::Float
-    }
-}
-
-impl fruity_game_engine::script_value::convert::TryFromScriptValue for ShaderInstanceAttributeType {
-    fn from_script_value(
-        value: fruity_game_engine::script_value::ScriptValue,
-    ) -> fruity_game_engine::error::FruityResult<Self> {
-        if let fruity_game_engine::script_value::ScriptValue::String(value) = &value {
-            match value as &str {
-                "int" => Ok(ShaderInstanceAttributeType::Int),
-                "uint" => Ok(ShaderInstanceAttributeType::UInt),
-                "float" => Ok(ShaderInstanceAttributeType::Float),
-                "vec2" => Ok(ShaderInstanceAttributeType::Vector2),
-                "vec4" => Ok(ShaderInstanceAttributeType::Vector4),
-                _ => Err(fruity_game_engine::error::FruityError::GenericFailure(
-                    format!(
-                        "Couldn't convert {:?} to {:?}",
-                        value, "ShaderInstanceAttributeType"
-                    ),
-                )),
-            }
-        } else {
-            Err(fruity_game_engine::error::FruityError::GenericFailure(
-                format!(
-                    "Couldn't convert {:?} to {:?}",
-                    value, "ShaderInstanceAttributeType"
-                ),
-            ))
-        }
-    }
-}
-
-impl fruity_game_engine::script_value::convert::TryIntoScriptValue for ShaderInstanceAttributeType {
-    fn into_script_value(
-        self,
-    ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
-        Ok(fruity_game_engine::script_value::ScriptValue::String(
-            match self {
-                ShaderInstanceAttributeType::Int => "int",
-                ShaderInstanceAttributeType::UInt => "uint",
-                ShaderInstanceAttributeType::Float => "float",
-                ShaderInstanceAttributeType::Vector2 => "vec2",
-                ShaderInstanceAttributeType::Vector4 => "vec4",
-            }
-            .to_string(),
-        ))
     }
 }
 

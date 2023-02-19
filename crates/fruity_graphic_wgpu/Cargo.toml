@@ -19,6 +19,7 @@ fruity_windows_winit = { path = "../fruity_windows_winit" }
 wasm-bindgen = { version = "0.2.83", optional = true }
 
 [build-dependencies]
+fruity_game_engine_build = { path = "../fruity_game_engine_build" }
 napi-build = { version = "2.0.1", optional = true }
 
 [features]

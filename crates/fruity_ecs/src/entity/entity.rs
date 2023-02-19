@@ -1,3 +1,4 @@
+use fruity_game_engine::typescript;
 use fruity_game_engine::FruityResult;
 
 use crate::component::component::AnyComponent;
@@ -41,6 +42,7 @@ impl EntityTypeIdentifier {
 }
 
 /// An identifier for an entity
+#[typescript("type EntityId = number")]
 pub type EntityId = u64;
 
 /// Get the entity type identifier from a list of components

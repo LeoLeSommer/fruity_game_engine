@@ -1,0 +1,137 @@
+//! Path context tracking and candidate path generation for inlining.
+
+use std::path::{Path, PathBuf};
+use syn::{Ident, ItemMod, Lit, Meta};
+
+/// Extensions to the built-in `Path` type for the purpose of mod expansion.
+trait ModPath {
+    /// Check if the current file is a 2015-style mod file. If so, named mods should be
+    /// resolved in the current directory. If not, we should check, in order:
+    ///
+    /// 1. `{fileStem}/{name}.rs`
+    /// 2. `{fileStem}/{name}/mod.rs`
+    fn is_mod_file(&self) -> bool;
+}
+
+impl ModPath for Path {
+    fn is_mod_file(&self) -> bool {
+        self.file_name().map(|s| s == "mod.rs").unwrap_or_default()
+    }
+}
+
+/// The current mod path, including idents and explicit paths.
+#[derive(Debug, Clone, Default)]
+pub struct ModContext(Vec<ModSegment>);
+
+impl ModContext {
+    pub fn push(&mut self, value: ModSegment) {
+        self.0.push(value);
+    }
+
+    pub fn pop(&mut self) -> Option<ModSegment> {
+        self.0.pop()
+    }
+
+    /// Get the list of places a module's source code may appear relative to the current file
+    /// location.
+    pub fn relative_to(&self, base: &Path, root: bool) -> Vec<PathBuf> {
+        let mut parent = base.to_path_buf();
+        parent.pop();
+        if root || base.is_mod_file() {
+            self.to_path_bufs()
+                .into_iter()
+                .map(|end| parent.clone().join(end))
+                .collect()
+        } else {
+            parent = parent.join(base.file_stem().unwrap());
+
+            self.to_path_bufs()
+                .into_iter()
+                .map(|end| parent.clone().join(end))
+                .collect()
+        }
+    }
+
+    fn to_path_bufs(&self) -> Vec<PathBuf> {
+        let mut buf = PathBuf::new();
+        for item in &self.0 {
+            buf.push(PathBuf::from(item.clone()));
+        }
+
+        // If the last term was an explicit path, there is only one valid interpretation
+        // of this context as a file path.
+        if !self.is_last_ident() {
+            return vec![buf];
+        }
+
+        // If it was an ident, we need to look in both `foo.rs` and `foo/mod.rs`
+
+        let mut inline = buf.clone();
+        inline.set_extension("rs");
+
+        vec![inline, buf.join("mod.rs")]
+    }
+
+    /// Checks if the last term in the context was a module identifier, rather
+    /// than an explicit `path` attribute.
+    fn is_last_ident(&self) -> bool {
+        self.0.last().map(|seg| seg.is_ident()).unwrap_or_default()
+    }
+}
+
+impl From<Vec<ModSegment>> for ModContext {
+    fn from(segments: Vec<ModSegment>) -> Self {
+        Self(segments)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ModSegment {
+    Ident(Ident),
+    Path(PathBuf),
+}
+
+impl ModSegment {
+    /// Checks if the `self` mod segment was taken from the module identifier.
+    pub fn is_ident(&self) -> bool {
+        match self {
+            ModSegment::Ident(_) => true,
+            ModSegment::Path(_) => false,
+        }
+    }
+
+    pub fn is_path(&self) -> bool {
+        !self.is_ident()
+    }
+}
+
+impl From<&ItemMod> for ModSegment {
+    fn from(v: &ItemMod) -> Self {
+        for attr in &v.attrs {
+            if let Ok(Meta::NameValue(name_value)) = attr.parse_meta() {
+                if name_value.path.is_ident("path") {
+                    if let Lit::Str(path_value) = name_value.lit {
+                        return ModSegment::Path(path_value.value().into());
+                    }
+                }
+            }
+        }
+
+        ModSegment::Ident(v.ident.clone())
+    }
+}
+
+impl From<&mut ItemMod> for ModSegment {
+    fn from(v: &mut ItemMod) -> Self {
+        ModSegment::from(&*v)
+    }
+}
+
+impl From<ModSegment> for PathBuf {
+    fn from(seg: ModSegment) -> Self {
+        match seg {
+            ModSegment::Path(buf) => buf,
+            ModSegment::Ident(ident) => ident.to_string().into(),
+        }
+    }
+}

@@ -6,14 +6,16 @@ use crate::resources::default_resources::load_default_resources;
 use crate::resources::material_resource::load_material;
 use crate::resources::shader_resource::load_shader;
 use crate::resources::texture_resource::load_texture;
-use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::object_factory_service::ObjectFactoryService;
+use fruity_game_engine::{export_function, typescript_import};
 use std::rc::Rc;
 
 pub mod graphic_service;
 pub mod math;
 pub mod resources;
+
+#[typescript_import({ResourceReference, Module} from "fruity_game_engine")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]

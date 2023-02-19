@@ -10,6 +10,7 @@ use crate::any::FruityAny;
 use crate::introspect::IntrospectFields;
 use crate::introspect::IntrospectMethods;
 use crate::script_value::convert::TryFromScriptValue;
+use crate::typescript;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::RwLock;
@@ -39,6 +40,7 @@ pub mod impl_tuples;
 // pub mod yaml;
 
 /// a script value
+#[typescript("type ScriptValue = any")]
 pub enum ScriptValue {
     /// i8 value
     I8(i8),
@@ -144,6 +146,7 @@ where
 }
 
 /// A trait that can be implemented for a callback storable in a ScriptValue
+#[typescript("type ScriptCallback = (args: ScriptValue[]) => ScriptValue")]
 pub trait ScriptCallback {
     /// Call the callback
     fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;

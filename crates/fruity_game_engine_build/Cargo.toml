@@ -1,0 +1,12 @@
+[package]
+name = "fruity_game_engine_build"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fruity_game_engine_code_parser = { path = "../fruity_game_engine_code_parser" }
+syn = { version = "1.0.107", features = ["full", "extra-traits", "visit-mut"] }
+proc-macro2 = {version = "1.0.51", features = ["span-locations"]}
+convert_case = "0.6.0"
+quote = "1.0"
+npm_rs = "1.0.0"

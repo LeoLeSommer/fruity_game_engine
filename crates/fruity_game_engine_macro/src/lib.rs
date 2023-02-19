@@ -5,10 +5,12 @@ use convert::intern_derive_try_from_script_value;
 use convert::intern_derive_try_into_script_value;
 use fruity_any::intern_derive_fruity_any;
 use introspect::intern_derive_object_factory;
+use introspect::intern_export_enum;
 use introspect::{intern_export_impl, intern_export_struct};
 use proc_macro::{self, TokenStream};
 use quote::quote;
 use resource::intern_derive_resource;
+use syn::ItemEnum;
 use syn::__private::TokenStream2;
 use syn::{parse_macro_input, ItemImpl, ItemStruct};
 use utils::fruity_crate;
@@ -17,7 +19,7 @@ use utils::fruity_crate;
 use syn::ItemFn;
 
 #[cfg(any(feature = "napi-module", feature = "wasm-module"))]
-use convert_case::{Case, Casing};
+use convert_case::Case;
 
 #[cfg(feature = "wasm-module")]
 use wasm_function_export::wasm_function_export;
@@ -34,7 +36,6 @@ mod wasm_function_export;
 mod convert;
 mod fruity_any;
 mod introspect;
-mod parse;
 mod resource;
 mod utils;
 
@@ -79,6 +80,16 @@ pub fn export_constructor(_attr: TokenStream, item: TokenStream) -> TokenStream 
 }
 
 #[proc_macro_attribute]
+pub fn typescript_import(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+#[proc_macro_attribute]
+pub fn typescript(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
+#[proc_macro_attribute]
 pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
     #[cfg(not(feature = "napi-module"))]
     let napi_function_export = quote! {};
@@ -86,13 +97,10 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
     #[cfg(feature = "napi-module")]
     let napi_function_export = {
         let input = input.clone();
-        let fn_input: ItemFn = parse_macro_input!(input);
-        let ident = fn_input.sig.ident.clone();
-        napi_function_export(
-            fn_input.sig.clone(),
-            quote! {#ident},
-            fn_input.sig.ident.to_string().to_case(Case::Camel),
-        )
+        let item: ItemFn = parse_macro_input!(input);
+        let exported_fn = parse_fn_item(item);
+
+        napi_function_export(exported_fn, Case::Camel)
     };
 
     #[cfg(not(feature = "wasm-module"))]
@@ -101,13 +109,10 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
     #[cfg(feature = "wasm-module")]
     let wasm_function_export = {
         let input = input.clone();
-        let fn_input: ItemFn = parse_macro_input!(input);
-        let ident = fn_input.sig.ident.clone();
-        wasm_function_export(
-            fn_input.sig.clone(),
-            quote! {#ident},
-            fn_input.sig.ident.to_string().to_case(Case::Camel),
-        )
+        let item: ItemFn = parse_macro_input!(input);
+        let exported_fn = parse_fn_item(item);
+
+        wasm_function_export(exported_fn, Case::Camel)
     };
 
     let input: TokenStream2 = input.clone().into();
@@ -131,6 +136,22 @@ pub fn export_struct(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let output = quote! {
         #input
         #export_struct
+    };
+
+    output.into()
+}
+
+#[proc_macro_attribute]
+pub fn export_enum(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    let input2 = input.clone();
+    let enum_input: ItemEnum = parse_macro_input!(input2);
+
+    let export_enum = intern_export_enum(enum_input);
+
+    let input: TokenStream2 = input.clone().into();
+    let output = quote! {
+        #input
+        #export_enum
     };
 
     output.into()

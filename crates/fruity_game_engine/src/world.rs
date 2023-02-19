@@ -56,7 +56,7 @@ pub struct World {
 #[export_impl]
 impl World {
     /// Returns a World
-    // #[export_constructor]
+    #[export_constructor]
     pub fn new(settings: Settings) -> World {
         let resource_container = ResourceContainer::new();
         Self::initialize(resource_container.clone(), &settings);

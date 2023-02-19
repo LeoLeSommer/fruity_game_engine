@@ -12,6 +12,7 @@ fruity_ecs = { path = "../fruity_ecs" }
 wasm-bindgen = { version = "0.2.83", optional = true }
 
 [build-dependencies]
+fruity_game_engine_build = { path = "../fruity_game_engine_build" }
 napi-build = { version = "2.0.1", optional = true }
 
 [features]

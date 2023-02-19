@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
+use fruity_game_engine::typescript_import;
 use fruity_game_engine::FruityResult;
 use fruity_input::input_service::InputService;
 use fruity_input::input_service::Modifiers;
@@ -16,6 +17,8 @@ use winit::event::Event;
 use winit::event::MouseButton;
 use winit::event::VirtualKeyCode;
 use winit::event::WindowEvent;
+
+#[typescript_import({Module} from "fruity_game_engine")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]

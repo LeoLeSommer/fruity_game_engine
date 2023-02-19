@@ -6,6 +6,7 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptCallback;
 use crate::script_value::ScriptValue;
+use crate::typescript;
 use crate::utils::introspect::ArgumentCaster;
 use crate::FruityResult;
 use crate::Mutex;
@@ -50,6 +51,12 @@ struct InternSignal<T: 'static> {
 
 /// An observer pattern
 #[derive(FruityAny, Clone)]
+#[typescript(
+    "interface Signal<T> {
+  notify(event: T);
+  addObserver(callback: (value: T) => void);
+}"
+)]
 pub struct Signal<T: 'static> {
     intern: Arc<RwLock<InternSignal<T>>>,
 }
@@ -232,6 +239,12 @@ impl<'a, T: Send + Sync + Clone> DerefMut for SignalWriteGuard<'a, T> {
 
 /// A variable with a signal that is notified on update
 #[derive(Clone, FruityAny)]
+#[typescript(
+    "interface SignalProperty<T> {
+  value: T;
+  onUpdated: Signal<T>;
+}"
+)]
 pub struct SignalProperty<T: Send + Sync + Clone + 'static> {
     value: T,
 
@@ -331,6 +344,11 @@ where
 
 /// A signal subscription handler, can be used to unsubscribe the signal
 #[derive(FruityAny)]
+#[typescript(
+    "interface ObserverHandler {
+  dispose();
+}"
+)]
 pub struct ObserverHandler<T: 'static> {
     observer_id: ObserverIdentifier,
     intern: Arc<RwLock<InternSignal<T>>>,

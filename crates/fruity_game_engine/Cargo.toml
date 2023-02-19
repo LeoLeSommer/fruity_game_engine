@@ -28,6 +28,7 @@ napi-sys = "2.2.2"
 send_wrapper = "0.6.0"
 
 [build-dependencies]
+fruity_game_engine_build = { path = "../fruity_game_engine_build" }
 napi-build = { version = "2.0.1", optional = true }
 
 [features]

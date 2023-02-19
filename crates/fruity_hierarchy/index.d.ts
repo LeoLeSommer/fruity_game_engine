@@ -1,10 +1,16 @@
-import { Module, SignalProperty } from "fruity_game_engine";
-import { EntityId } from "fruity_ecs";
+import {
+  SignalProperty,
+  Module,
+} from "fruity_game_engine"
 
-export function createFruityHierarchyModule(): Module;
+import {
+  EntityId,
+} from "fruity_ecs"
 
 export class Parent {
-  constructor();
-  parentId: SignalProperty<EntityId | null>;
-  nestedLevel: number;
+  parentId: SignalProperty<EntityId | null | undefined>
+  nestedLevel: number
+  constructor()
 }
+
+export function createFruityHierarchyModule(): Module

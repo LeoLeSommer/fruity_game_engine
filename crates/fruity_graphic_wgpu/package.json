@@ -6,6 +6,7 @@
     "types": "index.d.ts",
     "dependencies": {
       "fruity_game_engine": "file:../fruity_game_engine",
+      "fruity_graphic": "file:../fruity_graphic",
       "fruity_native_bundle": "file:../fruity_native_bundle"
     }
 }

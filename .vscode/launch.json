@@ -18,6 +18,21 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "serve"],
       "preLaunchTask": "Build wasm my_platformer"
+    },
+    {
+      "name": "Debug fruity_game_engine_cli",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceRoot}/target/debug/fruity_game_engine_cli",
+      "args": [
+        "gen-ts",
+        "-i",
+        "${workspaceFolder}/crates/fruity_ecs/src/lib.rs",
+        "-o",
+        "${workspaceFolder}/crates/fruity_ecs/test.d.ts"
+      ],
+      "cwd": "${workspaceRoot}",
+      "preLaunchTask": "Build fruity_game_engine_cli"
     }
   ]
 }

@@ -1,11 +1,9 @@
 # FEATURES V1
 
-## CLI
+## Build script
 
-[ ] Initialize a project
-[ ] Add a bundle dependency
-[ ] Generate js import files for modules
-[ ] Generate ts typedef for modules
+[X] Generate js import files for modules
+[X] Generate ts typedef for modules
 
 ## Script Language Interface
 
@@ -63,6 +61,7 @@
 [X] Squad transform should be done in shader instead of CPU
 [X] Proceed instantied rendering
 [X] Make instances parametrizable in material/shader
+[ ] Multi-pass renderer
 [ ] Implements spritesheet
 [ ] Implement rendering composers
 
@@ -107,7 +106,7 @@
 [ ] Put an auto-analyser and clean the code
 [ ] Tests everywhere
 [ ] Rust doc everywhere
-[ ] Remove as many unwrap as possible (ecs and javascript)
+[ ] Remove as many unwrap as possible
 [ ] A lot of unsafe code were created to avoid lifetime issue in ecs, remove as many as possible
 [ ] Use a tool that detect unused dependencies
 

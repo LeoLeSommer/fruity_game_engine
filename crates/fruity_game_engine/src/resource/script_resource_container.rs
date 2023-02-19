@@ -1,4 +1,5 @@
 use super::{resource_container::ResourceContainer, resource_reference::AnyResourceReference};
+use crate::typescript;
 use crate::{
     any::FruityAny,
     javascript::JsIntrospectObject,
@@ -95,6 +96,7 @@ impl ScriptResourceContainer {
 }
 
 /// Neither a script or a native resource
+#[typescript("type ScriptOrNativeResource = any")]
 pub enum ScriptOrNativeResource {
     /// A script resource
     Script(JsIntrospectObject),

@@ -1,14 +1,16 @@
 use crate::window_service::WinitWindowService;
-use fruity_game_engine::export_function;
 use fruity_game_engine::frame_service::FrameService;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::profile::profile_scope;
+use fruity_game_engine::{export_function, typescript_import};
 use fruity_windows::window_service::WindowService;
 use std::rc::Rc;
 
 pub mod fps_counter;
 pub mod window_middleware;
 pub mod window_service;
+
+#[typescript_import({Signal, Module} from "fruity_game_engine")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]

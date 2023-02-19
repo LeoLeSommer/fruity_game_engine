@@ -1,10 +1,13 @@
-use crate::{fruity_crate, parse::{parse_struct_fields, parse_impl_method, ParsedReceiver}};
+use crate::{fruity_crate};
+use convert_case::{Casing, Case};
+use fruity_game_engine_code_parser::{parse_struct_item, FruityExportReceiver, parse_impl_item, FruityExportClassFieldName, parse_enum_item};
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::quote;
-use syn::{ItemStruct, __private::TokenStream2, ItemImpl, DeriveInput, parse_macro_input};
+use syn::{ItemStruct, __private::TokenStream2, ItemImpl, DeriveInput, parse_macro_input, ItemEnum};
 
 #[cfg(any(feature = "napi-module", feature = "wasm-module"))]
-use convert_case::{Casing, Case};
+use convert_case::Case;
 
 #[cfg(feature = "wasm-module")]
 use crate::wasm_function_export::wasm_function_export;
@@ -12,20 +15,22 @@ use crate::wasm_function_export::wasm_function_export;
 #[cfg(feature = "napi-module")]
 use crate::napi_function_export;
 
-pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
+pub fn intern_export_struct(item: ItemStruct) -> TokenStream2 {
     let fruity_crate = fruity_crate();
 
     // Parse the block
-    let struct_name = struct_input.ident.clone();
-    let struct_name_as_string = struct_name.to_string();
-    let fields = parse_struct_fields(&struct_input.fields);
+    let exported_struct = parse_struct_item(item.clone());
 
     // Prepare the infos
-    let exported_fields = fields
+    let exported_fields = exported_struct
+     .fields
         .clone()
         .into_iter()
         .filter(|field| field.public)
         .collect::<Vec<_>>();
+
+    let struct_name = item.ident.clone();
+    let struct_name_as_string = struct_name.to_string();
 
     // Implement the IntrospectFields functions
     let impl_get_class_name = quote! {
@@ -35,7 +40,10 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
     };
 
     let impl_get_field_names = {
-        let fields_names = exported_fields.iter().map(|field| field.name.to_string());
+        let fields_names = exported_fields.iter().map(|field| match &field.name {
+            FruityExportClassFieldName::Named(name) => name.to_string(),
+            FruityExportClassFieldName::Unnamed(name) => name.to_string(),
+        });
 
         quote! {
             fn get_field_names(&self) -> #fruity_crate::FruityResult<Vec<String>> {
@@ -46,12 +54,23 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
 
     let impl_set_field_value = {
         let fields_setters = exported_fields.iter().map(|field| {
-            let name = field.name.clone();
-            let name_as_string = field.name.to_string();
-            let ty = field.ty.clone();
-
-            quote! {
-                #name_as_string => self.#name = <#ty>::from_script_value(value)?,
+            match &field.name {
+                FruityExportClassFieldName::Named(name) => {
+                    let name_as_string = name.to_string();
+                    let ty = field.ty.clone();
+        
+                    quote! {
+                        #name_as_string => self.#name = <#ty>::from_script_value(value)?,
+                    }
+                },
+                FruityExportClassFieldName::Unnamed(name) => {
+                    let name_as_string = name.to_string();
+                    let ty = field.ty.clone();
+        
+                    quote! {
+                        #name_as_string => self.#name = <#ty>::from_script_value(value)?,
+                    }
+                },
             }
         });
 
@@ -79,12 +98,23 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
 
     let impl_get_field_value = {
         let fields_getters = exported_fields.iter().map(|field| {
-            let name = field.name.clone();
-            let name_as_string = field.name.to_string();
-            let ty = field.ty.clone();
-
-            quote! {
-                #name_as_string => <#ty>::into_script_value(self.#name.clone()),
+            match &field.name {
+                FruityExportClassFieldName::Named(name) => {
+                    let name_as_string = name.to_string();
+                    let ty = field.ty.clone();
+        
+                    quote! {
+                        #name_as_string => <#ty>::into_script_value(self.#name.clone()),
+                    }
+                },
+                FruityExportClassFieldName::Unnamed(name) => {
+                    let name_as_string = name.to_string();
+                    let ty = field.ty.clone();
+        
+                    quote! {
+                        #name_as_string => <#ty>::into_script_value(self.#name.clone()),
+                    }
+                },
             }
         });
 
@@ -108,7 +138,7 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
         }
     };
 
-    quote! {
+    let res = quote! {
         impl #fruity_crate::introspect::IntrospectFields for #struct_name
         {
             #impl_get_class_name
@@ -116,75 +146,38 @@ pub fn intern_export_struct(struct_input: ItemStruct) -> TokenStream2 {
             #impl_set_field_value
             #impl_get_field_value
         }
-    }
+    };
+
+    // eprintln!("TOKENS: {}", &res);
+
+    res
 }
 
-pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
+pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
     let fruity_crate = fruity_crate();
 
     // Parse the block
-    let struct_name = impl_input.self_ty.clone();
-
-    let methods = impl_input
-        .items
-        .into_iter()
-        .filter_map(|item| {
-            if let syn::ImplItem::Method(method) = item {
-                Some(method)
-            } else {
-                None
-            }
-        })
-        .map(|item| parse_impl_method(&item))
-        .collect::<Vec<_>>();
+    let exported_struct = parse_impl_item(item.clone());
+    let struct_name = item.self_ty.clone();
 
     // Prepare the infos
-    #[cfg(any(feature = "napi-module", feature = "wasm-module"))]
-    let exported_constructors = methods
+    let exported_const_methods = exported_struct.methods
         .clone()
         .into_iter()
-        .filter_map(|method| {
-            method.attrs.iter()
-                .find(|attr| attr.ident.to_string() == "export_constructor")
-                .map(|export_attr| (method.clone(), export_attr.clone()))
-        })
+        .filter(|method| matches!(method.receiver, FruityExportReceiver::Const))
         .collect::<Vec<_>>();
 
-    let exported_const_methods = methods
+    let exported_mut_methods = exported_struct.methods
         .clone()
         .into_iter()
-        .filter_map(|method| {
-            method.attrs.iter()
-                .find(|attr| attr.ident.to_string() == "export")
-                .map(|export_attr| (method.clone(), export_attr.clone()))
-        })
-        .filter(|(method, _)| matches!(method.receiver, ParsedReceiver::Const))
-        .collect::<Vec<_>>();
-
-    let exported_mut_methods = methods
-        .clone()
-        .into_iter()
-        .filter_map(|method| {
-            method.attrs.iter()
-                .find(|attr| attr.ident.to_string() == "export")
-                .map(|export_attr| (method.clone(), export_attr.clone()))
-        })
-        .filter(|(method, _)| matches!(method.receiver, ParsedReceiver::Mut))
+        .filter(|method| matches!(method.receiver, FruityExportReceiver::Mut))
         .collect::<Vec<_>>();
 
     // Implement the IntrospectMethods functions
     let impl_get_const_method_names = {
         let method_names = exported_const_methods
             .iter()
-            .map(|(method, export_attr)| {
-                let name_as_string = method.name.to_string();
-                let export_function_name = export_attr.params
-                    .get("name")
-                    .map(|name| name.to_string().replace("\"", ""))
-                    .unwrap_or(name_as_string);
-                
-                export_function_name
-            });
+            .map(|method| method.name_overwrite.clone().unwrap_or(method.name.clone()).to_string());
 
         quote! {
             fn get_const_method_names(&self) -> #fruity_crate::FruityResult<Vec<String>> {
@@ -196,23 +189,19 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
     let impl_call_const_method = {
         let method_callers = exported_const_methods
             .iter()
-            .map(|(method, export_attr)| {
+            .map(|method| {
                 let name = method.name.clone();
-                let name_as_string = method.name.to_string();
-                let export_function_name = export_attr.params
-                    .get("name")
-                    .map(|name| name.to_string().replace("\"", ""))
-                    .unwrap_or(name_as_string);
+                let export_function_name = method.name_overwrite.clone().unwrap_or(method.name.clone()).to_string();
             
                 let type_cast = match method.args.len() {
                     0 => None,
                     _ => {
-                        let args_cast = method.args.iter().map(|arg| {
-                            let name = arg.name.clone();
+                        let args_cast = method.args.iter().enumerate().map(|(index, arg)| {
+                            let ident = syn::Ident::new(&format!("__arg_{}", index), Span::call_site());
                             let ty = arg.ty.clone();
     
                             quote! {
-                                let #name = __caster.cast_next::<#ty>()?;
+                                let #ident = __caster.cast_next::<#ty>()?;
                             }
                         }).collect::<Vec<_>>();
     
@@ -224,7 +213,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
                         )
                     }
                 };
-                let arg_names = method.args.iter().map(|arg| arg.name.clone());
+                let arg_names = method.args.iter().enumerate().map(|(index, _arg)| syn::Ident::new(&format!("__arg_{}", index), Span::call_site()));
                 
                 quote! {
                     #export_function_name => {
@@ -257,15 +246,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
     let impl_get_mut_method_names = {
         let method_names = exported_mut_methods
             .iter()
-            .map(|(method, export_attr)| {
-                let name_as_string = method.name.to_string();
-                let export_function_name = export_attr.params
-                    .get("name")
-                    .map(|name| name.to_string().replace("\"", ""))
-                    .unwrap_or(name_as_string);
-                
-                export_function_name
-            });
+            .map(|method| method.name_overwrite.clone().unwrap_or(method.name.clone()).to_string());
 
         quote! {
             fn get_mut_method_names(&self) -> #fruity_crate::FruityResult<Vec<String>> {
@@ -277,23 +258,19 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
     let impl_call_mut_method = {
         let method_callers = exported_mut_methods
             .iter()
-            .map(|(method, export_attr)| {
+            .map(|method| {
                 let name = method.name.clone();
-                let name_as_string = method.name.to_string();
-                let export_function_name = export_attr.params
-                    .get("name")
-                    .map(|name| name.to_string().replace("\"", ""))
-                    .unwrap_or(name_as_string);
+                let export_function_name = method.name_overwrite.clone().unwrap_or(method.name.clone()).to_string();
             
                 let type_cast = match method.args.len() {
                     0 => None,
                     _ => {
-                        let args_cast = method.args.iter().map(|arg| {
-                            let name = arg.name.clone();
+                        let args_cast = method.args.iter().enumerate().map(|(index, arg)| {
+                            let ident = syn::Ident::new(&format!("__arg_{}", index), Span::call_site());
                             let ty = arg.ty.clone();
-    
+        
                             quote! {
-                                let #name = __caster.cast_next::<#ty>()?;
+                                let #ident = __caster.cast_next::<#ty>()?;
                             }
                         }).collect::<Vec<_>>();
     
@@ -305,7 +282,7 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
                         )
                     }
                 };
-                let arg_names = method.args.iter().map(|arg| arg.name.clone());
+                let arg_names = method.args.iter().enumerate().map(|(index, _arg)| syn::Ident::new(&format!("__arg_{}", index), Span::call_site()));
                 
                 quote! {
                     #export_function_name => {
@@ -341,46 +318,52 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
 
     #[cfg(feature = "napi-module")]
     let napi_constructor_bindings = {
-        let napi_function_exports = exported_constructors
-            .clone()
-            .into_iter()
+        let napi_function_exports = exported_struct.clone().constructor
             .map(|constructor| {
-                let ident = constructor.0.item_impl_method.sig.ident.clone();
+                let ident = Ident::new(&constructor.name, Span::call_site());
 
                 napi_function_export(
-                    constructor.0.item_impl_method.sig.clone(),
-                    quote! {#struct_name::#ident},
-                    quote! {#struct_name}.to_string().to_case(Case::Pascal),
+                    FruityExportFn {
+                        name: quote! {#struct_name::#ident}.to_string(),
+                        name_overwrite: Some(quote! {#struct_name}.to_string()),
+                         attrs: constructor.attrs,
+                         args: constructor.args,
+                         return_ty: constructor.return_ty,
+                         typescript_overwrite: constructor.typescript_overwrite,
+                    }, Case::Pascal
                 )
             });
         
-        quote! {
-            #(#napi_function_exports)*
-        }
-    };
+            quote! {
+                #napi_function_exports
+            }
+        };
 
     #[cfg(not(feature = "wasm-module"))]
     let wasm_constructor_bindings = quote!{};
 
-    #[cfg(feature = "wasm-module")]
+    #[cfg(feature = "napi-module")]
     let wasm_constructor_bindings = {
-        let napi_function_exports = exported_constructors
-            .clone()
-            .into_iter()
+        let wasm_function_exports = exported_struct.clone().constructor
             .map(|constructor| {
-                let ident = constructor.0.item_impl_method.sig.ident.clone();
+                let ident = Ident::new(&constructor.name, Span::call_site());
 
                 wasm_function_export(
-                    constructor.0.item_impl_method.sig.clone(),
-                    quote! {#struct_name::#ident},
-                    quote! {#struct_name}.to_string().to_case(Case::Pascal),
+                    FruityExportFn {
+                        name: quote! {#struct_name::#ident}.to_string(),
+                        name_overwrite: Some(quote! {#struct_name}.to_string()),
+                         attrs: constructor.attrs,
+                         args: constructor.args,
+                         return_ty: constructor.return_ty,
+                         typescript_overwrite: constructor.typescript_overwrite,
+                    }, Case::Pascal
                 )
             });
         
-        quote! {
-            #(#napi_function_exports)*
-        }
-    };
+            quote! {
+                #wasm_function_exports
+            }
+        };
 
     quote!{
         impl #fruity_crate::introspect::IntrospectMethods for #struct_name
@@ -393,6 +376,78 @@ pub(crate) fn intern_export_impl(impl_input: ItemImpl) -> TokenStream2 {
 
         #napi_constructor_bindings
         #wasm_constructor_bindings
+    }
+}
+
+pub(crate) fn intern_export_enum(item: ItemEnum) -> TokenStream2 {
+    let fruity_crate = fruity_crate();
+
+    // Parse the block
+    let exported_enum = parse_enum_item(item.clone());
+    let name = exported_enum.name.clone();
+    let name_as_string = name.to_string();
+
+    // Generate TryFromScriptValue converters
+    let from_script_value_converters = exported_enum.variants
+        .iter()
+        .map(|variant| {
+            let variant_str = variant.to_string().to_case(Case::Camel);
+
+            quote! {
+                #variant_str => Ok(#name::#variant),
+            }
+        });
+
+    // Generate TryIntoScriptValue converters
+    let into_script_value_converters = exported_enum.variants
+    .iter()
+    .map(|variant| {
+        let variant_str = variant.to_string().to_case(Case::Camel);
+
+        quote! {
+            #name::#variant => #variant_str,
+        }
+    });
+
+    // Prepare the infos
+    quote!{
+        impl #fruity_crate::script_value::convert::TryFromScriptValue for #name {
+            fn from_script_value(
+                value: #fruity_crate::script_value::ScriptValue,
+            ) -> #fruity_crate::error::FruityResult<Self> {
+                if let #fruity_crate::script_value::ScriptValue::String(value) = &value {
+                    match value as &str {
+                        #(#from_script_value_converters)*
+                        _ => Err(#fruity_crate::error::FruityError::GenericFailure(
+                            format!(
+                                "Couldn't convert {:?} to {:?}",
+                                value, #name_as_string
+                            ),
+                        )),
+                    }
+                } else {
+                    Err(#fruity_crate::error::FruityError::GenericFailure(
+                        format!(
+                            "Couldn't convert {:?} to {:?}",
+                            value, #name_as_string
+                        ),
+                    ))
+                }
+            }
+        }
+        
+        impl #fruity_crate::script_value::convert::TryIntoScriptValue for #name {
+            fn into_script_value(
+                self,
+            ) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
+                Ok(#fruity_crate::script_value::ScriptValue::String(
+                    match self {
+                        #(#into_script_value_converters)*
+                    }
+                    .to_string(),
+                ))
+            }
+        }
     }
 }
 

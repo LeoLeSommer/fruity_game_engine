@@ -34,7 +34,18 @@ pub trait ScriptQueryParam: FruityAny + Send + Sync {
 }
 
 #[derive(FruityAny)]
-#[export_struct]
+#[export_struct(typescript = "interface ScriptQuery<Args extends any[] = []> {
+  withEntity(): ScriptQuery<[...Args, EntityReference]>;
+  withId(): ScriptQuery<[...Args, EntityId]>;
+  withName(): ScriptQuery<[...Args, string]>;
+  withEnabled(): ScriptQuery<[...Args, boolean]>;
+  with<T>(componentIdentifier: string): ScriptQuery<[...Args, T]>;
+  withOptional<T>(
+    componentIdentifier: string
+  ): ScriptQuery<[...Args, T | null]>;
+  forEach(callback: (args: Args) => void);
+  onCreated(callback: ScriptCallback): ObserverHandler;
+}")]
 pub struct ScriptQuery {
     pub(crate) archetypes: Arc<RwLock<Vec<ArchetypeArcRwLock>>>,
     pub(crate) on_entity_created: Signal<EntityReference>,

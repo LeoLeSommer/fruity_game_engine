@@ -4,6 +4,7 @@ use crate::introspect::IntrospectMethods;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptValue;
+use crate::typescript;
 use crate::FruityError;
 use crate::FruityResult;
 use std::collections::HashMap;
@@ -12,6 +13,16 @@ use yaml_rust::Yaml;
 use yaml_rust::YamlLoader;
 
 /// Settings collection
+#[typescript(
+    "type SettingsElem =
+  | number
+  | boolean
+  | string
+  | SettingsElem[]
+  | Settings
+  | null"
+)]
+#[typescript("type Settings = { [key: string]: SettingsElem }")]
 #[derive(Debug, Clone, FruityAny)]
 pub enum Settings {
     /// f64 value

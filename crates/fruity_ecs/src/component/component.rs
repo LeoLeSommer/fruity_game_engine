@@ -6,7 +6,7 @@ use fruity_game_engine::javascript::JsIntrospectObject;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::send_wrapper::SendWrapper;
-use fruity_game_engine::{FruityError, FruityResult};
+use fruity_game_engine::{typescript, FruityError, FruityResult};
 use std::fmt::Debug;
 use std::ops::Deref;
 
@@ -35,6 +35,7 @@ impl Clone for Box<dyn Component> {
 
 /// An container for a component without knowing the instancied type
 #[derive(FruityAny, Debug)]
+#[typescript("type AnyComponent = { [key: string]: any }")]
 pub struct AnyComponent {
     component: Box<dyn Component>,
 }

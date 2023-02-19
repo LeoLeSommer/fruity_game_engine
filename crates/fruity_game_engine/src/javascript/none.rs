@@ -2,14 +2,14 @@ use crate::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
     script_value::ScriptValue,
-    FruityResult,
+    typescript, FruityResult,
 };
 
 /// A structure to store a javascript object that can be stored in a ScriptValue
 #[derive(FruityAny, Clone, Debug)]
+#[typescript("type JsIntrospectObject = { [key: string]: any }")]
 pub struct JsIntrospectObject {}
 
-//#[typegen = "type JsIntrospectObject = unknown"]
 impl IntrospectFields for JsIntrospectObject {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("unknown".to_string())

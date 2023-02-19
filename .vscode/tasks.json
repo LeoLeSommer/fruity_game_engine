@@ -15,6 +15,14 @@
       "options": {
         "cwd": "${workspaceFolder}/examples/my_platformer"
       }
+    },
+    {
+      "label": "Build fruity_game_engine_cli",
+      "command": "cargo",
+      "args": ["build"],
+      "options": {
+        "cwd": "${workspaceFolder}/crates/fruity_game_engine_cli"
+      }
     }
   ]
 }

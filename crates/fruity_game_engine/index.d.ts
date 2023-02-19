@@ -1,51 +1,12 @@
-export type ScriptValue = any;
-export type ScriptOrNativeResource = any;
-export type JsIntrospectObject = { [key: string]: any };
+export type ScriptValue = any
 
-export type SettingsElem =
-  | number
-  | boolean
-  | string
-  | SettingsElem[]
-  | Settings
-  | null;
+export type ScriptCallback = (args: ScriptValue[]) => ScriptValue
 
-export type Settings = { [key: string]: SettingsElem };
+export type JsIntrospectObject = { [key: string]: any }
 
-export interface FrameService {
-  getDelta(): number;
-}
+export type ResourceReference<T> = T
 
-export interface ObjectFactoryService {
-  instantiate(objectType: string, args: ScriptValue[]): ScriptValue | null;
-}
-
-export interface Module {
-  name: string;
-  dependencies: string[];
-  setup: (world: World, settings: Settings) => void;
-  loadResources: ((world: World, settings: Settings) => void) | null;
-}
-
-export class World {
-  constructor(settings: Settings);
-  registerModule(module: Module);
-  setupModules();
-  loadResources();
-  run();
-  getResourceContainer(): ScriptResourceContainer;
-}
-
-export interface ModuleService {
-  registerModule(module: Module);
-}
-
-export interface ScriptResourceContainer {
-  get<T>(identifier: string): T;
-  contains(identifier: string): boolean;
-  add(identifier: string, resource: JsIntrospectObject): boolean;
-  remove(identifier: string);
-}
+export type ScriptOrNativeResource = any
 
 export interface Signal<T> {
   notify(event: T);
@@ -61,4 +22,44 @@ export interface ObserverHandler {
   dispose();
 }
 
-export type ResourceReference<T> = T;
+export type SettingsElem =
+  | number
+  | boolean
+  | string
+  | SettingsElem[]
+  | Settings
+  | null
+
+export type Settings = { [key: string]: SettingsElem }
+
+export interface FrameService {
+  getDelta(): number
+}
+
+export interface Module {
+  name: string
+  dependencies: string[]
+  setup: ((arg0: World, arg1: Settings) => void) | null | undefined
+  loadResources: ((arg0: World, arg1: Settings) => void) | null | undefined
+}
+
+export interface ObjectFactoryService {
+  instantiate(objectType: string, args: ScriptValue[]): ScriptValue | null
+}
+
+export interface ScriptResourceContainer {
+  get(identifier: string): ScriptOrNativeResource | null
+  contains(identifier: string): boolean
+  add(identifier: string, resource: JsIntrospectObject)
+  remove(identifier: string): void
+}
+
+export class World {
+  constructor(settings: Settings)
+  registerModule(module: Module): void
+  setupModules(): void
+  loadResources(): void
+  run(): void
+  getResourceContainer(): ScriptResourceContainer
+}
+

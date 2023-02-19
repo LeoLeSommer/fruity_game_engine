@@ -503,6 +503,7 @@ version = "0.0.0"
 dependencies = [
  "fruity_ecs_macro",
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "itertools",
  "log",
  "napi-build",
@@ -525,6 +526,7 @@ version = "0.0.0"
 dependencies = [
  "console_error_panic_hook",
  "convert_case",
+ "fruity_game_engine_build",
  "fruity_game_engine_macro",
  "js-sys",
  "lazy_static 1.4.0",
@@ -542,10 +544,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "fruity_game_engine_build"
+version = "0.1.0"
+dependencies = [
+ "convert_case",
+ "fruity_game_engine_code_parser",
+ "npm_rs",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "fruity_game_engine_code_parser"
+version = "0.0.0"
+dependencies = [
+ "itertools",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "fruity_game_engine_macro"
 version = "0.1.0"
 dependencies = [
  "convert_case",
+ "fruity_game_engine_code_parser",
  "itertools",
  "proc-macro2",
  "quote",
@@ -561,6 +586,7 @@ dependencies = [
  "cgmath",
  "css-color-parser",
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "maplit",
  "napi-build",
  "wasm-bindgen",
@@ -572,6 +598,7 @@ version = "0.0.0"
 dependencies = [
  "bytemuck",
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "fruity_graphic",
  "fruity_windows",
  "fruity_windows_winit",
@@ -589,6 +616,7 @@ version = "0.0.0"
 dependencies = [
  "fruity_ecs",
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "napi-build",
  "wasm-bindgen",
 ]
@@ -598,6 +626,7 @@ name = "fruity_input"
 version = "0.0.0"
 dependencies = [
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "fruity_windows",
  "napi-build",
  "wasm-bindgen",
@@ -608,6 +637,7 @@ name = "fruity_input_winit"
 version = "0.0.0"
 dependencies = [
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "fruity_input",
  "fruity_windows",
  "fruity_windows_winit",
@@ -645,6 +675,7 @@ name = "fruity_windows"
 version = "0.0.0"
 dependencies = [
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "napi-build",
  "wasm-bindgen",
 ]
@@ -654,6 +685,7 @@ name = "fruity_windows_winit"
 version = "0.0.0"
 dependencies = [
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "fruity_windows",
  "napi-build",
  "wasm-bindgen",
@@ -1194,6 +1226,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "npm_rs"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1454347ca3c562570eff8af4a09445783dc4b7ccd00853390a7f88f76037b55"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1424,9 +1465,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.47"
+version = "1.0.51"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ea3d908b0e36316caf9e9e2c4625cdde190a7e6f440d794667ed17a1855e725"
+checksum = "5d727cae5b39d21da60fa540906919ad737832fe0b1c165da3a34d6548c849d6"
 dependencies = [
  "unicode-ident",
 ]
@@ -1648,9 +1689,9 @@ checksum = "9df65f20698aeed245efdde3628a6b559ea1239bbb871af1b6e3b58c413b2bd1"
 
 [[package]]
 name = "syn"
-version = "1.0.103"
+version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a864042229133ada95abf3b54fdc62ef5ccabe9515b64717bcb9a1919e59445d"
+checksum = "1f4064b5b16e03ae50984a5a8ed5d4f8803e6bc1fd170a3cda91a1be4b18e3f5"
 dependencies = [
  "proc-macro2",
  "quote",
