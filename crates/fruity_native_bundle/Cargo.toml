@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "fruity_native_bundle_my_platformer"
+name = "fruity_native_bundle"
 version = "0.0.0"
 
 [lib]

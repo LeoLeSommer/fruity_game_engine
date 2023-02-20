@@ -26,15 +26,15 @@ use std::thread;
 use rayon::prelude::*;
 
 /// A callback for a system called every frame
-pub type SystemCallback = dyn Fn(ResourceContainer) -> FruityResult<()> + Sync + Send + 'static;
+pub type SystemCallback = dyn Fn(ResourceContainer) -> FruityResult<()> + Send + Sync + 'static;
 
 /// A callback for a startup system dispose callback
 pub type StartupDisposeSystemCallback =
-    Option<Box<dyn FnOnce() -> FruityResult<()> + Sync + Send + 'static>>;
+    Option<Box<dyn FnOnce() -> FruityResult<()> + Send + Sync + 'static>>;
 
 /// A callback for a startup system
 pub type StartupSystemCallback =
-    dyn Fn(ResourceContainer) -> FruityResult<StartupDisposeSystemCallback> + Sync + Send + 'static;
+    dyn Fn(ResourceContainer) -> FruityResult<StartupDisposeSystemCallback> + Send + Sync + 'static;
 
 /// Params for a system
 #[derive(Debug, Clone, TryFromScriptValue)]
@@ -79,7 +79,7 @@ struct StartupSystem {
 
 struct StartupDisposeSystem {
     identifier: String,
-    callback: Box<dyn FnOnce() -> FruityResult<()> + Sync + Send + 'static>,
+    callback: Box<dyn FnOnce() -> FruityResult<()> + Send + Sync + 'static>,
 }
 
 #[derive(Clone)]

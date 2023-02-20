@@ -1,0 +1,12 @@
+{
+    "name": "fruity_physic_parry_2d",
+    "type": "module",
+    "version": "0.0.0",
+    "main": "index.js",
+    "types": "index.d.ts",
+    "dependencies": {
+      "fruity_game_engine": "file:../fruity_game_engine",
+      "fruity_graphic": "file:../fruity_graphic",
+      "fruity_native_bundle": "file:../fruity_native_bundle"
+    }
+}

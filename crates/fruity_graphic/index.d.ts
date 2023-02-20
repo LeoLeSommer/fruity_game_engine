@@ -3,9 +3,21 @@ import {
   Module,
 } from "fruity_game_engine"
 
+export type MaterialParam =
+  | { type: 'uint', value: number }
+  | { type: 'int', value: number }
+  | { type: 'float', value: number }
+  | { type: 'vector2d', value: Vector2d }
+  | { type: 'color', value: Color }
+  | { type: 'rect', value: {
+    bottomLeft: Vector2d,
+    topRight: Vector2d,
+  } }
+  | { type: 'matrix4', value: Matrix4 }
+
 export type ShaderBindingVisibility = "vertex" | "fragment"
 export type ShaderBindingType = "texture" | "sampler" | "uniform"
-export type ShaderInstanceAttributeType = "int" | "uInt" | "float" | "vector2" | "vector4"
+export type ShaderInstanceAttributeType = "int" | "uint" | "float" | "vector2D" | "vector4D"
 export class Color {
   r: number
   g: number
@@ -17,7 +29,7 @@ export class Color {
 export interface GraphicService {
   startDraw()
   endDraw()
-  renderScene(viewProj: Matrix4, backgroundColor: Color, target: ResourceReference<TextureResource> | null | undefined)
+  renderScene(viewProj: Matrix4, backgroundColor: Color, target?: ResourceReference<TextureResource> | null | undefined)
   getCameraTransform(): Matrix4
   resize(width: number, height: number)
   worldPositionToViewportPosition(pos: Vector2d): [number, number]
@@ -28,6 +40,9 @@ export interface GraphicService {
   setViewportOffset(x: number, y: number)
   getViewportSize(): [number, number]
   setViewportSize(x: number, y: number)
+}
+
+export interface MaterialResource {
 }
 
 export interface Matrix3 {
@@ -41,6 +56,9 @@ export interface Matrix3 {
 export interface Matrix4 {
   0: number[][]
   invert(): Matrix4
+}
+
+export interface MeshResource {
 }
 
 export interface MeshResourceSettings {

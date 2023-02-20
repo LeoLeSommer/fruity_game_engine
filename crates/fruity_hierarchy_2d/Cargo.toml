@@ -1,0 +1,35 @@
+[package]
+name = "fruity_hierarchy_2d"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+fruity_game_engine = { path = "../fruity_game_engine" }
+fruity_ecs = { path = "../fruity_ecs" }
+fruity_graphic_2d = { path = "../fruity_graphic_2d" }
+fruity_hierarchy = { path = "../fruity_hierarchy" }
+wasm-bindgen = { version = "0.2.83", optional = true }
+
+[build-dependencies]
+fruity_game_engine_build = { path = "../fruity_game_engine_build" }
+napi-build = { version = "2.0.1", optional = true }
+
+[features]
+default = ["wasm-module"]
+napi-module = [
+    "napi-build",
+    "fruity_game_engine/napi-module",
+    "fruity_ecs/napi-module",
+    "fruity_graphic_2d/napi-module",
+    "fruity_hierarchy/napi-module",
+]
+wasm-module = [
+    "wasm-bindgen",
+    "fruity_game_engine/wasm-module",
+    "fruity_ecs/wasm-module",
+    "fruity_graphic_2d/wasm-module",
+    "fruity_hierarchy/wasm-module",
+]

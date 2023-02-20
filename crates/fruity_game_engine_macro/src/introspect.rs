@@ -7,7 +7,7 @@ use quote::quote;
 use syn::{ItemStruct, __private::TokenStream2, ItemImpl, DeriveInput, parse_macro_input, ItemEnum};
 
 #[cfg(any(feature = "napi-module", feature = "wasm-module"))]
-use convert_case::Case;
+use fruity_game_engine_code_parser::FruityExportFn;
 
 #[cfg(feature = "wasm-module")]
 use crate::wasm_function_export::wasm_function_export;
@@ -320,16 +320,25 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
     let napi_constructor_bindings = {
         let napi_function_exports = exported_struct.clone().constructor
             .map(|constructor| {
-                let ident = Ident::new(&constructor.name, Span::call_site());
+                let ident = constructor.name.get_ident().unwrap();
 
                 napi_function_export(
                     FruityExportFn {
-                        name: quote! {#struct_name::#ident}.to_string(),
-                        name_overwrite: Some(quote! {#struct_name}.to_string()),
-                         attrs: constructor.attrs,
-                         args: constructor.args,
-                         return_ty: constructor.return_ty,
-                         typescript_overwrite: constructor.typescript_overwrite,
+                        name: syn::Path {
+                            leading_colon: None,
+                            segments:
+                                syn::punctuated::Punctuated::<syn::PathSegment, syn::token::Colon2>::from_iter(
+                                    vec![
+                                        syn::PathSegment::from(exported_struct.name.clone()),
+                                        syn::PathSegment::from(ident.clone())
+                                    ],
+                                ),
+                        },
+                        name_overwrite: Some(exported_struct.name.clone()),
+                        attrs: constructor.attrs,
+                        args: constructor.args,
+                        return_ty: constructor.return_ty,
+                        typescript_overwrite: constructor.typescript_overwrite,
                     }, Case::Pascal
                 )
             });
@@ -342,20 +351,29 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
     #[cfg(not(feature = "wasm-module"))]
     let wasm_constructor_bindings = quote!{};
 
-    #[cfg(feature = "napi-module")]
+    #[cfg(feature = "wasm-module")]
     let wasm_constructor_bindings = {
         let wasm_function_exports = exported_struct.clone().constructor
             .map(|constructor| {
-                let ident = Ident::new(&constructor.name, Span::call_site());
+                let ident = constructor.name.get_ident().unwrap();
 
                 wasm_function_export(
                     FruityExportFn {
-                        name: quote! {#struct_name::#ident}.to_string(),
-                        name_overwrite: Some(quote! {#struct_name}.to_string()),
-                         attrs: constructor.attrs,
-                         args: constructor.args,
-                         return_ty: constructor.return_ty,
-                         typescript_overwrite: constructor.typescript_overwrite,
+                        name: syn::Path {
+                            leading_colon: None,
+                            segments:
+                                syn::punctuated::Punctuated::<syn::PathSegment, syn::token::Colon2>::from_iter(
+                                    vec![
+                                        syn::PathSegment::from(exported_struct.name.clone()),
+                                        syn::PathSegment::from(ident.clone())
+                                    ],
+                                ),
+                        },
+                        name_overwrite: Some(exported_struct.name.clone()),
+                        attrs: constructor.attrs,
+                        args: constructor.args,
+                        return_ty: constructor.return_ty,
+                        typescript_overwrite: constructor.typescript_overwrite,
                     }, Case::Pascal
                 )
             });
@@ -456,23 +474,12 @@ pub fn intern_derive_object_factory(input: TokenStream) -> TokenStream {
 
     let output = quote! {
         impl fruity_game_engine::object_factory_service::ObjectFactory for #ident {
-            fn get_constructor() -> fruity_game_engine::object_factory_service::Constructor {
+            fn get_factory() -> fruity_game_engine::object_factory_service::Constructor {
                 use fruity_game_engine::introspect::IntrospectFields;
 
-                std::sync::Arc::new(|_resource_container: fruity_game_engine::resource::resource_container::ResourceContainer, mut args: Vec<fruity_game_engine::script_value::ScriptValue>| {
+                std::sync::Arc::new(|_resource_container: fruity_game_engine::resource::resource_container::ResourceContainer, fields: std::collections::HashMap<String, fruity_game_engine::script_value::ScriptValue>| {
                     let mut new_object = Self::default();
-
-                    if args.len() > 0 {
-                        let arg1 = args.remove(0);
-
-                        if let fruity_game_engine::script_value::ScriptValue::Object(arg1) =
-                        arg1
-                        {
-                            arg1.get_field_names()?.into_iter().try_for_each(|field_name| {
-                                new_object.set_field_value(&field_name, arg1.get_field_value(&field_name)?)
-                            })?;
-                        };
-                    };
+                    fields.into_iter().try_for_each(|(key, value)| new_object.set_field_value(&key, value))?;
 
                     Ok(fruity_game_engine::script_value::ScriptValue::Object(Box::new(new_object) as Box<dyn fruity_game_engine::script_value::ScriptObject>))
                 })

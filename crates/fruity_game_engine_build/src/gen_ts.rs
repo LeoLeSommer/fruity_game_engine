@@ -1,8 +1,7 @@
 use convert_case::{Case, Casing};
 use fruity_game_engine_code_parser::{
-    parse_fruity_exports, FruityExport, FruityExportClassFieldName,
+    parse_fruity_exports, FruityExport, FruityExportArg, FruityExportClassFieldName,
 };
-use std::collections::HashMap;
 use std::io::Write;
 use std::{fs::File, path::Path};
 
@@ -28,7 +27,6 @@ pub fn gen_ts(args: GenTsArgs) {
 }
 
 fn write_fruity_export(export: FruityExport, file: &mut File) {
-    let mut required_imports = HashMap::<String, Vec<String>>::new();
     let mut exports = Vec::<String>::new();
 
     // Generate exports
@@ -76,26 +74,12 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
                     .to_string()
                     .to_case(Case::Camel);
 
-                let args_str = function
-                    .args
-                    .into_iter()
-                    .map(|arg| {
-                        format!(
-                            "{}: {}",
-                            &arg.name.to_string().to_case(Case::Camel),
-                            rust_type_to_ts_type(&arg.ty, &mut required_imports, true, "")
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let args_str = generate_args_str(&function.args, "");
 
                 let return_str = match function.return_ty {
                     syn::ReturnType::Default => "".to_string(),
                     syn::ReturnType::Type(_, ty) => {
-                        format!(
-                            ": {}",
-                            rust_type_to_ts_type(&ty, &mut required_imports, false, "")
-                        )
+                        format!(": {}", rust_type_to_ts_type(&ty, false, ""))
                     }
                 };
 
@@ -130,12 +114,7 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
                     .iter()
                     .filter(|field| field.public)
                     .for_each(|field| {
-                        let field_type = rust_type_to_ts_type(
-                            &field.ty,
-                            &mut required_imports,
-                            true,
-                            &class_name,
-                        );
+                        let field_type = rust_type_to_ts_type(&field.ty, true, &class_name);
 
                         match &field.name {
                             FruityExportClassFieldName::Named(name) => {
@@ -160,23 +139,7 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
                     if let Some(typescript_overwrite) = constructor.typescript_overwrite {
                         member_exports.push(typescript_overwrite);
                     } else {
-                        let args_str = constructor
-                            .args
-                            .into_iter()
-                            .map(|arg| {
-                                format!(
-                                    "{}: {}",
-                                    &arg.name.to_string().to_case(Case::Camel),
-                                    rust_type_to_ts_type(
-                                        &arg.ty,
-                                        &mut required_imports,
-                                        true,
-                                        &class_name
-                                    )
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ");
+                        let args_str = generate_args_str(&constructor.args, &class_name);
 
                         member_exports.push(format!("constructor({})", args_str));
                     }
@@ -194,36 +157,12 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
                             .to_string()
                             .to_case(Case::Camel);
 
-                        let args_str = method
-                            .args
-                            .into_iter()
-                            .map(|arg| {
-                                format!(
-                                    "{}: {}",
-                                    &arg.name.to_string().to_case(Case::Camel),
-                                    rust_type_to_ts_type(
-                                        &arg.ty,
-                                        &mut required_imports,
-                                        true,
-                                        &class_name
-                                    )
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ");
+                        let args_str = generate_args_str(&method.args, &class_name);
 
                         let return_str = match method.return_ty {
                             syn::ReturnType::Default => "".to_string(),
                             syn::ReturnType::Type(_, ty) => {
-                                format!(
-                                    ": {}",
-                                    rust_type_to_ts_type(
-                                        &ty,
-                                        &mut required_imports,
-                                        false,
-                                        &class_name
-                                    )
-                                )
+                                format!(": {}", rust_type_to_ts_type(&ty, false, &class_name))
                             }
                         };
 
@@ -243,35 +182,40 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
         }
     }
 
-    // Write all imports
-    file.write_all(
-        required_imports
-            .into_iter()
-            .map(|(package, imports)| {
-                format!("import {{{}}} from \"{}\"", imports.join(", "), package)
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-            .as_bytes(),
-    )
-    .unwrap();
-
     // Write all exports
     file.write_all(exports.join("").as_bytes()).unwrap();
 }
 
+fn generate_args_str(args: &Vec<FruityExportArg>, self_ident: &str) -> String {
+    args.into_iter()
+        .map(|arg| {
+            let is_optional = is_rust_type_optional(&arg.ty);
+
+            if is_optional {
+                format!(
+                    "{}?: {}",
+                    &arg.name.to_string().to_case(Case::Camel),
+                    rust_type_to_ts_type(&arg.ty, true, self_ident)
+                )
+            } else {
+                format!(
+                    "{}: {}",
+                    &arg.name.to_string().to_case(Case::Camel),
+                    rust_type_to_ts_type(&arg.ty, true, self_ident)
+                )
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// arg_or_return_type should be true if arg
-fn rust_type_to_ts_type(
-    ty: &syn::Type,
-    required_imports: &mut HashMap<String, Vec<String>>,
-    arg_or_return_type: bool,
-    self_ident: &str,
-) -> String {
-    let result = match ty {
+fn rust_type_to_ts_type(ty: &syn::Type, arg_or_return_type: bool, self_ident: &str) -> String {
+    match ty {
         syn::Type::Array(arr) => {
             format!(
                 "{}[]",
-                rust_type_to_ts_type(&arr.elem, required_imports, arg_or_return_type, self_ident)
+                rust_type_to_ts_type(&arr.elem, arg_or_return_type, self_ident)
             )
         }
         syn::Type::BareFn(_) => unimplemented!(),
@@ -280,41 +224,27 @@ fn rust_type_to_ts_type(
         syn::Type::Infer(_) => unimplemented!(),
         syn::Type::Macro(_) => unimplemented!(),
         syn::Type::Never(_) => "void".to_string(),
-        syn::Type::Paren(paren) => rust_type_to_ts_type(
-            &paren.elem,
-            required_imports,
-            arg_or_return_type,
-            self_ident,
-        ),
+        syn::Type::Paren(paren) => {
+            rust_type_to_ts_type(&paren.elem, arg_or_return_type, self_ident)
+        }
         syn::Type::Path(path) => {
             let last_segment = path.path.segments.iter().last().unwrap();
             let ident = format_type_ident(&last_segment.ident);
             format_type_generics(
                 &ident,
                 &last_segment.arguments,
-                required_imports,
                 arg_or_return_type,
                 self_ident,
             )
         }
-        syn::Type::Ptr(ptr) => {
-            rust_type_to_ts_type(&ptr.elem, required_imports, arg_or_return_type, self_ident)
+        syn::Type::Ptr(ptr) => rust_type_to_ts_type(&ptr.elem, arg_or_return_type, self_ident),
+        syn::Type::Reference(reference) => {
+            rust_type_to_ts_type(&reference.elem, arg_or_return_type, self_ident)
         }
-        syn::Type::Reference(reference) => rust_type_to_ts_type(
-            &reference.elem,
-            required_imports,
-            arg_or_return_type,
-            self_ident,
-        ),
         syn::Type::Slice(slice) => {
             format!(
                 "{}[]",
-                rust_type_to_ts_type(
-                    &slice.elem,
-                    required_imports,
-                    arg_or_return_type,
-                    self_ident
-                )
+                rust_type_to_ts_type(&slice.elem, arg_or_return_type, self_ident)
             )
         }
         syn::Type::TraitObject(trait_object) => trait_object
@@ -327,7 +257,6 @@ fn rust_type_to_ts_type(
                         qself: None,
                         path: bound.path,
                     }),
-                    required_imports,
                     arg_or_return_type,
                     self_ident,
                 )),
@@ -344,12 +273,7 @@ fn rust_type_to_ts_type(
                     tuple
                         .elems
                         .iter()
-                        .map(|ty| rust_type_to_ts_type(
-                            &ty,
-                            required_imports,
-                            arg_or_return_type,
-                            self_ident
-                        ))
+                        .map(|ty| rust_type_to_ts_type(&ty, arg_or_return_type, self_ident))
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -357,9 +281,18 @@ fn rust_type_to_ts_type(
         }
         syn::Type::Verbatim(_) => unimplemented!(),
         _ => unimplemented!(),
-    };
+    }
+}
 
-    result
+/// Check if a syn type is Option<...>
+fn is_rust_type_optional(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Path(path) => {
+            let last_segment = path.path.segments.iter().last().unwrap();
+            last_segment.ident.to_string() == "Option"
+        }
+        _ => false,
+    }
 }
 
 fn format_type_ident(ident: &syn::Ident) -> String {
@@ -391,7 +324,6 @@ fn format_type_ident(ident: &syn::Ident) -> String {
 fn format_type_generics(
     ident: &str,
     ab: &syn::PathArguments,
-    required_imports: &mut HashMap<String, Vec<String>>,
     arg_or_return_type: bool,
     self_ident: &str,
 ) -> String {
@@ -399,7 +331,7 @@ fn format_type_generics(
         "FruityResult" => {
             if let syn::PathArguments::AngleBracketed(ab) = ab {
                 if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
-                    rust_type_to_ts_type(ty, required_imports, arg_or_return_type, self_ident)
+                    rust_type_to_ts_type(ty, arg_or_return_type, self_ident)
                 } else {
                     unreachable!()
                 }
@@ -410,7 +342,7 @@ fn format_type_generics(
         "Rc" => {
             if let syn::PathArguments::AngleBracketed(ab) = ab {
                 if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
-                    rust_type_to_ts_type(ty, required_imports, arg_or_return_type, self_ident)
+                    rust_type_to_ts_type(ty, arg_or_return_type, self_ident)
                 } else {
                     unreachable!()
                 }
@@ -421,7 +353,7 @@ fn format_type_generics(
         "Arc" => {
             if let syn::PathArguments::AngleBracketed(ab) = ab {
                 if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
-                    rust_type_to_ts_type(ty, required_imports, arg_or_return_type, self_ident)
+                    rust_type_to_ts_type(ty, arg_or_return_type, self_ident)
                 } else {
                     unreachable!()
                 }
@@ -435,7 +367,22 @@ fn format_type_generics(
                 if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
                     format!(
                         "{}[]",
-                        rust_type_to_ts_type(ty, required_imports, arg_or_return_type, self_ident)
+                        rust_type_to_ts_type(ty, arg_or_return_type, self_ident)
+                    )
+                } else {
+                    unreachable!()
+                }
+            } else {
+                unreachable!()
+            }
+        }
+        "Range" => {
+            if let syn::PathArguments::AngleBracketed(ab) = ab {
+                if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
+                    format!(
+                        "[{}, {}]",
+                        rust_type_to_ts_type(ty, arg_or_return_type, self_ident),
+                        rust_type_to_ts_type(ty, arg_or_return_type, self_ident)
                     )
                 } else {
                     unreachable!()
@@ -449,7 +396,7 @@ fn format_type_generics(
                 if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
                     format!(
                         "{}[]",
-                        rust_type_to_ts_type(ty, required_imports, arg_or_return_type, self_ident)
+                        rust_type_to_ts_type(ty, arg_or_return_type, self_ident)
                     )
                 } else {
                     unreachable!()
@@ -464,18 +411,8 @@ fn format_type_generics(
                     if let syn::GenericArgument::Type(ty2) = &ab.args[1] {
                         format!(
                             "{{[key: {}]: {}}}",
-                            rust_type_to_ts_type(
-                                ty1,
-                                required_imports,
-                                arg_or_return_type,
-                                self_ident
-                            ),
-                            rust_type_to_ts_type(
-                                ty2,
-                                required_imports,
-                                arg_or_return_type,
-                                self_ident
-                            )
+                            rust_type_to_ts_type(ty1, arg_or_return_type, self_ident),
+                            rust_type_to_ts_type(ty2, arg_or_return_type, self_ident)
                         )
                     } else {
                         unreachable!()
@@ -490,8 +427,7 @@ fn format_type_generics(
         "Option" => {
             if let syn::PathArguments::AngleBracketed(ab) = ab {
                 if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
-                    let type_string =
-                        rust_type_to_ts_type(ty, required_imports, arg_or_return_type, self_ident);
+                    let type_string = rust_type_to_ts_type(ty, arg_or_return_type, self_ident);
 
                     if arg_or_return_type {
                         format!("{type_string} | null | undefined")
@@ -513,12 +449,9 @@ fn format_type_generics(
                     .iter()
                     .filter_map(|arg| match arg {
                         syn::GenericArgument::Lifetime(_) => None,
-                        syn::GenericArgument::Type(ty) => Some(rust_type_to_ts_type(
-                            ty,
-                            required_imports,
-                            arg_or_return_type,
-                            self_ident,
-                        )),
+                        syn::GenericArgument::Type(ty) => {
+                            Some(rust_type_to_ts_type(ty, arg_or_return_type, self_ident))
+                        }
                         syn::GenericArgument::Const(_) => None,
                         syn::GenericArgument::Binding(_) => None,
                         syn::GenericArgument::Constraint(_) => None,
@@ -532,7 +465,7 @@ fn format_type_generics(
                 let args = parenthesized
                     .inputs
                     .iter()
-                    .map(|input| rust_type_to_ts_type(input, required_imports, true, self_ident))
+                    .map(|input| rust_type_to_ts_type(input, true, self_ident))
                     .enumerate()
                     .map(|(index, ty)| format!("arg{}: {}", index, ty))
                     .collect::<Vec<_>>()
@@ -540,9 +473,7 @@ fn format_type_generics(
 
                 let return_ty = match &parenthesized.output {
                     syn::ReturnType::Default => "void".to_string(),
-                    syn::ReturnType::Type(_, ty) => {
-                        rust_type_to_ts_type(&ty, required_imports, false, self_ident)
-                    }
+                    syn::ReturnType::Type(_, ty) => rust_type_to_ts_type(&ty, false, self_ident),
                 };
 
                 format!("(({}) => {})", args, return_ty)

@@ -66,10 +66,10 @@ pub struct ShaderInstanceAttribute {
 #[export_enum]
 pub enum ShaderInstanceAttributeType {
     Int,
-    UInt,
+    Uint,
     Float,
-    Vector2,
-    Vector4,
+    Vector2d,
+    Vector4d,
 }
 
 impl Default for ShaderInstanceAttributeType {
@@ -165,10 +165,10 @@ pub fn read_shader_instance_attributes_settings(
             location: params.get::<u32>("location", u32::default()),
             ty: match &params.get::<String>("type", String::default()) as &str {
                 "int" => ShaderInstanceAttributeType::Int,
-                "uint" => ShaderInstanceAttributeType::UInt,
+                "uint" => ShaderInstanceAttributeType::Uint,
                 "float" => ShaderInstanceAttributeType::Float,
-                "vec2" => ShaderInstanceAttributeType::Vector2,
-                "vec4" => ShaderInstanceAttributeType::Vector4,
+                "vec2" => ShaderInstanceAttributeType::Vector2d,
+                "vec4" => ShaderInstanceAttributeType::Vector4d,
                 _ => ShaderInstanceAttributeType::default(),
             },
         })

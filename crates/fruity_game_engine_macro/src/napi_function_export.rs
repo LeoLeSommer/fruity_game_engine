@@ -3,15 +3,16 @@ use convert_case::{Case, Casing};
 use fruity_game_engine_code_parser::FruityExportFn;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{Ident, __private::TokenStream2};
+use syn::__private::TokenStream2;
 
 pub(crate) fn napi_function_export(exported_fn: FruityExportFn, case: Case) -> TokenStream2 {
     let fruity_crate = fruity_crate();
 
-    let fn_identifier = Ident::new(&exported_fn.name, Span::call_site());
+    let fn_identifier = exported_fn.name;
     let exported_name = exported_fn
         .name_overwrite
-        .unwrap_or(exported_fn.name)
+        .map(|name_overwrite| name_overwrite.to_string())
+        .unwrap_or(quote! {#fn_identifier}.to_string())
         .to_case(case);
 
     let fn_identifier_c = format!("{}\0", exported_name);

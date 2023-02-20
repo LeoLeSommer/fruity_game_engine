@@ -1,0 +1,43 @@
+{
+  "name": "my_platformer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "cd fruity_native_bundle && npm run napi-build && npm run wasm-build && cd ../ && tsc",
+    "start": "cd fruity_native_bundle && npm run napi-build:debug && cd ../ && tsc && node dist/src/index.js",
+    "serve": "cd fruity_native_bundle && npm run wasm-build && cd ../ && tsc && webpack serve"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^18.11.9",
+    "html-webpack-plugin": "^5.3.2",
+    "text-encoding": "^0.7.0",
+    "ts-loader": "^9.4.2",
+    "typescript": "^4.9.3",
+    "webpack": "^5.49.0",
+    "webpack-cli": "^4.7.2",
+    "webpack-dev-server": "^3.11.2"
+  },
+  "dependencies": {
+    "fruity_native_bundle": "file:./fruity_native_bundle",
+    "fruity_ecs": "file:../../crates/fruity_ecs",
+    "fruity_game_engine": "file:../../crates/fruity_game_engine",
+    "fruity_hierarchy": "file:../../crates/fruity_hierarchy"
+  },
+  "overrides": {
+    "fruity_ecs": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_game_engine": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_hierarchy": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    }
+  },
+  "packageManager": "yarn@3.4.1"
+}

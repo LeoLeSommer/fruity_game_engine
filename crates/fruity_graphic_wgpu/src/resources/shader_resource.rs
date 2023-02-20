@@ -177,7 +177,7 @@ impl WgpuShaderResource {
             .iter()
             .map(|instance_attribute| {
                 let (format, size) = match instance_attribute.ty {
-                    ShaderInstanceAttributeType::UInt => {
+                    ShaderInstanceAttributeType::Uint => {
                         (wgpu::VertexFormat::Uint32, size_of::<u32>())
                     }
                     ShaderInstanceAttributeType::Int => {
@@ -186,10 +186,10 @@ impl WgpuShaderResource {
                     ShaderInstanceAttributeType::Float => {
                         (wgpu::VertexFormat::Float32, size_of::<f32>())
                     }
-                    ShaderInstanceAttributeType::Vector2 => {
+                    ShaderInstanceAttributeType::Vector2d => {
                         (wgpu::VertexFormat::Float32x2, size_of::<[f32; 2]>())
                     }
-                    ShaderInstanceAttributeType::Vector4 => {
+                    ShaderInstanceAttributeType::Vector4d => {
                         (wgpu::VertexFormat::Float32x4, size_of::<[f32; 4]>())
                     }
                 };

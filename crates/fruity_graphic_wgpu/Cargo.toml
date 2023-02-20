@@ -11,7 +11,7 @@ wgpu = "0.15.1"
 bytemuck = { version = "1.4", features = [ "derive" ] }
 image = "0.23.14"
 winit = "0.28.1"
-tokio = { version = "1.12", features = ["rt", "rt-multi-thread", "time"] }
+tokio = { version = "1.12", features = ["rt", "time"] }
 fruity_game_engine = { path = "../fruity_game_engine" }
 fruity_graphic = { path = "../fruity_graphic" }
 fruity_windows = { path = "../fruity_windows" }
@@ -23,9 +23,10 @@ fruity_game_engine_build = { path = "../fruity_game_engine_build" }
 napi-build = { version = "2.0.1", optional = true }
 
 [features]
-default = []
+default = ["wasm-module"]
 napi-module = [
     "napi-build",
+    "tokio/rt-multi-thread",
     "fruity_game_engine/napi-module"
 ]
 wasm-module = [

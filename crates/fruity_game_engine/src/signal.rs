@@ -73,7 +73,7 @@ impl<T> Signal<T> {
 
     /// Add an observer to the signal
     /// An observer is a closure that will be called when the signal will be sent
-    pub fn add_observer<F: Fn(&T) -> FruityResult<()> + Sync + Send + 'static>(
+    pub fn add_observer<F: Fn(&T) -> FruityResult<()> + Send + Sync + 'static>(
         &self,
         observer: F,
     ) -> ObserverHandler<T> {
@@ -94,7 +94,7 @@ impl<T> Signal<T> {
     /// Add an observer to the signal that can dispose itself
     /// An observer is a closure that will be called when the signal will be sent
     pub fn add_self_dispose_observer<
-        F: Fn(&T, &ObserverHandler<T>) -> FruityResult<()> + Sync + Send + 'static,
+        F: Fn(&T, &ObserverHandler<T>) -> FruityResult<()> + Send + Sync + 'static,
     >(
         &self,
         observer: F,

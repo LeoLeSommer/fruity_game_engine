@@ -1,0 +1,32 @@
+[package]
+name = "fruity_physic_2d"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+fruity_game_engine = { path = "../fruity_game_engine" }
+fruity_ecs = { path = "../fruity_ecs" }
+fruity_graphic = { path = "../fruity_graphic" }
+wasm-bindgen = { version = "0.2.83", optional = true }
+
+[build-dependencies]
+fruity_game_engine_build = { path = "../fruity_game_engine_build" }
+napi-build = { version = "2.0.1", optional = true }
+
+[features]
+default = ["wasm-module"]
+napi-module = [
+    "napi-build",
+    "fruity_game_engine/napi-module",
+    "fruity_ecs/napi-module",
+    "fruity_graphic/napi-module",
+]
+wasm-module = [
+    "wasm-bindgen",
+    "fruity_game_engine/wasm-module",
+    "fruity_ecs/wasm-module",
+    "fruity_graphic/wasm-module",
+]

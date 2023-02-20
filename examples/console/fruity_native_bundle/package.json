@@ -1,0 +1,37 @@
+{
+  "name": "fruity_native_bundle",
+  "version": "0.0.0",
+  "main": "index.js",
+  "browser": {
+    "./index.js": "./index_browser.js"
+  },
+  "types": "index.d.ts",
+  "napi": {
+    "name": "fruity_native_bundle",
+    "triples": {}
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@wasm-tool/wasm-pack-plugin": "1.5.0",
+    "@napi-rs/cli": "^2.14.7",
+    "html-webpack-plugin": "^5.3.2",
+    "node-loader": "^2.0.0",
+    "text-encoding": "^0.7.0",
+    "webpack": "^5.49.0",
+    "webpack-cli": "^4.7.2",
+    "webpack-dev-server": "^3.11.2"
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "scripts": {
+    "napi-artifacts": "napi artifacts",
+    "napi-build": "napi build --platform --release --features napi-module --js false",
+    "napi-build:debug": "napi build --platform --features napi-module --js false",
+    "napi-prepublishOnly": "napi prepublish -t npm",
+    "napi-universal": "napi universal",
+    "napi-version": "napi version",
+    "wasm-build": "webpack"
+  },
+  "packageManager": "yarn@3.4.1"
+}

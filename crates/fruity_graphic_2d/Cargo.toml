@@ -1,0 +1,37 @@
+[package]
+edition = "2021"
+name = "fruity_graphic_2d"
+version = "0.0.0"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+maplit = "1.0.2"
+adjacent-pair-iterator = "1.0.0"
+fruity_game_engine = { path = "../fruity_game_engine" }
+fruity_ecs = { path = "../fruity_ecs" }
+fruity_graphic = { path = "../fruity_graphic" }
+fruity_windows = { path = "../fruity_windows" }
+wasm-bindgen = { version = "0.2.83", optional = true }
+
+[build-dependencies]
+fruity_game_engine_build = { path = "../fruity_game_engine_build" }
+napi-build = { version = "2.0.1", optional = true }
+
+[features]
+default = ["wasm-module"]
+napi-module = [
+    "napi-build",
+    "fruity_game_engine/napi-module",
+    "fruity_ecs/napi-module",
+    "fruity_graphic/napi-module",
+    "fruity_windows/napi-module",
+]
+wasm-module = [
+    "wasm-bindgen",
+    "fruity_game_engine/wasm-module",
+    "fruity_ecs/wasm-module",
+    "fruity_graphic/wasm-module",
+    "fruity_windows/wasm-module",
+]

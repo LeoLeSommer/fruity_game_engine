@@ -23,7 +23,7 @@ pub struct Color {
 #[export_impl]
 impl Color {
     #[export_constructor]
-    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Color {
         Self { r, g, b, a }
     }
 

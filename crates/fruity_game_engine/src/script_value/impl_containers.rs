@@ -11,6 +11,7 @@ use std::any::type_name;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::ops::Range;
 
 impl<T> TryIntoScriptValue for FruityResult<T>
 where
@@ -106,8 +107,9 @@ impl<T: TryFromScriptValue + Eq + Hash> TryFromScriptValue for HashSet<T> {
     }
 }
 
+/// A script value object stored as an hashmap
 #[derive(Debug, Clone, FruityAny)]
-struct ScriptValueHashMap(HashMap<String, ScriptValue>);
+pub struct ScriptValueHashMap(pub HashMap<String, ScriptValue>);
 
 //#[typegen = "type ScriptValueHashMap = unknown"]
 impl IntrospectFields for ScriptValueHashMap {
@@ -200,5 +202,38 @@ impl<T: TryFromScriptValue> TryFromScriptValue for Option<T> {
             ScriptValue::Undefined => None,
             _ => T::from_script_value(value).map(|value| Some(value))?,
         })
+    }
+}
+
+impl<T: TryIntoScriptValue> TryIntoScriptValue for Range<T> {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Array(vec![
+            self.start.into_script_value()?,
+            self.end.into_script_value()?,
+        ]))
+    }
+}
+
+impl<T: TryFromScriptValue> TryFromScriptValue for Range<T> {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Array(mut value) => {
+                if value.len() == 2 {
+                    Ok(Range {
+                        start: T::from_script_value(value.remove(0))?,
+                        end: T::from_script_value(value.remove(0))?,
+                    })
+                } else {
+                    Err(FruityError::ArrayExpected(format!(
+                        "Couldn't convert {:?} to 3 size array",
+                        value
+                    )))
+                }
+            }
+            _ => Err(FruityError::ArrayExpected(format!(
+                "Couldn't convert {:?} to array",
+                value
+            ))),
+        }
     }
 }

@@ -27,12 +27,34 @@ impl ScriptResourceContainer {
         }
     }
 
+    /// Get a required resource by it's identifier
+    /// Panic if the resource is not known
+    ///
+    /// # Arguments
+    /// * `identifier` - The resource identifier
+    ///
+    #[export(typescript = "require<T>(identifier: string): T")]
+    pub fn require(&self, identifier: String) -> ScriptOrNativeResource {
+        if let Some(resource) = match self.resource_container.get_untyped(&identifier) {
+            Some(value) => Some(ScriptOrNativeResource::Native(value)),
+            None => self
+                .script_resources
+                .borrow()
+                .get(&identifier)
+                .map(|resource| ScriptOrNativeResource::Script(resource.clone())),
+        } {
+            resource
+        } else {
+            panic!("Failed to get a required resource")
+        }
+    }
+
     /// Get a resource by it's identifier without casting it
     ///
     /// # Arguments
     /// * `identifier` - The resource identifier
     ///
-    #[export]
+    #[export(typescript = "get<T>(identifier: string): T | null")]
     pub fn get(&self, identifier: String) -> Option<ScriptOrNativeResource> {
         match self.resource_container.get_untyped(&identifier) {
             Some(value) => Some(ScriptOrNativeResource::Native(value)),

@@ -272,11 +272,21 @@ impl WgpuGraphicService {
             }
         };
 
-        Builder::new_multi_thread()
+        #[cfg(feature = "wasm-module")]
+        let result = Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap()
-            .block_on(future)
+            .block_on(future);
+
+        #[cfg(not(feature = "wasm-module"))]
+        let result = Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(future);
+
+        result
     }
 
     pub fn push_render_instance(
@@ -594,8 +604,8 @@ impl WgpuGraphicService {
             material_fields
                 .iter()
                 .for_each(|material_field| match param {
-                    MaterialParam::UInt(value) => {
-                        if let InstanceField::UInt { location } = material_field {
+                    MaterialParam::Uint(value) => {
+                        if let InstanceField::Uint { location } = material_field {
                             encode_into_bytes(
                                 &mut instance_buffer,
                                 location.offset,
@@ -624,8 +634,8 @@ impl WgpuGraphicService {
                             );
                         }
                     }
-                    MaterialParam::Vector2(value) => {
-                        if let InstanceField::Vector2 { location } = material_field {
+                    MaterialParam::Vector2d(value) => {
+                        if let InstanceField::Vector2d { location } = material_field {
                             encode_into_bytes(
                                 &mut instance_buffer,
                                 location.offset,
@@ -635,7 +645,7 @@ impl WgpuGraphicService {
                         }
                     }
                     MaterialParam::Color(value) => {
-                        if let InstanceField::Vector4 { location } = material_field {
+                        if let InstanceField::Vector4d { location } = material_field {
                             encode_into_bytes(
                                 &mut instance_buffer,
                                 location.offset,

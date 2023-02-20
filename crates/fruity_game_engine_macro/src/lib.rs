@@ -16,6 +16,9 @@ use syn::{parse_macro_input, ItemImpl, ItemStruct};
 use utils::fruity_crate;
 
 #[cfg(any(feature = "napi-module", feature = "wasm-module"))]
+use fruity_game_engine_code_parser::parse_fn_item;
+
+#[cfg(any(feature = "napi-module", feature = "wasm-module"))]
 use syn::ItemFn;
 
 #[cfg(any(feature = "napi-module", feature = "wasm-module"))]

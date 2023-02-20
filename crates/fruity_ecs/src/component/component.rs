@@ -1,16 +1,37 @@
+use super::script_component::ScriptComponent;
 use crate::entity::archetype::component_collection::ComponentCollection;
 pub use fruity_ecs_macro::Component;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::{IntrospectFields, IntrospectMethods};
 use fruity_game_engine::javascript::JsIntrospectObject;
-use fruity_game_engine::script_value::convert::TryFromScriptValue;
+use fruity_game_engine::object_factory_service::ObjectFactoryService;
+use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::send_wrapper::SendWrapper;
 use fruity_game_engine::{typescript, FruityError, FruityResult};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
 
-use super::script_component::ScriptComponent;
+/// A module for the engine
+#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
+pub struct SerializedAnyComponent {
+    /// The class identifier, is used to create the component trough ObjectFactoryService
+    pub class_name: String,
+
+    /// The field values
+    pub fields: HashMap<String, ScriptValue>,
+}
+
+/// A module for the engine
+#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
+pub struct SerializedAnyEntityComponent {
+    /// The class identifier, is used to create the component trough ObjectFactoryService
+    pub class_name: String,
+
+    /// The field values
+    pub fields: HashMap<String, ScriptValue>,
+}
 
 /// An abstraction over a component, should be implemented for every component
 pub trait StaticComponent {
@@ -49,8 +70,48 @@ impl AnyComponent {
     }
 
     /// Returns an AnyComponent
+    pub fn from_box(component: Box<dyn Component>) -> AnyComponent {
+        AnyComponent { component }
+    }
+
+    /// Returns an AnyComponent
     pub fn into_box(self) -> Box<dyn Component> {
         self.component
+    }
+
+    /// Serialize an AnyComponent
+    pub fn serialize(&self) -> FruityResult<SerializedAnyComponent> {
+        Ok(SerializedAnyComponent {
+            class_name: self.component.get_class_name()?,
+            fields: self
+                .component
+                .get_field_names()?
+                .into_iter()
+                .map(|field_name| {
+                    self.component
+                        .get_field_value(&field_name)
+                        .map(|value| (field_name, value))
+                })
+                .try_collect::<HashMap<_, _>>()?,
+        })
+    }
+
+    /// Deserialize an AnyComponent
+    pub fn deserialize(
+        value: ScriptValue,
+        object_factory_service: &ObjectFactoryService,
+    ) -> FruityResult<Self> {
+        let serialized_component = SerializedAnyComponent::from_script_value(value)?;
+
+        let new_object = object_factory_service
+            .instantiate(
+                serialized_component.class_name,
+                serialized_component.fields.clone(),
+            )
+            .map(|component| Ok(component) as FruityResult<ScriptValue>)
+            .unwrap_or(serialized_component.fields.into_script_value())?;
+
+        AnyComponent::from_script_value(new_object)
     }
 }
 

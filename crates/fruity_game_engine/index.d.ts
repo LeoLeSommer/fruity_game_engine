@@ -44,11 +44,12 @@ export interface Module {
 }
 
 export interface ObjectFactoryService {
-  instantiate(objectType: string, args: ScriptValue[]): ScriptValue | null
+  instantiate(objectType: string, fields: {[key: string]: ScriptValue}): ScriptValue | null
 }
 
 export interface ScriptResourceContainer {
-  get(identifier: string): ScriptOrNativeResource | null
+  require<T>(identifier: string): T
+  get<T>(identifier: string): T | null
   contains(identifier: string): boolean
   add(identifier: string, resource: JsIntrospectObject)
   remove(identifier: string): void

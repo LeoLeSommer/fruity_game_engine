@@ -1,3 +1,4 @@
+use super::entity::SerializedEntity;
 use crate::component::component::AnyComponent;
 use crate::entity::archetype::Archetype;
 use crate::entity::archetype::ArchetypeArcRwLock;
@@ -11,9 +12,10 @@ use crate::entity::entity_reference::EntityReference;
 use crate::ExtensionComponentService;
 use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
+use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
-use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
@@ -23,10 +25,11 @@ use fruity_game_engine::{export, export_impl, export_struct};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::ops::Deref;
 use std::sync::Arc;
 
 /// A save for the entities stored in an [’EntityService’]
-pub type EntityServiceSnapshot = ScriptValue;
+pub type EntityServiceSnapshot = Vec<SerializedEntity>;
 
 /// A storage for every entities, use [’Archetypes’] to store entities of different types
 #[derive(FruityAny, Resource)]
@@ -35,6 +38,7 @@ pub struct EntityService {
     id_incrementer: Mutex<u64>,
     index_map: RwLock<HashMap<EntityId, (usize, usize)>>,
     archetypes: Arc<RwLock<Vec<ArchetypeArcRwLock>>>,
+    object_factory_service: ResourceReference<ObjectFactoryService>,
     extension_component_service: ResourceReference<ExtensionComponentService>,
 
     /// Signal notified when an entity is created
@@ -52,6 +56,7 @@ impl EntityService {
             id_incrementer: Mutex::new(0),
             index_map: RwLock::new(HashMap::new()),
             archetypes: Arc::new(RwLock::new(Vec::new())),
+            object_factory_service: resource_container.require::<ObjectFactoryService>(),
             extension_component_service: resource_container.require::<ExtensionComponentService>(),
             on_created: Signal::new(),
             on_deleted: Signal::new(),
@@ -394,55 +399,32 @@ impl EntityService {
         Ok(())
     }
 
-    // TODO: Reimplement the save system in a proper way
-    /*
     /// Create a snapshot over all the entities
     #[export]
-    pub fn snapshot(&self) -> EntityServiceSnapshot {
-        let serialized_entities = self
-            .iter_all_entities()
-            .filter_map(|entity| {
+    pub fn snapshot(&self) -> FruityResult<EntityServiceSnapshot> {
+        self.iter_all_entities()
+            .map(|entity| {
                 let entity = entity.read();
-                let serialized_components = ScriptValue::Array(
-                    entity
-                        .read_all_components()
-                        .into_iter()
-                        .filter_map(|component| component.deref().serialize())
-                        .collect::<Vec<_>>(),
-                );
+                let components = entity
+                    .read_all_components()
+                    .into_iter()
+                    .map(|component| {
+                        let script_value = AnyComponent::from_box(component.deref().duplicate())
+                            .serialize()
+                            .map(|component| component.into_script_value())?;
 
-                let serialized_entity = ScriptValue::Object {
-                    class_name: "Entity".to_string(),
-                    fields: hashmap! {
-                        "entity_id".to_string() => ScriptValue::U64(entity.get_entity_id()),
-                        "name".to_string() => ScriptValue::String(entity.get_name()),
-                        "enabled".to_string() => ScriptValue::Bool(entity.is_enabled()),
-                        "components".to_string() => serialized_components,
-                    },
-                };
+                        script_value
+                    })
+                    .try_collect::<Vec<_>>()?;
 
-                Some(serialized_entity)
+                Ok(SerializedEntity {
+                    entity_id: entity.get_entity_id(),
+                    name: entity.get_name(),
+                    enabled: entity.is_enabled(),
+                    components,
+                })
             })
-            .collect::<Vec<_>>();
-
-        ScriptValue::Array(serialized_entities)
-    }
-
-    /// Restore an entity snapshot from a file
-    ///
-    /// # Arguments
-    /// * `filepath` - The file path
-    ///
-    #[export]
-    pub fn restore_from_file(&self, filepath: String) -> FruityResult<ScriptValue> {
-        let mut reader = File::open(&filepath).map_err(|_| {
-            FruityError::new(
-                FruityStatus::GenericFailure,
-                format!("File couldn't be opened: {:?}", filepath),
-            )
-        })?;
-
-        deserialize_yaml(&mut reader)
+            .try_collect::<Vec<_>>()
     }
 
     /// Restore an entity snapshot
@@ -451,54 +433,32 @@ impl EntityService {
     /// * `snapshot` - The snapshot
     ///
     #[export]
-    pub fn restore(&self, snapshot: EntityServiceSnapshot) {
-        self.clear();
+    pub fn restore(&self, snapshot: EntityServiceSnapshot) -> FruityResult<()> {
+        self.clear()?;
 
-        if let ScriptValue::Array(entities) = &snapshot {
-            entities
-                .iter()
-                .for_each(|serialized_entity| self.restore_entity(serialized_entity));
-        }
+        snapshot
+            .iter()
+            .try_for_each(|serialized_entity| self.restore_entity(serialized_entity))
     }
 
-    fn restore_entity(&self, serialized_entity: &ScriptValue) {
+    fn restore_entity(&self, serialized_entity: &SerializedEntity) -> FruityResult<()> {
         let object_factory_service = self.object_factory_service.read();
+        self.create_with_id(
+            serialized_entity.entity_id,
+            serialized_entity.name.clone(),
+            serialized_entity.enabled,
+            serialized_entity
+                .components
+                .clone()
+                .into_iter()
+                .map(|serialized_component| {
+                    AnyComponent::deserialize(serialized_component, &object_factory_service)
+                })
+                .try_collect::<Vec<_>>()?,
+        )?;
 
-        if let ScriptValue::Object { fields, .. } = serialized_entity {
-            let entity_id =
-                if let Ok(entity_id) = EntityId::from_script_value(fields.get("entity_id").unwrap().clone()) {
-                    entity_id
-                } else {
-                    return;
-                };
-
-            let name = if let Ok(name) = String::from_script_value(fields.get("name").unwrap().clone()) {
-                name
-            } else {
-                return;
-            };
-
-            let enabled = if let Ok(enabled) = bool::from_script_value(fields.get("enabled").unwrap().clone()) {
-                enabled
-            } else {
-                return;
-            };
-
-            let components = if let Some(ScriptValue::Array(components)) = fields.get("components")
-            {
-                components
-                    .iter()
-                    .filter_map(|serialized_component| {
-                        AnyComponent::deserialize(serialized_component, &object_factory_service)
-                    })
-                    .collect::<Vec<_>>()
-            } else {
-                return;
-            };
-
-            self.create_with_id(entity_id, name, enabled, components);
-        }
-    } */
+        Ok(())
+    }
 }
 
 impl Debug for EntityService {

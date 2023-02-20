@@ -1,6 +1,7 @@
 use crate::math::vector3d::Vector3d;
 use crate::Vector2d;
 use fruity_game_engine::any::FruityAny;
+use fruity_game_engine::export_trait;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 
@@ -22,6 +23,7 @@ pub struct Vertex {
     pub normal: Vector3d,
 }
 
+#[export_trait]
 pub trait MeshResource: Resource {}
 
 #[derive(Debug, Clone, TryFromScriptValue, TryIntoScriptValue, Default)]

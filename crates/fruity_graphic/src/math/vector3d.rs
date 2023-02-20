@@ -43,7 +43,7 @@ pub struct Vector3d {
 impl Vector3d {
     /// Create a new `Vector3D` with the provided components.
     #[export_constructor]
-    pub fn new(x: f32, y: f32, z: f32) -> Self {
+    pub fn new(x: f32, y: f32, z: f32) -> Vector3d {
         Self { x, y, z }
     }
 

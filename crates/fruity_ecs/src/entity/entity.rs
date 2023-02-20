@@ -1,3 +1,6 @@
+use fruity_game_engine::script_value::convert::TryFromScriptValue;
+use fruity_game_engine::script_value::convert::TryIntoScriptValue;
+use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::typescript;
 use fruity_game_engine::FruityResult;
 
@@ -5,6 +8,19 @@ use crate::component::component::AnyComponent;
 use crate::component::component::Component;
 use std::fmt::Debug;
 use std::hash::Hash;
+
+/// A module for the engine
+#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
+pub struct SerializedEntity {
+    /// Entity id
+    pub entity_id: EntityId,
+    /// Name
+    pub name: String,
+    /// Enabled
+    pub enabled: bool,
+    /// Components
+    pub components: Vec<ScriptValue>,
+}
 
 /// An identifier to an entity type, is composed be the identifier of the contained components
 #[derive(Debug, Clone)]

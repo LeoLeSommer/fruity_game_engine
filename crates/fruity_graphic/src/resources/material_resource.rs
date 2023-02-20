@@ -6,10 +6,11 @@ use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::settings::{read_settings, Settings};
-use fruity_game_engine::FruityResult;
+use fruity_game_engine::{export_trait, FruityResult};
 use std::collections::HashMap;
 use std::io::Read;
 
+#[export_trait]
 pub trait MaterialResource: Resource {
     fn get_shader(&self) -> Option<ResourceReference<dyn ShaderResource>>;
 }
@@ -40,7 +41,7 @@ pub enum MaterialSettingsBinding {
 
 #[derive(Debug, Clone, FruityAny)]
 pub enum MaterialSettingsInstanceAttribute {
-    UInt {
+    Uint {
         location: u32,
     },
     Int {
@@ -49,10 +50,10 @@ pub enum MaterialSettingsInstanceAttribute {
     Float {
         location: u32,
     },
-    Vector2 {
+    Vector2d {
         location: u32,
     },
-    Vector4 {
+    Vector4d {
         location: u32,
     },
     Rect {
@@ -187,12 +188,12 @@ fn build_material_instance_attribute(
         "vec2" => {
             let location = settings.get::<u32>("location", u32::default());
 
-            Some(MaterialSettingsInstanceAttribute::Vector2 { location })
+            Some(MaterialSettingsInstanceAttribute::Vector2d { location })
         }
         "vec4" => {
             let location = settings.get::<u32>("location", u32::default());
 
-            Some(MaterialSettingsInstanceAttribute::Vector4 { location })
+            Some(MaterialSettingsInstanceAttribute::Vector4d { location })
         }
         _ => None,
     }

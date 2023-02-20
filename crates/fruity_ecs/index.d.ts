@@ -32,6 +32,8 @@ export interface EntityService {
   addComponent(entityId: EntityId, components: AnyComponent[]): void
   removeComponent(entityId: EntityId, componentIndex: number): void
   clear(): void
+  snapshot(): EntityServiceSnapshot
+  restore(snapshot: EntityServiceSnapshot): void
 }
 
 export interface ExtensionComponentService {
@@ -49,6 +51,23 @@ export interface ScriptQuery<Args extends any[] = []> {
   forEach(callback: (args: Args) => void);
   onCreated(callback: ScriptCallback): ObserverHandler;
 }
+export interface SerializedAnyComponent {
+  className: string
+  fields: {[key: string]: ScriptValue}
+}
+
+export interface SerializedAnyEntityComponent {
+  className: string
+  fields: {[key: string]: ScriptValue}
+}
+
+export interface SerializedEntity {
+  entityId: EntityId
+  name: string
+  enabled: boolean
+  components: ScriptValue[]
+}
+
 export interface StartupSystemParams {
   ignorePause: boolean
 }
@@ -59,8 +78,8 @@ export interface SystemParams {
 }
 
 export interface SystemService {
-  addSystem(identifier: string, callback: ScriptCallback, params: SystemParams | null | undefined)
-  addStartupSystem(identifier: string, callback: ScriptCallback, params: StartupSystemParams | null | undefined)
+  addSystem(identifier: string, callback: ScriptCallback, params?: SystemParams | null | undefined)
+  addStartupSystem(identifier: string, callback: ScriptCallback, params?: StartupSystemParams | null | undefined)
   isPaused(): boolean
   setPaused(paused: boolean): void
 }

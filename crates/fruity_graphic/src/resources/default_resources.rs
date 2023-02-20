@@ -165,19 +165,19 @@ pub fn load_draw_line_shader(resource_container: ResourceContainer) -> FruityRes
             instance_attributes: vec![
                 ShaderInstanceAttribute {
                     location: 5,
-                    ty: ShaderInstanceAttributeType::Vector2,
+                    ty: ShaderInstanceAttributeType::Vector2d,
                 },
                 ShaderInstanceAttribute {
                     location: 6,
-                    ty: ShaderInstanceAttributeType::Vector2,
+                    ty: ShaderInstanceAttributeType::Vector2d,
                 },
                 ShaderInstanceAttribute {
                     location: 7,
-                    ty: ShaderInstanceAttributeType::UInt,
+                    ty: ShaderInstanceAttributeType::Uint,
                 },
                 ShaderInstanceAttribute {
                     location: 8,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
             ],
         },
@@ -203,16 +203,16 @@ pub fn load_draw_line_material(resource_container: ResourceContainer) -> FruityR
                 MaterialSettingsBinding::RenderSurfaceSize { bind_group: 1 },
             ],
             instance_attributes: hashmap! {
-                "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2 {
+                "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 5,
                 },
-                "pos2".to_string() => MaterialSettingsInstanceAttribute::Vector2 {
+                "pos2".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 6,
                 },
-                "width".to_string() => MaterialSettingsInstanceAttribute::UInt {
+                "width".to_string() => MaterialSettingsInstanceAttribute::Uint {
                     location: 7,
                 },
-                "color".to_string() => MaterialSettingsInstanceAttribute::Vector4 {
+                "color".to_string() => MaterialSettingsInstanceAttribute::Vector4d {
                     location: 8,
                 },
             },
@@ -342,35 +342,35 @@ pub fn load_draw_dotted_line_shader(resource_container: ResourceContainer) -> Fr
             instance_attributes: vec![
                 ShaderInstanceAttribute {
                     location: 5,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 6,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 7,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 8,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 9,
-                    ty: ShaderInstanceAttributeType::Vector2,
+                    ty: ShaderInstanceAttributeType::Vector2d,
                 },
                 ShaderInstanceAttribute {
                     location: 10,
-                    ty: ShaderInstanceAttributeType::Vector2,
+                    ty: ShaderInstanceAttributeType::Vector2d,
                 },
                 ShaderInstanceAttribute {
                     location: 11,
-                    ty: ShaderInstanceAttributeType::UInt,
+                    ty: ShaderInstanceAttributeType::Uint,
                 },
                 ShaderInstanceAttribute {
                     location: 12,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
             ],
         },
@@ -402,16 +402,16 @@ pub fn load_draw_dotted_line_material(resource_container: ResourceContainer) -> 
                     vec2_location: 7,
                     vec3_location: 8,
                 },
-                "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2 {
+                "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 9,
                 },
-                "pos2".to_string() => MaterialSettingsInstanceAttribute::Vector2 {
+                "pos2".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 10,
                 },
-                "width".to_string() => MaterialSettingsInstanceAttribute::UInt {
+                "width".to_string() => MaterialSettingsInstanceAttribute::Uint {
                     location: 11,
                 },
-                "color".to_string() => MaterialSettingsInstanceAttribute::Vector4 {
+                "color".to_string() => MaterialSettingsInstanceAttribute::Vector4d {
                     location: 12,
                 },
             },
@@ -561,39 +561,39 @@ pub fn load_draw_rect_shader(resource_container: ResourceContainer) -> FruityRes
             instance_attributes: vec![
                 ShaderInstanceAttribute {
                     location: 5,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 6,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 7,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 8,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 9,
-                    ty: ShaderInstanceAttributeType::Vector2,
+                    ty: ShaderInstanceAttributeType::Vector2d,
                 },
                 ShaderInstanceAttribute {
                     location: 10,
-                    ty: ShaderInstanceAttributeType::Vector2,
+                    ty: ShaderInstanceAttributeType::Vector2d,
                 },
                 ShaderInstanceAttribute {
                     location: 11,
-                    ty: ShaderInstanceAttributeType::UInt,
+                    ty: ShaderInstanceAttributeType::Uint,
                 },
                 ShaderInstanceAttribute {
                     location: 12,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 13,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
             ],
         },
@@ -625,19 +625,19 @@ pub fn load_draw_rect_material(resource_container: ResourceContainer) -> FruityR
                     vec2_location: 7,
                     vec3_location: 8,
                 },
-                "bottom_left".to_string() => MaterialSettingsInstanceAttribute::Vector2 {
+                "bottom_left".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 9,
                 },
-                "top_right".to_string() => MaterialSettingsInstanceAttribute::Vector2 {
+                "top_right".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 10,
                 },
-                "width".to_string() => MaterialSettingsInstanceAttribute::UInt {
+                "width".to_string() => MaterialSettingsInstanceAttribute::Uint {
                     location: 11,
                 },
-                "fill_color".to_string() => MaterialSettingsInstanceAttribute::Vector4 {
+                "fill_color".to_string() => MaterialSettingsInstanceAttribute::Vector4d {
                     location: 12,
                 },
-                "border_color".to_string() => MaterialSettingsInstanceAttribute::Vector4 {
+                "border_color".to_string() => MaterialSettingsInstanceAttribute::Vector4d {
                     location: 13,
                 },
             },
@@ -784,23 +784,23 @@ pub fn load_draw_arc_shader(resource_container: ResourceContainer) -> FruityResu
             instance_attributes: vec![
                 ShaderInstanceAttribute {
                     location: 5,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 6,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 7,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 8,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 9,
-                    ty: ShaderInstanceAttributeType::Vector2,
+                    ty: ShaderInstanceAttributeType::Vector2d,
                 },
                 ShaderInstanceAttribute {
                     location: 10,
@@ -808,15 +808,15 @@ pub fn load_draw_arc_shader(resource_container: ResourceContainer) -> FruityResu
                 },
                 ShaderInstanceAttribute {
                     location: 11,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 12,
-                    ty: ShaderInstanceAttributeType::Vector4,
+                    ty: ShaderInstanceAttributeType::Vector4d,
                 },
                 ShaderInstanceAttribute {
                     location: 13,
-                    ty: ShaderInstanceAttributeType::UInt,
+                    ty: ShaderInstanceAttributeType::Uint,
                 },
                 ShaderInstanceAttribute {
                     location: 14,
@@ -856,19 +856,19 @@ pub fn load_draw_arc_material(resource_container: ResourceContainer) -> FruityRe
                     vec2_location: 7,
                     vec3_location: 8,
                 },
-                "center".to_string() => MaterialSettingsInstanceAttribute::Vector2 {
+                "center".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 9,
                 },
                 "radius".to_string() => MaterialSettingsInstanceAttribute::Float {
                     location: 10,
                 },
-                "fill_color".to_string() => MaterialSettingsInstanceAttribute::Vector4 {
+                "fill_color".to_string() => MaterialSettingsInstanceAttribute::Vector4d {
                     location: 11,
                 },
-                "border_color".to_string() => MaterialSettingsInstanceAttribute::Vector4 {
+                "border_color".to_string() => MaterialSettingsInstanceAttribute::Vector4d {
                     location: 12,
                 },
-                "width".to_string() => MaterialSettingsInstanceAttribute::UInt {
+                "width".to_string() => MaterialSettingsInstanceAttribute::Uint {
                     location: 13,
                 },
                 "angle_start".to_string() => MaterialSettingsInstanceAttribute::Float {

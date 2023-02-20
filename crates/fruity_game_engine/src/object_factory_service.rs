@@ -12,12 +12,15 @@ pub use fruity_game_engine_macro::ObjectFactory;
 /// Trait to implement a generic constructor from a ScriptValue
 pub trait ObjectFactory {
     /// Get a constructor to instantiate an object
-    fn get_constructor() -> Constructor;
+    fn get_factory() -> Constructor;
 }
 
 /// A setter caller
-pub type Constructor =
-    Arc<dyn Fn(ResourceContainer, Vec<ScriptValue>) -> FruityResult<ScriptValue> + Send + Sync>;
+pub type Constructor = Arc<
+    dyn Fn(ResourceContainer, HashMap<String, ScriptValue>) -> FruityResult<ScriptValue>
+        + Send
+        + Sync,
+>;
 
 /// Provides a factory for the introspect types
 /// This will be used by to do the snapshots
@@ -51,7 +54,7 @@ impl ObjectFactoryService {
         T: ObjectFactory,
     {
         self.factories
-            .insert(object_type.to_string(), T::get_constructor());
+            .insert(object_type.to_string(), T::get_factory());
     }
 
     /// Register a new object factory from a function constructor
@@ -63,7 +66,7 @@ impl ObjectFactoryService {
     pub fn register_func(
         &mut self,
         object_type: &str,
-        constructor: impl Fn(ResourceContainer, Vec<ScriptValue>) -> FruityResult<ScriptValue>
+        constructor: impl Fn(ResourceContainer, HashMap<String, ScriptValue>) -> FruityResult<ScriptValue>
             + Send
             + Sync
             + 'static,
@@ -79,9 +82,13 @@ impl ObjectFactoryService {
     /// * `serialized` - A serialized value that will populate the new component
     ///
     #[export]
-    pub fn instantiate(&self, object_type: String, args: Vec<ScriptValue>) -> Option<ScriptValue> {
+    pub fn instantiate(
+        &self,
+        object_type: String,
+        fields: HashMap<String, ScriptValue>,
+    ) -> Option<ScriptValue> {
         let factory = self.factories.get(&object_type)?;
-        let instantied = factory(self.resource_container.clone(), args).ok()?;
+        let instantied = factory(self.resource_container.clone(), fields).ok()?;
         Some(instantied)
     }
 

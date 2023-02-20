@@ -2,7 +2,7 @@ use crate::entity::archetype::AnyComponent;
 use crate::entity::archetype::Component;
 
 /// A abstraction of a collection over components
-pub trait ComponentCollection: Sync + Send {
+pub trait ComponentCollection: Send + Sync {
     /// Get a single component by index
     fn get(&self, index: &usize) -> Option<&dyn Component>;
 

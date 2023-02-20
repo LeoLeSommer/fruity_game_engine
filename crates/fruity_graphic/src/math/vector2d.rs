@@ -41,7 +41,7 @@ pub struct Vector2d {
 impl Vector2d {
     /// Create a new `Vector2D` with the provided components.
     #[export_constructor]
-    pub fn new(x: f32, y: f32) -> Self {
+    pub fn new(x: f32, y: f32) -> Vector2d {
         Self { x, y }
     }
 

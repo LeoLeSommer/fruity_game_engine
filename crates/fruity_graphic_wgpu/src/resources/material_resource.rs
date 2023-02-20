@@ -26,7 +26,7 @@ pub struct BufferLocation {
 
 #[derive(Debug)]
 pub enum InstanceField {
-    UInt {
+    Uint {
         location: BufferLocation,
     },
     Int {
@@ -35,10 +35,10 @@ pub enum InstanceField {
     Float {
         location: BufferLocation,
     },
-    Vector2 {
+    Vector2d {
         location: BufferLocation,
     },
-    Vector4 {
+    Vector4d {
         location: BufferLocation,
     },
     Rect {
@@ -110,10 +110,10 @@ impl WgpuMaterialResource {
             .for_each(|instance_attribute| {
                 let size = match instance_attribute.ty {
                     ShaderInstanceAttributeType::Int => size_of::<i32>(),
-                    ShaderInstanceAttributeType::UInt => size_of::<u32>(),
+                    ShaderInstanceAttributeType::Uint => size_of::<u32>(),
                     ShaderInstanceAttributeType::Float => size_of::<f32>(),
-                    ShaderInstanceAttributeType::Vector2 => size_of::<[f32; 2]>(),
-                    ShaderInstanceAttributeType::Vector4 => size_of::<[f32; 4]>(),
+                    ShaderInstanceAttributeType::Vector2d => size_of::<[f32; 2]>(),
+                    ShaderInstanceAttributeType::Vector4d => size_of::<[f32; 4]>(),
                 };
 
                 fields_by_locations.insert(
@@ -133,11 +133,11 @@ impl WgpuMaterialResource {
             .instance_attributes
             .iter()
             .for_each(|instance_attribute| match instance_attribute.1 {
-                MaterialSettingsInstanceAttribute::UInt { location } => {
+                MaterialSettingsInstanceAttribute::Uint { location } => {
                     insert_in_hashmap_vec(
                         &mut fields,
                         instance_attribute.0.clone(),
-                        InstanceField::UInt {
+                        InstanceField::Uint {
                             location: fields_by_locations.get(location).unwrap().clone(),
                         },
                     );
@@ -160,20 +160,20 @@ impl WgpuMaterialResource {
                         },
                     );
                 }
-                MaterialSettingsInstanceAttribute::Vector2 { location } => {
+                MaterialSettingsInstanceAttribute::Vector2d { location } => {
                     insert_in_hashmap_vec(
                         &mut fields,
                         instance_attribute.0.clone(),
-                        InstanceField::Vector2 {
+                        InstanceField::Vector2d {
                             location: fields_by_locations.get(location).unwrap().clone(),
                         },
                     );
                 }
-                MaterialSettingsInstanceAttribute::Vector4 { location } => {
+                MaterialSettingsInstanceAttribute::Vector4d { location } => {
                     insert_in_hashmap_vec(
                         &mut fields,
                         instance_attribute.0.clone(),
-                        InstanceField::Vector4 {
+                        InstanceField::Vector4d {
                             location: fields_by_locations.get(location).unwrap().clone(),
                         },
                     );

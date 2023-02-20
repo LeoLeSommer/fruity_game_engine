@@ -5,9 +5,9 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "build": "cd fruity_native_bundle && npm run napi-build && npm run wasm-build && cd ../ && tsc",
-    "start": "cd fruity_native_bundle && npm run napi-build:debug && cd ../ && tsc && node dist/src/index.js",
-    "serve": "cd fruity_native_bundle && npm run wasm-build && cd ../ && tsc && webpack serve"
+    "build": "cd fruity_native_bundle && npm install && npm run napi-build && npm run wasm-build && cd ../ && tsc",
+    "start": "cd fruity_native_bundle && npm install && npm run napi-build:debug && cd ../ && tsc && node dist/src/index.js",
+    "serve": "cd fruity_native_bundle && npm install && npm run wasm-build && cd ../ && tsc && webpack serve"
   },
   "keywords": [],
   "author": "",
@@ -23,19 +23,59 @@
     "webpack-dev-server": "^3.11.2"
   },
   "dependencies": {
-    "fruity_ecs": "file:../../crates/fruity_ecs",
+    "fruity_native_bundle": "file:./fruity_native_bundle",
     "fruity_game_engine": "file:../../crates/fruity_game_engine",
+    "fruity_ecs": "file:../../crates/fruity_ecs",
+    "fruity_graphic": "file:../../crates/fruity_graphic",
+    "fruity_graphic_2d": "file:../../crates/fruity_graphic_2d",
+    "fruity_graphic_wgpu": "file:../../crates/fruity_graphic_wgpu",
     "fruity_hierarchy": "file:../../crates/fruity_hierarchy",
-    "fruity_native_bundle": "file:./fruity_native_bundle"
+    "fruity_hierarchy_2d": "file:../../crates/fruity_hierarchy_2d",
+    "fruity_input": "file:../../crates/fruity_input",
+    "fruity_input_winit": "file:../../crates/fruity_input_winit",
+    "fruity_physic_2d": "file:../../crates/fruity_physic_2d",
+    "fruity_physic_parry_2d": "file:../../crates/fruity_physic_parry_2d",
+    "fruity_windows": "file:../../crates/fruity_windows",
+    "fruity_windows_winit": "file:../../crates/fruity_windows_winit"
   },
   "overrides": {
-    "fruity_ecs": {
-      "fruity_native_bundle": "$fruity_native_bundle"
-    },
     "fruity_game_engine": {
       "fruity_native_bundle": "$fruity_native_bundle"
     },
+    "fruity_ecs": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_graphic": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_graphic_2d": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_graphic_wgpu": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
     "fruity_hierarchy": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_hierarchy_2d": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_input": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_input_winit": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_physic_2d": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_physic_parry_2d": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_windows": {
+      "fruity_native_bundle": "$fruity_native_bundle"
+    },
+    "fruity_windows_winit": {
       "fruity_native_bundle": "$fruity_native_bundle"
     }
   },
