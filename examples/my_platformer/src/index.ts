@@ -1,4 +1,5 @@
-import { Settings, World } from "fruity_game_engine";
+import initFruityBundle from "fruity_native_bundle";
+import { FrameService, Settings, World } from "fruity_game_engine";
 import {
   createFruityEcsModule,
   EntityService,
@@ -28,9 +29,8 @@ import { createFruityWindowsWinitModule } from "fruity_windows_winit";
 
 import settings from "./assets/settings.json" assert { type: "json" };
 import scene from "./assets/scene.json" assert { type: "json" };
-import * as bundle from "fruity_native_bundle";
 
-console.log(bundle);
+initFruityBundle();
 
 class Move {
   constructor(args: Partial<Move>) {
@@ -77,15 +77,12 @@ world.registerModule({
     "fruity_ecs",
     "fruity_graphic",
     "fruity_graphic_2d",
-    "fruity_graphic_wgpu",
     "fruity_hierarchy",
     "fruity_hierarchy_2d",
     "fruity_input",
-    "fruity_input_winit",
     "fruity_physic_2d",
     "fruity_physic_parry_2d",
     "fruity_windows",
-    "fruity_windows_winit",
   ],
   setup: (world: World) => {
     const resourceContainer = world.getResourceContainer();
@@ -93,6 +90,20 @@ world.registerModule({
       resourceContainer.require<InputService>("input_service");
     const systemService =
       resourceContainer.require<SystemService>("system_service");
+    const frameService =
+      resourceContainer.require<FrameService>("frame_service");
+    const entityService =
+      resourceContainer.require<EntityService>("entity_service");
+
+    systemService.addStartupSystem(
+      "initialize entities save",
+      () => {
+        entityService.restore(scene);
+      },
+      {
+        ignorePause: true,
+      }
+    );
 
     systemService.addStartupSystem(
       "test startup 0",
@@ -116,7 +127,7 @@ world.registerModule({
       };
     });
 
-    systemService.addStartupSystem("test startup 2", () => {
+    /*systemService.addStartupSystem("test startup 2", () => {
       let handle = entityService
         .query()
         .withName()
@@ -133,12 +144,12 @@ world.registerModule({
       return () => {
         handle.dispose();
       };
-    });
+    });*/
 
     systemService.addStartupSystem("test startup 3", () => {
       let createdEntityId: number | null = null;
       const materialResource = resourceContainer.get<MaterialResource>(
-        "./assets/material.material"
+        "./src/assets/material.material"
       );
 
       let handle1 = inputService.onPressed.addObserver((input) => {
@@ -172,7 +183,7 @@ world.registerModule({
         .forEach(([translate, velocity]) => {
           const beforeTranslate = translate.vec;
           translate.vec = beforeTranslate.add(
-            beforeTranslate.mul(velocity.velocity * frameService.delta)
+            beforeTranslate.mul(velocity.velocity * frameService.getDelta())
           );
         });
     });
@@ -184,9 +195,8 @@ world.registerModule({
         .with<Translate2d>("Translate2d")
         .with<Move>("Move")
         .forEach(([entity, translate, move]) => {
-          let vel = new Vector2d(0, 0);
-
-          if (inputService.isPressed("Run Left")) {
+          //let vel = new Vector2d(0, 0);
+          /*if (inputService.isPressed("Run Left")) {
             vel.x -= move.velocity;
           }
 
@@ -200,9 +210,8 @@ world.registerModule({
 
           if (inputService.isPressed("Down")) {
             vel.y -= move.velocity;
-          }
-
-          translate.vec = translate.vec.add(vel.mul(frameService.delta));
+          }*/
+          // translate.vec = translate.vec.add(vel.mul(frameService.getDelta()));
         });
     });
 
@@ -213,24 +222,17 @@ world.registerModule({
         .with<Move>("Move")
         .forEach(([rotate, move]) => {
           if (inputService.isPressed("Rotate")) {
-            rotate.angle += move.velocity * frameService.delta;
+            rotate.angle += move.velocity * frameService.getDelta();
           }
         });
     });
   },
   loadResources: (world: World, settings: Settings) => {
     console.log("loadResources");
+    const resourceContainer = world.getResourceContainer();
+    resourceContainer.loadResourcesSettings(settings);
   },
 });
-
-// Initialize modules
-world.setupModules();
-
-// Setup the scene
-const resourceContainer = world.getResourceContainer();
-const entityService =
-  resourceContainer.require<EntityService>("entity_service");
-entityService.restore(scene);
 
 // Run the world
 world.run();

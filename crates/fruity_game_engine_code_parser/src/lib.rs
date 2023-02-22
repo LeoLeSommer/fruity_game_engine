@@ -132,7 +132,7 @@ pub struct FruityExportClass {
     pub name_overwrite: Option<syn::Ident>,
     /// Attributes
     pub attrs: Vec<FruityExportAttribute>,
-    /// Constructor
+    /// Factory
     pub constructor: Option<FruityExportConstructor>,
     /// Fields
     pub fields: Vec<FruityExportClassField>,
@@ -612,28 +612,20 @@ pub fn parse_struct_fields(fields: &syn::Fields) -> Vec<FruityExportClassField> 
             .collect(),
         syn::Fields::Unnamed(ref fields) => {
             // For tuple struct, field name are numbers
-            let res = fields
+            fields
                 .unnamed
                 .iter()
                 .enumerate()
-                .map(|(index, field)| {
-                    let test = format!("{}", index);
-                    eprintln!("TOKENS: {} {}", &index.to_string(), &test);
-
-                    FruityExportClassField {
-                        public: if let syn::Visibility::Public(_) = field.vis {
-                            true
-                        } else {
-                            false
-                        },
-                        name: FruityExportClassFieldName::Unnamed(index),
-                        ty: field.ty.clone(),
-                    }
+                .map(|(index, field)| FruityExportClassField {
+                    public: if let syn::Visibility::Public(_) = field.vis {
+                        true
+                    } else {
+                        false
+                    },
+                    name: FruityExportClassFieldName::Unnamed(index),
+                    ty: field.ty.clone(),
                 })
-                .collect();
-
-            eprintln!("YEAH: {:?}", &res);
-            res
+                .collect()
         }
         syn::Fields::Unit => {
             unimplemented!()

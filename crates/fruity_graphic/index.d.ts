@@ -27,6 +27,7 @@ export class Color {
 }
 
 export interface GraphicService {
+
   startDraw()
   endDraw()
   renderScene(viewProj: Matrix4, backgroundColor: Color, target?: ResourceReference<TextureResource> | null | undefined)
@@ -43,6 +44,7 @@ export interface GraphicService {
 }
 
 export interface MaterialResource {
+
 }
 
 export interface Matrix3 {
@@ -59,6 +61,7 @@ export interface Matrix4 {
 }
 
 export interface MeshResource {
+
 }
 
 export interface MeshResourceSettings {
@@ -81,6 +84,7 @@ export interface ShaderInstanceAttribute {
 }
 
 export interface ShaderResource {
+
 }
 
 export interface ShaderResourceSettings {
@@ -89,6 +93,7 @@ export interface ShaderResourceSettings {
 }
 
 export interface TextureResource {
+
   getSize(): [number, number]
 }
 

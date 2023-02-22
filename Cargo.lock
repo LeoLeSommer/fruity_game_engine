@@ -530,6 +530,7 @@ dependencies = [
 name = "fruity_ecs_macro"
 version = "0.1.0"
 dependencies = [
+ "fruity_game_engine_code_parser",
  "proc-macro2",
  "quote",
  "syn",
@@ -687,17 +688,6 @@ dependencies = [
  "napi-build",
  "wasm-bindgen",
  "winit",
-]
-
-[[package]]
-name = "fruity_native_bundle"
-version = "0.0.0"
-dependencies = [
- "fruity_game_engine",
- "napi",
- "napi-build",
- "napi-derive",
- "wasm-bindgen",
 ]
 
 [[package]]

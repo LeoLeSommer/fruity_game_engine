@@ -1,4 +1,8 @@
-import bundle from "fruity_native_bundle";
+import { getBundle } from "fruity_game_engine";
 
-export const Parent = bundle.Parent
-export const createFruityHierarchyModule = bundle.createFruityHierarchyModule
+export function Parent(...args) {
+  return getBundle().Parent(...args)
+}
+export function createFruityHierarchyModule(...args) {
+  return getBundle().createFruityHierarchyModule(...args)
+}

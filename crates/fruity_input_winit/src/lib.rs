@@ -55,6 +55,7 @@ pub fn create_fruity_input_winit_module() -> Module {
             Ok(())
         })),
         load_resources: None,
+        run_middleware: None,
     }
 }
 

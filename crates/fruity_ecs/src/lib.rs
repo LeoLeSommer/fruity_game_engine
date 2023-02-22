@@ -52,7 +52,7 @@ pub fn create_fruity_ecs_module() -> Module {
             let system_service = resource_container.require::<SystemService>();
             world.add_run_start_middleware(move |next, world| {
                 let mut system_service_writer = system_service.write();
-                system_service_writer.run_start(world)?;
+                system_service_writer.run_start(&world)?;
 
                 next(world)
             });
@@ -60,7 +60,7 @@ pub fn create_fruity_ecs_module() -> Module {
             let system_service = resource_container.require::<SystemService>();
             world.add_run_frame_middleware(move |next, world| {
                 let system_service_reader = system_service.read();
-                system_service_reader.run_frame(world)?;
+                system_service_reader.run_frame(&world)?;
 
                 next(world)
             });
@@ -68,7 +68,7 @@ pub fn create_fruity_ecs_module() -> Module {
             let system_service = resource_container.require::<SystemService>();
             world.add_run_end_middleware(move |next, world| {
                 let mut system_service_writer = system_service.write();
-                system_service_writer.run_end(world)?;
+                system_service_writer.run_end(&world)?;
 
                 next(world)
             });
@@ -86,5 +86,6 @@ pub fn create_fruity_ecs_module() -> Module {
             Ok(())
         })),
         load_resources: None,
+        run_middleware: None,
     }
 }

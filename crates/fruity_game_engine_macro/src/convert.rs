@@ -38,7 +38,7 @@ pub fn intern_derive_try_from_script_value(input: TokenStream) -> TokenStream {
                     }
                 });
 
-            let result = quote! {
+            quote! {
                 impl #fruity_crate::script_value::convert::TryFromScriptValue for #ident {
                     fn from_script_value(value: #fruity_crate::script_value::ScriptValue) -> #fruity_crate::FruityResult<Self> {
                         match value {
@@ -58,11 +58,7 @@ pub fn intern_derive_try_from_script_value(input: TokenStream) -> TokenStream {
                         }
                     }
                 }
-            };
-
-            // eprintln!("TOKENS: {}", result);
-
-            result
+            }
         }
         Data::Union(_) => unimplemented!("Union not supported"),
         Data::Enum(_) => unimplemented!("Enum not supported"),

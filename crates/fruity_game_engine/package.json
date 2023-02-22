@@ -2,7 +2,7 @@
     "name": "fruity_game_engine",
     "type": "module",
     "version": "0.0.0",
-    "main": "index.js",
+    "main": "index.cjs",
     "types": "index.d.ts",
     "dependencies": {
       "fruity_native_bundle": "file:../fruity_native_bundle"

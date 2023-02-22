@@ -80,7 +80,7 @@ impl WgpuShaderResource {
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader_module,
-                entry_point: "main",
+                entry_point: "vs_main",
                 buffers: &[
                     VERTEX_DESC.clone(),
                     wgpu::VertexBufferLayout {
@@ -92,7 +92,7 @@ impl WgpuShaderResource {
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader_module,
-                entry_point: "main",
+                entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: surface_config.format,
                     blend: Some(wgpu::BlendState {

@@ -1,3 +1,5 @@
+use fruity_game_engine_macro::typescript;
+
 use crate::any::FruityAny;
 use crate::export;
 use crate::frame_service::FrameService;
@@ -15,25 +17,20 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 /// A middleware that occurs when entering into the loop
-pub type StartMiddleware = Rc<dyn Fn(&World) -> FruityResult<()>>;
+#[typescript("type StartMiddleware = (world: World) => void")]
+pub type StartMiddleware = Rc<dyn Fn(World) -> FruityResult<()>>;
 
 /// A middleware that occurs when rendering the loop
-pub type FrameMiddleware = Rc<dyn Fn(&World) -> FruityResult<()>>;
+#[typescript("type FrameMiddleware = (world: World) => void")]
+pub type FrameMiddleware = Rc<dyn Fn(World) -> FruityResult<()>>;
 
 /// A middleware that occurs when leaving the loop
-pub type EndMiddleware = Rc<dyn Fn(&World) -> FruityResult<()>>;
+#[typescript("type EndMiddleware = (world: World) => void")]
+pub type EndMiddleware = Rc<dyn Fn(World) -> FruityResult<()>>;
 
 /// A middleware that occurs when the world runs
-pub type RunMiddleware = Rc<
-    dyn Fn(
-        &World,
-        &Settings,
-        Rc<dyn Fn(&World) -> FruityResult<()>>,
-        Rc<dyn Fn(&World) -> FruityResult<()>>,
-        Rc<dyn Fn(&World) -> FruityResult<()>>,
-        Rc<dyn Fn(&World) -> FruityResult<()>>,
-    ) -> FruityResult<()>,
->;
+#[typescript("type RunMiddleware = (world: World, settings: Settings, setupModules: (world: World) => void, loadResources: (world: World) => void, start: StartMiddleware, frame: FrameMiddleware, end: EndMiddleware) => void")]
+pub type RunMiddleware = Rc<dyn Fn(World, Settings) -> FruityResult<()>>;
 
 struct InnerWorld {
     resource_container: ResourceContainer,
@@ -69,11 +66,12 @@ impl World {
                 start_middleware: Rc::new(|_| Ok(())),
                 frame_middleware: Rc::new(|_| Ok(())),
                 end_middleware: Rc::new(|_| Ok(())),
-                run_middleware: Rc::new(|world, _settings, load_resources, start, frame, end| {
-                    load_resources(world)?;
-                    start(world)?;
-                    frame(world)?;
-                    end(world)?;
+                run_middleware: Rc::new(|world, _settings| {
+                    world.setup_modules()?;
+                    world.load_resources()?;
+                    world.start()?;
+                    world.frame()?;
+                    world.end()?;
 
                     FruityResult::Ok(())
                 }),
@@ -98,6 +96,11 @@ impl World {
     /// Register a module
     #[export]
     pub fn register_module(&self, module: Module) -> FruityResult<()> {
+        if let Some(run_middleware) = module.run_middleware.clone() {
+            let mut this = self.inner.deref().borrow_mut();
+            this.run_middleware = run_middleware;
+        }
+
         self.module_service
             .deref()
             .borrow_mut()
@@ -143,26 +146,41 @@ impl World {
 
         let settings = self.inner.deref().borrow().settings.clone();
         let run_middleware = self.inner.deref().borrow().run_middleware.clone();
+
+        run_middleware(self.clone(), settings)
+    }
+
+    /// Run the start middleware
+    #[export]
+    pub fn start(&self) -> FruityResult<()> {
+        crate::profile::profile_function!();
+
         let start_middleware = self.inner.deref().borrow().start_middleware.clone();
+        start_middleware(self.clone())
+    }
+
+    /// Run the frame middleware
+    #[export]
+    pub fn frame(&self) -> FruityResult<()> {
+        crate::profile::profile_function!();
+
         let frame_middleware = self.inner.deref().borrow().frame_middleware.clone();
+        frame_middleware(self.clone())
+    }
+
+    /// Run the end middleware
+    #[export]
+    pub fn end(&self) -> FruityResult<()> {
+        crate::profile::profile_function!();
+
         let end_middleware = self.inner.deref().borrow().end_middleware.clone();
-
-        run_middleware(
-            self,
-            &settings,
-            Rc::new(Self::load_resources),
-            start_middleware.clone(),
-            frame_middleware.clone(),
-            end_middleware.clone(),
-        )?;
-
-        Ok(())
+        end_middleware(self.clone())
     }
 
     /// Add a run start middleware
     pub fn add_run_start_middleware(
         &self,
-        middleware: impl Fn(StartMiddleware, &World) -> FruityResult<()> + 'static,
+        middleware: impl Fn(StartMiddleware, World) -> FruityResult<()> + 'static,
     ) {
         let mut this = self.inner.deref().borrow_mut();
         let next_middleware = this.start_middleware.clone();
@@ -173,7 +191,7 @@ impl World {
     /// Add a run frame middleware
     pub fn add_run_frame_middleware(
         &self,
-        middleware: impl Fn(StartMiddleware, &World) -> FruityResult<()> + 'static,
+        middleware: impl Fn(StartMiddleware, World) -> FruityResult<()> + 'static,
     ) {
         let mut this = self.inner.deref().borrow_mut();
         let next_middleware = this.frame_middleware.clone();
@@ -184,7 +202,7 @@ impl World {
     /// Add a run end middleware
     pub fn add_run_end_middleware(
         &self,
-        middleware: impl Fn(StartMiddleware, &World) -> FruityResult<()> + 'static,
+        middleware: impl Fn(StartMiddleware, World) -> FruityResult<()> + 'static,
     ) {
         let mut this = self.inner.deref().borrow_mut();
         let next_middleware = this.end_middleware.clone();

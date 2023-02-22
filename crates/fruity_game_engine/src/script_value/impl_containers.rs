@@ -109,26 +109,35 @@ impl<T: TryFromScriptValue + Eq + Hash> TryFromScriptValue for HashSet<T> {
 
 /// A script value object stored as an hashmap
 #[derive(Debug, Clone, FruityAny)]
-pub struct ScriptValueHashMap(pub HashMap<String, ScriptValue>);
+pub struct ScriptValueHashMap {
+    /// Class name
+    pub class_name: String,
+    /// Fields
+    pub fields: HashMap<String, ScriptValue>,
+}
 
 //#[typegen = "type ScriptValueHashMap = unknown"]
 impl IntrospectFields for ScriptValueHashMap {
     fn get_class_name(&self) -> FruityResult<String> {
-        Ok("unknown".to_string())
+        Ok(self.class_name.clone())
     }
 
     fn get_field_names(&self) -> FruityResult<Vec<String>> {
-        Ok(self.0.keys().map(|key| key.clone()).collect())
+        Ok(self.fields.keys().map(|key| key.clone()).collect())
     }
 
     fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
-        self.0.entry(name.to_string()).or_insert_with(|| value);
+        self.fields.entry(name.to_string()).or_insert_with(|| value);
 
         Ok(())
     }
 
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
-        Ok(self.0.get(name).unwrap_or_else(|| unreachable!()).clone())
+        Ok(self
+            .fields
+            .get(name)
+            .unwrap_or_else(|| unreachable!())
+            .clone())
     }
 }
 
@@ -156,11 +165,13 @@ impl IntrospectMethods for ScriptValueHashMap {
 
 impl<T: TryIntoScriptValue> TryIntoScriptValue for HashMap<String, T> {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Object(Box::new(ScriptValueHashMap(
-            self.into_iter()
+        Ok(ScriptValue::Object(Box::new(ScriptValueHashMap {
+            class_name: "unknown".to_string(),
+            fields: self
+                .into_iter()
                 .map(|(key, value)| FruityResult::Ok((key, value.into_script_value()?)))
                 .try_collect::<HashMap<_, _>>()?,
-        ))))
+        })))
     }
 }
 

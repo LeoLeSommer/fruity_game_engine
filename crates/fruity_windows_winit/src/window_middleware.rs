@@ -1,12 +1,12 @@
-use std::{ffi::c_void, rc::Rc};
-
 use fruity_game_engine::{
+    frame_service::FrameService,
     profile::{profile_new_frame, profile_scope, profile_start},
     settings::Settings,
     world::World,
     FruityResult,
 };
 use fruity_windows::window_service::WindowService;
+use std::ffi::c_void;
 use winit::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
@@ -16,18 +16,11 @@ use winit::{
 
 use crate::{fps_counter::FPSCounter, window_service::WinitWindowService};
 
-pub fn window_middleware(
-    world: &World,
-    settings: &Settings,
-    load_resources: Rc<dyn Fn(&World) -> FruityResult<()>>,
-    start: Rc<dyn Fn(&World) -> FruityResult<()>>,
-    frame: Rc<dyn Fn(&World) -> FruityResult<()>>,
-    end: Rc<dyn Fn(&World) -> FruityResult<()>>,
-) -> FruityResult<()> {
+pub fn window_middleware(world: World, settings: Settings) -> FruityResult<()> {
     let resource_container = world.get_resource_container();
 
     // Read settings
-    let window_settings = read_window_settings(settings);
+    let window_settings = read_window_settings(&settings);
 
     // Get windows base title
     let windows_title = window_settings.title.clone();
@@ -50,8 +43,11 @@ pub fn window_middleware(
     let window_service = WinitWindowService::new(resource_container.clone(), window);
     resource_container.add::<dyn WindowService>("window_service", Box::new(window_service));
 
+    // Setup modules
+    world.setup_modules()?;
+
     // Initialize the resources
-    load_resources(world)?;
+    world.load_resources()?;
 
     // Build and inject the window in the windows service
     let (on_start_update, on_end_update, on_resize, on_cursor_moved, on_event, on_events_cleared) = {
@@ -70,9 +66,10 @@ pub fn window_middleware(
     };
 
     // Run the begin systems before everything
-    start(world)?;
+    world.start()?;
 
     // Run the render loop
+    let frame_service = resource_container.require::<FrameService>();
     let window_service = resource_container.require::<dyn WindowService>();
     let window_service_reader = window_service.read();
     window_service_reader.on_enter_loop().notify(())?;
@@ -81,8 +78,13 @@ pub fn window_middleware(
     let mut fps_counter = FPSCounter::new();
     profile_start();
 
-    let world = world.clone();
     event_loop.run(move |event, _, control_flow| {
+        // Update FrameService current tick
+        {
+            let mut frame_service = frame_service.write();
+            frame_service.begin_frame();
+        }
+
         profile_new_frame();
         profile_scope("main_loop");
         *control_flow = ControlFlow::Wait;
@@ -109,7 +111,7 @@ pub fn window_middleware(
             } => {
                 if event_window_id == window_id {
                     // Run the end systems a the end
-                    end(&world).unwrap();
+                    world.end().unwrap();
 
                     // Transmit to the loop that it should end
                     *control_flow = ControlFlow::Exit;
@@ -165,8 +167,7 @@ pub fn window_middleware(
         // Run the systems
         {
             profile_scope("run_systems");
-
-            frame(&world).unwrap();
+            world.frame().unwrap();
         }
 
         // End the update

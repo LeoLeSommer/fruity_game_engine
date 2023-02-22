@@ -1,3 +1,5 @@
-import bundle from "fruity_native_bundle";
+import { getBundle } from "fruity_game_engine";
 
-export const createFruityPhysicParry2DModule = bundle.createFruityPhysicParry2DModule
+export function createFruityPhysicParry2DModule(...args) {
+  return getBundle().createFruityPhysicParry2DModule(...args)
+}

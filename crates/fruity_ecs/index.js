@@ -1,3 +1,5 @@
-import bundle from "fruity_native_bundle";
+import { getBundle } from "fruity_game_engine";
 
-export const createFruityEcsModule = bundle.createFruityEcsModule
+export function createFruityEcsModule(...args) {
+  return getBundle().createFruityEcsModule(...args)
+}

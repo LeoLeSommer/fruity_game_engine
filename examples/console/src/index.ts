@@ -86,9 +86,6 @@ world.registerModule({
   },
 });
 
-// Initialize modules
-world.setupModules();
-
 // Setup the scene
 const resourceContainer = world.getResourceContainer();
 const entityService =

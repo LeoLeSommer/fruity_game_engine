@@ -9,7 +9,7 @@ pub struct Rotate2d {
 
 #[export_impl]
 impl Rotate2d {
-    /// Returns a new Camera
+    /// Returns a new Rotate2d
     #[export_constructor]
     pub fn new(angle: f32) -> Rotate2d {
         Self { angle }

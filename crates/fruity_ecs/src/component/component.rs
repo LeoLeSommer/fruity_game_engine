@@ -3,11 +3,10 @@ use crate::entity::archetype::component_collection::ComponentCollection;
 pub use fruity_ecs_macro::Component;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::{IntrospectFields, IntrospectMethods};
-use fruity_game_engine::javascript::JsIntrospectObject;
 use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
-use fruity_game_engine::script_value::ScriptValue;
-use fruity_game_engine::send_wrapper::SendWrapper;
+use fruity_game_engine::script_value::impl_containers::ScriptValueHashMap;
+use fruity_game_engine::script_value::{ScriptObject, ScriptValue};
 use fruity_game_engine::{typescript, FruityError, FruityResult};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -16,16 +15,6 @@ use std::ops::Deref;
 /// A module for the engine
 #[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
 pub struct SerializedAnyComponent {
-    /// The class identifier, is used to create the component trough ObjectFactoryService
-    pub class_name: String,
-
-    /// The field values
-    pub fields: HashMap<String, ScriptValue>,
-}
-
-/// A module for the engine
-#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
-pub struct SerializedAnyEntityComponent {
     /// The class identifier, is used to create the component trough ObjectFactoryService
     pub class_name: String,
 
@@ -50,7 +39,7 @@ pub trait Component: IntrospectFields + IntrospectMethods + Debug + Send + Sync 
 
 impl Clone for Box<dyn Component> {
     fn clone(&self) -> Self {
-        self.duplicate()
+        Component::duplicate(self.as_ref())
     }
 }
 
@@ -105,11 +94,17 @@ impl AnyComponent {
 
         let new_object = object_factory_service
             .instantiate(
-                serialized_component.class_name,
+                serialized_component.class_name.clone(),
                 serialized_component.fields.clone(),
-            )
+            )?
             .map(|component| Ok(component) as FruityResult<ScriptValue>)
-            .unwrap_or(serialized_component.fields.into_script_value())?;
+            .unwrap_or(
+                ScriptValue::Object(Box::new(ScriptValueHashMap {
+                    class_name: serialized_component.class_name.clone(),
+                    fields: serialized_component.fields,
+                }))
+                .into_script_value(),
+            )?;
 
         AnyComponent::from_script_value(new_object)
     }
@@ -121,10 +116,10 @@ impl From<Box<dyn Component>> for AnyComponent {
     }
 }
 
-impl From<JsIntrospectObject> for AnyComponent {
-    fn from(value: JsIntrospectObject) -> Self {
+impl From<Box<dyn ScriptObject>> for AnyComponent {
+    fn from(value: Box<dyn ScriptObject>) -> Self {
         Self {
-            component: Box::new(ScriptComponent(SendWrapper::new(value))),
+            component: Box::new(ScriptComponent::from(value)),
         }
     }
 }
@@ -142,13 +137,7 @@ impl TryFromScriptValue for AnyComponent {
         match value {
             ScriptValue::Object(value) => match value.downcast::<Box<dyn Component>>() {
                 Ok(value) => Ok(AnyComponent::from(*value)),
-                Err(value) => match value.downcast::<JsIntrospectObject>() {
-                    Ok(value) => Ok(AnyComponent::from(*value)),
-                    Err(value) => Err(FruityError::InvalidArg(format!(
-                        "Couldn't convert a {} to Component",
-                        value.get_type_name(),
-                    ))),
-                },
+                Err(value) => Ok(AnyComponent::from(value)),
             },
             value => Err(FruityError::InvalidArg(format!(
                 "Couldn't convert {:?} to native object",

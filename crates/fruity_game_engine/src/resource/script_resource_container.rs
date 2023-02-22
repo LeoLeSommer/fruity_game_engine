@@ -1,4 +1,5 @@
 use super::{resource_container::ResourceContainer, resource_reference::AnyResourceReference};
+use crate::settings::Settings;
 use crate::typescript;
 use crate::{
     any::FruityAny,
@@ -114,6 +115,16 @@ impl ScriptResourceContainer {
                 }
             }
         }
+    }
+
+    /// Load many resources for settings
+    ///
+    /// # Arguments
+    /// * `settings` - The settings of resources
+    ///
+    #[export]
+    pub fn load_resources_settings(&self, settings: Settings) {
+        self.resource_container.load_resources_settings(settings)
     }
 }
 

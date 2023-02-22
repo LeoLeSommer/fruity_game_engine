@@ -15,12 +15,13 @@ import {
 export class Camera {
   near: number
   far: number
-  target: ResourceReference<TextureResource> | null | undefined
+  target?: ResourceReference<TextureResource> | null | undefined
   backgroundColor: Color
   constructor()
 }
 
 export interface Graphic2dService {
+
   drawQuad(identifier: number, material: ResourceReference<MaterialResource>, params: {[key: string]: MaterialParam}, zIndex: number)
   drawLine(pos1: Vector2d, pos2: Vector2d, width: number, color: Color, zIndex: number, transform: Matrix3)
   drawPolyline(points: Vector2d[], width: number, color: Color, zIndex: number, transform: Matrix3)
@@ -41,8 +42,8 @@ export class Scale2d {
 }
 
 export class Sprite {
-  material: ResourceReference<MaterialResource> | null | undefined
-  texture: ResourceReference<TextureResource> | null | undefined
+  material?: ResourceReference<MaterialResource> | null | undefined
+  texture?: ResourceReference<TextureResource> | null | undefined
   zIndex: number
   constructor(material?: ResourceReference<MaterialResource> | null | undefined, texture?: ResourceReference<TextureResource> | null | undefined, zIndex: number)
 }

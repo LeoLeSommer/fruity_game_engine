@@ -5,7 +5,7 @@ use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
-use fruity_game_engine::settings::{read_settings, Settings};
+use fruity_game_engine::settings::Settings;
 use fruity_game_engine::{export_trait, FruityResult};
 use std::collections::HashMap;
 use std::io::Read;

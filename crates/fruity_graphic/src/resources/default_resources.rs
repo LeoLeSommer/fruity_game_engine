@@ -75,42 +75,40 @@ pub fn load_draw_line_shader(resource_container: ResourceContainer) -> FruityRes
     let graphic_service = graphic_service.read();
 
     let code = "
-        [[block]]
         struct CameraUniform {
-            view_proj: mat4x4<f32>;
+            view_proj: mat4x4<f32>,
         };
         
-        [[block]]
         struct RenderSurfaceSizeUniform {
-            value: vec2<f32>;
+            value: vec2<f32>,
         };
         
         struct VertexInput {
-            [[location(0)]] position: vec3<f32>;
-            [[location(1)]] tex_coords: vec2<f32>;
-            [[location(2)]] normal: vec3<f32>;
+            @location(0) position: vec3<f32>,
+            @location(1) tex_coords: vec2<f32>,
+            @location(2) normal: vec3<f32>,
         };
         
         struct InstanceInput {
-            [[location(5)]] pos1: vec2<f32>;
-            [[location(6)]] pos2: vec2<f32>;
-            [[location(7)]] width: u32;
-            [[location(8)]] color: vec4<f32>;
+            @location(5) pos1: vec2<f32>,
+            @location(6) pos2: vec2<f32>,
+            @location(7) width: u32,
+            @location(8) color: vec4<f32>,
         };
         
         struct VertexOutput {
-            [[builtin(position)]] position: vec4<f32>;
-            [[location(0)]] color: vec4<f32>;
+            @builtin(position) position: vec4<f32>,
+            @location(0) color: vec4<f32>,
         };
 
-        [[group(0), binding(0)]]
+        @group(0) @binding(0)
         var<uniform> camera: CameraUniform;
 
-        [[group(1), binding(0)]]
+        @group(1) @binding(0)
         var<uniform> render_surface_size: RenderSurfaceSizeUniform;
 
-        [[stage(vertex)]]
-        fn main(
+        @vertex
+        fn vs_main(
             model: VertexInput,
             instance: InstanceInput,
         ) -> VertexOutput {
@@ -125,11 +123,11 @@ pub fn load_draw_line_shader(resource_container: ResourceContainer) -> FruityRes
 
             if (model.position.x == -0.5 && model.position.y == -0.5) {
                 out.position = camera.view_proj * vec4<f32>(instance.pos1, 0.0, 1.0) + vec4<f32>(scaled_normal, 0.0, 0.0);
-            } elseif (model.position.x == 0.5 && model.position.y == -0.5) {
+            } else if (model.position.x == 0.5 && model.position.y == -0.5) {
                 out.position = camera.view_proj * vec4<f32>(instance.pos1, 0.0, 1.0) - vec4<f32>(scaled_normal, 0.0, 0.0);
-            } elseif (model.position.x == 0.5 && model.position.y == 0.5) {
+            } else if (model.position.x == 0.5 && model.position.y == 0.5) {
                 out.position = camera.view_proj * vec4<f32>(instance.pos2, 0.0, 1.0) - vec4<f32>(scaled_normal, 0.0, 0.0);
-            } elseif (model.position.x == -0.5 && model.position.y == 0.5) {
+            } else if (model.position.x == -0.5 && model.position.y == 0.5) {
                 out.position = camera.view_proj * vec4<f32>(instance.pos2, 0.0, 1.0) + vec4<f32>(scaled_normal, 0.0, 0.0);
             } else {
                 out.position = camera.view_proj * vec4<f32>(model.position, 1.0);
@@ -138,8 +136,8 @@ pub fn load_draw_line_shader(resource_container: ResourceContainer) -> FruityRes
             return out;
         }
 
-        [[stage(fragment)]]
-        fn main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+        @fragment
+        fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             return in.color;
         }"
     .to_string();
@@ -229,49 +227,47 @@ pub fn load_draw_dotted_line_shader(resource_container: ResourceContainer) -> Fr
     let graphic_service = graphic_service.read();
 
     let code = "
-        [[block]]
         struct CameraUniform {
-            view_proj: mat4x4<f32>;
+            view_proj: mat4x4<f32>,
         };
         
-        [[block]]
         struct RenderSurfaceSizeUniform {
-            value: vec2<f32>;
+            value: vec2<f32>,
         };
         
         struct VertexInput {
-            [[location(0)]] position: vec3<f32>;
-            [[location(1)]] tex_coords: vec2<f32>;
-            [[location(2)]] normal: vec3<f32>;
+            @location(0) position: vec3<f32>,
+            @location(1) tex_coords: vec2<f32>,
+            @location(2) normal: vec3<f32>,
         };
         
         struct InstanceInput {
-            [[location(5)]] transform_0: vec4<f32>;
-            [[location(6)]] transform_1: vec4<f32>;
-            [[location(7)]] transform_2: vec4<f32>;
-            [[location(8)]] transform_3: vec4<f32>;
-            [[location(9)]] pos1: vec2<f32>;
-            [[location(10)]] pos2: vec2<f32>;
-            [[location(11)]] width: u32;
-            [[location(12)]] color: vec4<f32>;
+            @location(5) transform_0: vec4<f32>,
+            @location(6) transform_1: vec4<f32>,
+            @location(7) transform_2: vec4<f32>,
+            @location(8) transform_3: vec4<f32>,
+            @location(9) pos1: vec2<f32>,
+            @location(10) pos2: vec2<f32>,
+            @location(11) width: u32,
+            @location(12) color: vec4<f32>,
         };
         
         struct VertexOutput {
-            [[builtin(position)]] position: vec4<f32>;
-            [[location(0)]] color: vec4<f32>;
-            [[location(1)]] tex_coords: vec2<f32>;
-            [[location(2)]] xwidth: f32;
-            [[location(3)]] ywidth: f32;
+            @builtin(position) position: vec4<f32>,
+            @location(0) color: vec4<f32>,
+            @location(1) tex_coords: vec2<f32>,
+            @location(2) xwidth: f32,
+            @location(3) ywidth: f32,
         };
 
-        [[group(0), binding(0)]]
+        @group(0) @binding(0)
         var<uniform> camera: CameraUniform;
 
-        [[group(1), binding(0)]]
+        @group(1) @binding(0)
         var<uniform> render_surface_size: RenderSurfaceSizeUniform;
 
-        [[stage(vertex)]]
-        fn main(
+        @vertex
+        fn vs_main(
             model: VertexInput,
             instance: InstanceInput,
         ) -> VertexOutput {
@@ -296,11 +292,11 @@ pub fn load_draw_dotted_line_shader(resource_container: ResourceContainer) -> Fr
 
             if (model.position.x == -0.5 && model.position.y == -0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(instance.pos1, 0.0, 1.0) + vec4<f32>(scaled_normal, 0.0, 0.0);
-            } elseif (model.position.x == 0.5 && model.position.y == -0.5) {
+            } else if (model.position.x == 0.5 && model.position.y == -0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(instance.pos1, 0.0, 1.0) - vec4<f32>(scaled_normal, 0.0, 0.0);
-            } elseif (model.position.x == 0.5 && model.position.y == 0.5) {
+            } else if (model.position.x == 0.5 && model.position.y == 0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(instance.pos2, 0.0, 1.0) - vec4<f32>(scaled_normal, 0.0, 0.0);
-            } elseif (model.position.x == -0.5 && model.position.y == 0.5) {
+            } else if (model.position.x == -0.5 && model.position.y == 0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(instance.pos2, 0.0, 1.0) + vec4<f32>(scaled_normal, 0.0, 0.0);
             } else {
                 out.position = camera.view_proj * transform * vec4<f32>(model.position, 1.0);
@@ -309,8 +305,8 @@ pub fn load_draw_dotted_line_shader(resource_container: ResourceContainer) -> Fr
             return out;
         }
 
-        [[stage(fragment)]]
-        fn main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+        @fragment
+        fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let dotx = i32(floor(in.tex_coords.y / in.xwidth / 25.0));
 
             if(dotx % 2 == 0) {
@@ -428,56 +424,53 @@ pub fn load_draw_rect_shader(resource_container: ResourceContainer) -> FruityRes
     let graphic_service = graphic_service.read();
 
     let code = "
-        [[block]]
         struct CameraUniform {
-            view_proj: mat4x4<f32>;
+            view_proj: mat4x4<f32>,
         };
         
-        [[block]]
         struct RenderSurfaceSizeUniform {
-            value: vec2<f32>;
+            value: vec2<f32>,
         };
         
-        [[block]]
         struct ViewportSizeUniform {
-            value: vec2<f32>;
+            value: vec2<f32>,
         };
         
         struct VertexInput {
-            [[location(0)]] position: vec3<f32>;
-            [[location(1)]] tex_coords: vec2<f32>;
-            [[location(2)]] normal: vec3<f32>;
+            @location(0) position: vec3<f32>,
+            @location(1) tex_coords: vec2<f32>,
+            @location(2) normal: vec3<f32>,
         };
         
         struct InstanceInput {
-            [[location(5)]] transform_0: vec4<f32>;
-            [[location(6)]] transform_1: vec4<f32>;
-            [[location(7)]] transform_2: vec4<f32>;
-            [[location(8)]] transform_3: vec4<f32>;
-            [[location(9)]] bottom_left: vec2<f32>;
-            [[location(10)]] top_right: vec2<f32>;
-            [[location(11)]] width: u32;
-            [[location(12)]] fill_color: vec4<f32>;
-            [[location(13)]] border_color: vec4<f32>;
+            @location(5) transform_0: vec4<f32>,
+            @location(6) transform_1: vec4<f32>,
+            @location(7) transform_2: vec4<f32>,
+            @location(8) transform_3: vec4<f32>,
+            @location(9) bottom_left: vec2<f32>,
+            @location(10) top_right: vec2<f32>,
+            @location(11) width: u32,
+            @location(12) fill_color: vec4<f32>,
+            @location(13) border_color: vec4<f32>,
         };
         
         struct VertexOutput {
-            [[builtin(position)]] position: vec4<f32>;
-            [[location(0)]] border_color: vec4<f32>;
-            [[location(1)]] fill_color: vec4<f32>;
-            [[location(2)]] tex_coords: vec2<f32>;
-            [[location(3)]] xwidth: f32;
-            [[location(4)]] ywidth: f32;
+            @builtin(position) position: vec4<f32>,
+            @location(0) border_color: vec4<f32>,
+            @location(1) fill_color: vec4<f32>,
+            @location(2) tex_coords: vec2<f32>,
+            @location(3) xwidth: f32,
+            @location(4) ywidth: f32,
         };
 
-        [[group(0), binding(0)]]
+        @group(0) @binding(0)
         var<uniform> camera: CameraUniform;
 
-        [[group(1), binding(0)]]
+        @group(1) @binding(0)
         var<uniform> render_surface_size: RenderSurfaceSizeUniform;
 
-        [[stage(vertex)]]
-        fn main(
+        @vertex
+        fn vs_main(
             model: VertexInput,
             instance: InstanceInput,
         ) -> VertexOutput {
@@ -512,11 +505,11 @@ pub fn load_draw_rect_shader(resource_container: ResourceContainer) -> FruityRes
 
             if (model.position.x == -0.5 && model.position.y == -0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(instance.bottom_left.x, instance.bottom_left.y, 0.0, 1.0);
-            } elseif (model.position.x == 0.5 && model.position.y == -0.5) {
+            } else if (model.position.x == 0.5 && model.position.y == -0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(instance.top_right.x, instance.bottom_left.y, 0.0, 1.0);
-            } elseif (model.position.x == 0.5 && model.position.y == 0.5) {
+            } else if (model.position.x == 0.5 && model.position.y == 0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(instance.top_right.x, instance.top_right.y, 0.0, 1.0);
-            } elseif (model.position.x == -0.5 && model.position.y == 0.5) {
+            } else if (model.position.x == -0.5 && model.position.y == 0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(instance.bottom_left.x, instance.top_right.y, 0.0, 1.0);
             } else {
                 out.position = camera.view_proj * transform * vec4<f32>(model.position, 1.0);
@@ -525,8 +518,8 @@ pub fn load_draw_rect_shader(resource_container: ResourceContainer) -> FruityRes
             return out;
         }
 
-        [[stage(fragment)]]
-        fn main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+        @fragment
+        fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             if(
                 in.tex_coords.x < in.xwidth ||
                 in.tex_coords.x > (1.0 - in.xwidth) ||
@@ -654,55 +647,53 @@ pub fn load_draw_arc_shader(resource_container: ResourceContainer) -> FruityResu
     let graphic_service = graphic_service.read();
 
     let code = "
-        [[block]]
         struct CameraUniform {
-            view_proj: mat4x4<f32>;
+            view_proj: mat4x4<f32>,
         };
         
-        [[block]]
         struct RenderSurfaceSizeUniform {
-            value: vec2<f32>;
+            value: vec2<f32>,
         };
         
         struct VertexInput {
-            [[location(0)]] position: vec3<f32>;
-            [[location(1)]] tex_coords: vec2<f32>;
-            [[location(2)]] normal: vec3<f32>;
+            @location(0) position: vec3<f32>,
+            @location(1) tex_coords: vec2<f32>,
+            @location(2) normal: vec3<f32>,
         };
         
         struct InstanceInput {
-            [[location(5)]] transform_0: vec4<f32>;
-            [[location(6)]] transform_1: vec4<f32>;
-            [[location(7)]] transform_2: vec4<f32>;
-            [[location(8)]] transform_3: vec4<f32>;
-            [[location(9)]] center: vec2<f32>;
-            [[location(10)]] radius: f32;
-            [[location(11)]] fill_color: vec4<f32>;
-            [[location(12)]] border_color: vec4<f32>;
-            [[location(13)]] width: u32;
-            [[location(14)]] angle_start: f32;
-            [[location(15)]] angle_end: f32;
+            @location(5) transform_0: vec4<f32>,
+            @location(6) transform_1: vec4<f32>,
+            @location(7) transform_2: vec4<f32>,
+            @location(8) transform_3: vec4<f32>,
+            @location(9) center: vec2<f32>,
+            @location(10) radius: f32,
+            @location(11) fill_color: vec4<f32>,
+            @location(12) border_color: vec4<f32>,
+            @location(13) width: u32,
+            @location(14) angle_start: f32,
+            @location(15) angle_end: f32,
         };
         
         struct VertexOutput {
-            [[builtin(position)]] position: vec4<f32>;
-            [[location(0)]] border_color: vec4<f32>;
-            [[location(1)]] fill_color: vec4<f32>;
-            [[location(2)]] tex_coords: vec2<f32>;
-            [[location(3)]] xwidth: f32;
-            [[location(4)]] ywidth: f32;
-            [[location(5)]] angle_start: f32;
-            [[location(6)]] angle_end: f32;
+            @builtin(position) position: vec4<f32>,
+            @location(0) border_color: vec4<f32>,
+            @location(1) fill_color: vec4<f32>,
+            @location(2) tex_coords: vec2<f32>,
+            @location(3) xwidth: f32,
+            @location(4) ywidth: f32,
+            @location(5) angle_start: f32,
+            @location(6) angle_end: f32,
         };
 
-        [[group(0), binding(0)]]
+        @group(0) @binding(0)
         var<uniform> camera: CameraUniform;
 
-        [[group(1), binding(0)]]
+        @group(1) @binding(0)
         var<uniform> render_surface_size: RenderSurfaceSizeUniform;
 
-        [[stage(vertex)]]
-        fn main(
+        @vertex
+        fn vs_main(
             model: VertexInput,
             instance: InstanceInput,
         ) -> VertexOutput {
@@ -728,11 +719,11 @@ pub fn load_draw_arc_shader(resource_container: ResourceContainer) -> FruityResu
 
             if (model.position.x == -0.5 && model.position.y == -0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(bottom_left.x, bottom_left.y, 0.0, 1.0);
-            } elseif (model.position.x == 0.5 && model.position.y == -0.5) {
+            } else if (model.position.x == 0.5 && model.position.y == -0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(top_right.x, bottom_left.y, 0.0, 1.0);
-            } elseif (model.position.x == 0.5 && model.position.y == 0.5) {
+            } else if (model.position.x == 0.5 && model.position.y == 0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(top_right.x, top_right.y, 0.0, 1.0);
-            } elseif (model.position.x == -0.5 && model.position.y == 0.5) {
+            } else if (model.position.x == -0.5 && model.position.y == 0.5) {
                 out.position = camera.view_proj * transform * vec4<f32>(bottom_left.x, top_right.y, 0.0, 1.0);
             } else {
                 out.position = camera.view_proj * transform * vec4<f32>(model.position, 1.0);
@@ -741,8 +732,8 @@ pub fn load_draw_arc_shader(resource_container: ResourceContainer) -> FruityResu
             return out;
         }
 
-        [[stage(fragment)]]
-        fn main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+        @fragment
+        fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let circle_coords = 2.0 * (in.tex_coords - vec2<f32>(0.5, 0.5));
             let angle = atan2(-circle_coords.y, circle_coords.x);
             let border_radius = 1.0 - (abs(circle_coords.x) * in.xwidth + abs(circle_coords.y) * in.ywidth);

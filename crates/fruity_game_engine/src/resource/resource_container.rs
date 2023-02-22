@@ -58,11 +58,11 @@ impl ResourceContainer {
                 Some(resource) => match resource.downcast::<T>() {
                     Some(resource) => resource,
                     None => {
-                        panic!("Failed to get a required resource")
+                        panic!("Failed to get a required resource {}", &resource_name)
                     }
                 },
                 None => {
-                    panic!("Failed to get a required resource")
+                    panic!("Failed to get a required resource {}", &resource_name)
                 }
             },
             None => {
@@ -218,10 +218,14 @@ impl ResourceContainer {
     /// # Arguments
     /// * `settings` - The settings of resources
     ///
-    pub fn load_resources_settings(&self, settings: Vec<Settings>) {
-        settings.into_iter().for_each(|settings| {
-            Self::load_resource_settings(self, settings);
-        })
+    pub fn load_resources_settings(&self, settings: Settings) {
+        if let Settings::Object(settings) = settings {
+            if let Some(Settings::Array(resources_settings)) = settings.get("resources") {
+                resources_settings.into_iter().for_each(|settings| {
+                    Self::load_resource_settings(self, settings.clone());
+                })
+            }
+        }
     }
 
     /// Load resources for settings

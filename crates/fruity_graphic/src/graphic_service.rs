@@ -12,7 +12,6 @@ use crate::Vector2d;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
-use fruity_game_engine::script_value::impl_containers::ScriptValueHashMap;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
@@ -50,52 +49,47 @@ pub enum MaterialParam {
 impl TryIntoScriptValue for MaterialParam {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(match self {
-            MaterialParam::Uint(value) => {
-                ScriptValue::Object(Box::new(ScriptValueHashMap(hashmap! {
-                    "type".to_string() => "uint".to_string().into_script_value()?,
-                    "value".to_string() => value.into_script_value()?,
-                })))
+            MaterialParam::Uint(value) => hashmap! {
+                "type".to_string() => "uint".to_string().into_script_value()?,
+                "value".to_string() => value.into_script_value()?,
             }
-            MaterialParam::Int(value) => {
-                ScriptValue::Object(Box::new(ScriptValueHashMap(hashmap! {
-                    "type".to_string() => "int".to_string().into_script_value()?,
-                    "value".to_string() => value.into_script_value()?,
-                })))
+            .into_script_value()?,
+            MaterialParam::Int(value) => hashmap! {
+                "type".to_string() => "int".to_string().into_script_value()?,
+                "value".to_string() => value.into_script_value()?,
             }
-            MaterialParam::Float(value) => {
-                ScriptValue::Object(Box::new(ScriptValueHashMap(hashmap! {
-                    "type".to_string() => "float".to_string().into_script_value()?,
-                    "value".to_string() => value.into_script_value()?,
-                })))
+            .into_script_value()?,
+            MaterialParam::Float(value) => hashmap! {
+                "type".to_string() => "float".to_string().into_script_value()?,
+                "value".to_string() => value.into_script_value()?,
             }
-            MaterialParam::Vector2d(value) => {
-                ScriptValue::Object(Box::new(ScriptValueHashMap(hashmap! {
-                    "type".to_string() => "vector2d".to_string().into_script_value()?,
-                    "value".to_string() => value.into_script_value()?,
-                })))
+            .into_script_value()?,
+            MaterialParam::Vector2d(value) => hashmap! {
+                "type".to_string() => "vector2d".to_string().into_script_value()?,
+                "value".to_string() => value.into_script_value()?,
             }
-            MaterialParam::Color(value) => {
-                ScriptValue::Object(Box::new(ScriptValueHashMap(hashmap! {
-                    "type".to_string() => "color".to_string().into_script_value()?,
-                    "value".to_string() => value.into_script_value()?,
-                })))
+            .into_script_value()?,
+            MaterialParam::Color(value) => hashmap! {
+                "type".to_string() => "color".to_string().into_script_value()?,
+                "value".to_string() => value.into_script_value()?,
             }
+            .into_script_value()?,
             MaterialParam::Rect {
                 bottom_left,
                 top_right,
-            } => ScriptValue::Object(Box::new(ScriptValueHashMap(hashmap! {
+            } => hashmap! {
                 "type".to_string() => "rect".to_string().into_script_value()?,
-                "value".to_string() => ScriptValue::Object(Box::new(ScriptValueHashMap(hashmap! {
+                "value".to_string() => hashmap! {
                     "bottomLeft".to_string() => bottom_left.into_script_value()?,
                     "topRight".to_string() => top_right.into_script_value()?,
-                }))),
-            }))),
-            MaterialParam::Matrix4(value) => {
-                ScriptValue::Object(Box::new(ScriptValueHashMap(hashmap! {
-                    "type".to_string() => "matrix4".to_string().into_script_value()?,
-                    "value".to_string() => value.into_script_value()?,
-                })))
+                }.into_script_value()?,
             }
+            .into_script_value()?,
+            MaterialParam::Matrix4(value) => hashmap! {
+                "type".to_string() => "matrix4".to_string().into_script_value()?,
+                "value".to_string() => value.into_script_value()?,
+            }
+            .into_script_value()?,
         })
     }
 }

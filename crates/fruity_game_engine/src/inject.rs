@@ -52,20 +52,20 @@ pub trait Inject<R> {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync>;
 }
 
-impl<R: 'static> Inject<R> for &'static (dyn Fn() -> R + Sync + Send) {
+impl<R: 'static> Inject<R> for &'static (dyn Fn() -> R + Send + Sync) {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |_| self())
     }
 }
 
-impl<T1: Injectable, R: 'static> Inject<R> for &'static (dyn Fn(T1) -> R + Sync + Send) {
+impl<T1: Injectable, R: 'static> Inject<R> for &'static (dyn Fn(T1) -> R + Send + Sync) {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| self(T1::from_resource_container(&resource_container)))
     }
 }
 
 impl<T1: Injectable, T2: Injectable, R: 'static> Inject<R>
-    for &'static (dyn Fn(T1, T2) -> R + Sync + Send)
+    for &'static (dyn Fn(T1, T2) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -78,7 +78,7 @@ impl<T1: Injectable, T2: Injectable, R: 'static> Inject<R>
 }
 
 impl<T1: Injectable, T2: Injectable, T3: Injectable, R: 'static> Inject<R>
-    for &'static (dyn Fn(T1, T2, T3) -> R + Sync + Send)
+    for &'static (dyn Fn(T1, T2, T3) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -92,7 +92,7 @@ impl<T1: Injectable, T2: Injectable, T3: Injectable, R: 'static> Inject<R>
 }
 
 impl<T1: Injectable, T2: Injectable, T3: Injectable, T4: Injectable, R: 'static> Inject<R>
-    for &'static (dyn Fn(T1, T2, T3, T4) -> R + Sync + Send)
+    for &'static (dyn Fn(T1, T2, T3, T4) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -113,7 +113,7 @@ impl<
         T4: Injectable,
         T5: Injectable,
         R: 'static,
-    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5) -> R + Sync + Send)
+    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -136,7 +136,7 @@ impl<
         T5: Injectable,
         T6: Injectable,
         R: 'static,
-    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6) -> R + Sync + Send)
+    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -161,7 +161,7 @@ impl<
         T6: Injectable,
         T7: Injectable,
         R: 'static,
-    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7) -> R + Sync + Send)
+    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -188,7 +188,7 @@ impl<
         T7: Injectable,
         T8: Injectable,
         R: 'static,
-    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8) -> R + Sync + Send)
+    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -217,7 +217,7 @@ impl<
         T8: Injectable,
         T9: Injectable,
         R: 'static,
-    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9) -> R + Sync + Send)
+    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -248,7 +248,7 @@ impl<
         T9: Injectable,
         T10: Injectable,
         R: 'static,
-    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) -> R + Sync + Send)
+    > Inject<R> for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -282,7 +282,7 @@ impl<
         T11: Injectable,
         R: 'static,
     > Inject<R>
-    for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11) -> R + Sync + Send)
+    for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -318,7 +318,7 @@ impl<
         T12: Injectable,
         R: 'static,
     > Inject<R>
-    for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12) -> R + Sync + Send)
+    for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {
@@ -356,7 +356,7 @@ impl<
         T13: Injectable,
         R: 'static,
     > Inject<R>
-    for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) -> R + Sync + Send)
+    for &'static (dyn Fn(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) -> R + Send + Sync)
 {
     fn inject(self) -> Box<dyn Fn(ResourceContainer) -> R + Send + Sync> {
         Box::new(move |resource_container| {

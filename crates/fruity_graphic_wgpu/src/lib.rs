@@ -15,7 +15,7 @@ pub mod wgpu_bridge;
 #[export_function]
 pub fn create_fruity_graphic_wgpu_module() -> Module {
     Module {
-        name: "fruity_graphic_wgpu".to_string(),
+        name: "fruity_graphic_platform".to_string(),
         dependencies: vec!["fruity_ecs".to_string(), "fruity_windows".to_string()],
         setup: Some(Rc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
@@ -27,5 +27,6 @@ pub fn create_fruity_graphic_wgpu_module() -> Module {
             Ok(())
         })),
         load_resources: None,
+        run_middleware: None,
     }
 }

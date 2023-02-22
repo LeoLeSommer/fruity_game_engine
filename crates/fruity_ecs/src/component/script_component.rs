@@ -5,15 +5,20 @@ use crate::entity::archetype::{
 use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
-    javascript::JsIntrospectObject,
-    script_value::ScriptValue,
+    script_value::{ScriptObject, ScriptValue},
     send_wrapper::SendWrapper,
     FruityResult,
 };
 
 /// Provide a component that contains a script value
-#[derive(FruityAny, Debug, Clone)]
-pub struct ScriptComponent(pub SendWrapper<JsIntrospectObject>);
+#[derive(FruityAny, Debug)]
+pub struct ScriptComponent(SendWrapper<Box<dyn ScriptObject>>);
+
+impl From<Box<dyn ScriptObject>> for ScriptComponent {
+    fn from(value: Box<dyn ScriptObject>) -> Self {
+        ScriptComponent(SendWrapper::new(value))
+    }
+}
 
 //#[typegen = "type ScriptComponent = unknown"]
 impl IntrospectFields for ScriptComponent {
@@ -58,6 +63,8 @@ impl Component for ScriptComponent {
     }
 
     fn duplicate(&self) -> Box<dyn Component> {
-        Box::new(self.clone())
+        Box::new(ScriptComponent(SendWrapper::new(
+            self.0.duplicate().unwrap(),
+        )))
     }
 }

@@ -1,6 +1,6 @@
 use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::settings::Settings;
-use crate::world::World;
+use crate::world::{RunMiddleware, World};
 use crate::FruityResult;
 use std::rc::Rc;
 
@@ -21,4 +21,7 @@ pub struct Module {
 
     /// A function that initialize the module resources
     pub load_resources: Option<Rc<dyn Fn(World, Settings) -> FruityResult<()>>>,
+
+    /// A middleware that occurs when the world runs
+    pub run_middleware: Option<RunMiddleware>,
 }

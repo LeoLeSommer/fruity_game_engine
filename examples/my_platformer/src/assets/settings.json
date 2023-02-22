@@ -15,24 +15,24 @@
   },
   "resources": [
     {
-      "name": "./assets/platform.png",
-      "path": "./assets/platform.png",
+      "name": "./src/assets/platform.png",
+      "path": "./src/assets/platform.png",
       "type": "texture"
     },
     {
-      "name": "./assets/ball.png",
-      "path": "./assets/ball.png",
+      "name": "./src/assets/ball.png",
+      "path": "./src/assets/ball.png",
       "type": "texture"
     },
     {
-      "name": "./assets/character.png",
-      "path": "./assets/character.png",
+      "name": "./src/assets/character.png",
+      "path": "./src/assets/character.png",
       "type": "texture"
     },
     {
-      "name": "./assets/shader.wgsl",
-      "path": "./assets/shader.wgsl",
-      "binding_groups": [
+      "name": "./src/assets/shader.wgsl",
+      "path": "./src/assets/shader.wgsl",
+      "bindingGroups": [
         [
           {
             "visibility": "fragment",
@@ -50,7 +50,7 @@
           }
         ]
       ],
-      "instance_attributes": [
+      "instanceAttributes": [
         {
           "location": 5,
           "type": "vec4"
@@ -70,16 +70,16 @@
       ]
     },
     {
-      "name": "./assets/character.material",
-      "path": "./assets/character.material"
+      "name": "./src/assets/character.material",
+      "path": "./src/assets/character.material"
     },
     {
-      "name": "./assets/material.material",
-      "path": "./assets/material.material"
+      "name": "./src/assets/material.material",
+      "path": "./src/assets/material.material"
     },
     {
-      "name": "./assets/platform.material",
-      "path": "./assets/platform.material"
+      "name": "./src/assets/platform.material",
+      "path": "./src/assets/platform.material"
     }
   ]
 }

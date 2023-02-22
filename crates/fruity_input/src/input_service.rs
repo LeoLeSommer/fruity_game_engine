@@ -76,19 +76,24 @@ impl InputService {
         }
     }
 
-    pub fn read_input_settings(&mut self, settings: &Settings) {
+    pub fn read_input_settings(&mut self, settings: &Settings) -> FruityResult<()> {
+        println!("1: {:?}", &settings);
         let settings = settings.get_settings("input");
-        if let Settings::Object(input_map) = settings {
-            input_map.iter().for_each(|(input, sources)| {
-                let sources = Vec::<String>::try_from(sources.clone());
+        println!("2: {:?}", &settings);
 
-                if let Ok(sources) = sources {
-                    sources
-                        .into_iter()
-                        .for_each(|source| self.register_input(input.clone(), source));
-                }
-            })
+        if let Settings::Object(input_map) = settings {
+            println!("3: {:?}", &input_map);
+            input_map.iter().try_for_each(|(input, sources)| {
+                let sources = Vec::<String>::try_from(sources.clone())?;
+                sources
+                    .into_iter()
+                    .for_each(|source| self.register_input(input.clone(), source));
+
+                Ok(())
+            })?;
         }
+
+        Ok(())
     }
 
     #[export]
@@ -154,6 +159,7 @@ impl InputService {
                 self.pressed_inputs.insert(input.clone());
                 self.pressed_this_frame_inputs.insert(input.to_string());
                 self.on_pressed.notify(input.clone())?;
+                println!("test: {}", &input);
             }
         }
 

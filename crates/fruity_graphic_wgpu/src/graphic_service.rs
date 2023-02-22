@@ -224,15 +224,22 @@ impl WgpuGraphicService {
             // Base configuration for the surface
             let size = window.inner_size();
 
-            let swapchain_capabilities = surface.get_capabilities(&adapter);
-            let swapchain_format = swapchain_capabilities.formats[0];
+            let surface_caps = surface.get_capabilities(&adapter);
+            let surface_format = surface_caps
+                .formats
+                .iter()
+                .copied()
+                .filter(|f| f.describe().srgb)
+                .next()
+                .unwrap_or(surface_caps.formats[0]);
+
             let config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                format: swapchain_format,
+                format: surface_format,
                 width: size.width,
                 height: size.height,
-                present_mode: wgpu::PresentMode::Mailbox,
-                alpha_mode: wgpu::CompositeAlphaMode::Auto,
+                present_mode: surface_caps.present_modes[0],
+                alpha_mode: surface_caps.alpha_modes[0],
                 view_formats: vec![],
             };
 
@@ -272,14 +279,14 @@ impl WgpuGraphicService {
             }
         };
 
-        #[cfg(feature = "wasm-module")]
+        #[cfg(not(feature = "multi-threaded"))]
         let result = Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap()
             .block_on(future);
 
-        #[cfg(not(feature = "wasm-module"))]
+        #[cfg(feature = "multi-threaded")]
         let result = Builder::new_multi_thread()
             .enable_all()
             .build()

@@ -48,11 +48,17 @@ pub fn gen_js(args: GenJsArgs) {
 
     // Generate the js file
     let mut file = File::create(args.output).unwrap();
-    file.write_all(b"import bundle from \"fruity_native_bundle\";\n")
+    file.write_all(b"import { getBundle } from \"fruity_game_engine\";\n")
         .unwrap();
     file.write_all(b"\n").unwrap();
     exported_names.into_iter().for_each(|name| {
-        file.write_all(format!("export const {} = bundle.{}\n", &name, &name).as_bytes())
-            .unwrap();
+        file.write_all(
+            format!(
+                "export function {}(...args) {{\n  return getBundle().{}(...args)\n}}\n",
+                &name, &name
+            )
+            .as_bytes(),
+        )
+        .unwrap();
     });
 }

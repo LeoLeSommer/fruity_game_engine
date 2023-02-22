@@ -53,5 +53,6 @@ pub fn create_fruity_graphic_module() -> Module {
             Ok(())
         })),
         load_resources: None,
+        run_middleware: None,
     }
 }

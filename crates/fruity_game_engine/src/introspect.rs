@@ -10,6 +10,7 @@ use crate::script_value::ScriptValue;
 use crate::FruityResult;
 use crate::RwLock;
 use parking_lot::RwLockUpgradableReadGuard;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::ops::DerefMut;
@@ -28,6 +29,19 @@ pub trait IntrospectFields: Debug + FruityAny {
 
     /// Return the class type name
     fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue>;
+}
+
+impl dyn IntrospectFields {
+    /// Get all field values as an hasmap of ScriptValue
+    pub fn get_field_values(&self) -> FruityResult<HashMap<String, ScriptValue>> {
+        self.get_field_names()?
+            .into_iter()
+            .map(|field_name| {
+                self.get_field_value(&field_name)
+                    .map(|field_value| (field_name, field_value))
+            })
+            .try_collect::<HashMap<_, _>>()
+    }
 }
 
 /// Trait to implement methods introspection on a type

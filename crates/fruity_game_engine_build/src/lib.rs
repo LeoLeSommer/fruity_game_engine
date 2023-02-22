@@ -7,16 +7,16 @@ mod syn_inline_mod;
 
 pub struct FruityBuildArgs {
     pub input: String,
-    pub js_file: String,
-    pub ts_file: String,
+    pub js_file: Option<String>,
+    pub ts_file: Option<String>,
 }
 
 impl Default for FruityBuildArgs {
     fn default() -> Self {
         Self {
             input: "src/lib.rs".to_string(),
-            js_file: "index.js".to_string(),
-            ts_file: "index.d.ts".to_string(),
+            js_file: Some("index.js".to_string()),
+            ts_file: Some("index.d.ts".to_string()),
         }
     }
 }
@@ -33,12 +33,17 @@ pub fn fruity_build_with_args(args: FruityBuildArgs) {
         .exec()
         .unwrap();
 
-    gen_js::gen_js(GenJsArgs {
-        input: args.input.clone(),
-        output: args.js_file.clone(),
-    });
-    gen_ts::gen_ts(GenTsArgs {
-        input: args.input.clone(),
-        output: args.ts_file.clone(),
-    });
+    if let Some(js_file) = &args.js_file {
+        gen_js::gen_js(GenJsArgs {
+            input: args.input.clone(),
+            output: js_file.clone(),
+        });
+    }
+
+    if let Some(ts_file) = &args.ts_file {
+        gen_ts::gen_ts(GenTsArgs {
+            input: args.input.clone(),
+            output: ts_file.clone(),
+        });
+    }
 }

@@ -4,6 +4,7 @@ import {
 } from "fruity_game_engine"
 
 export interface DragService {
+
 }
 
 export interface InputService {

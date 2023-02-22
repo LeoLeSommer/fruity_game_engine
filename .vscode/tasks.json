@@ -3,7 +3,7 @@
     {
       "label": "Build napi my_platformer",
       "command": "npm",
-      "args": ["run", "build"],
+      "args": ["run", "napi-build"],
       "options": {
         "cwd": "${workspaceFolder}/examples/my_platformer"
       }
@@ -11,7 +11,7 @@
     {
       "label": "Build wasm my_platformer",
       "command": "npm",
-      "args": ["run", "build"],
+      "args": ["run", "wasm-build"],
       "options": {
         "cwd": "${workspaceFolder}/examples/my_platformer"
       }

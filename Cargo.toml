@@ -14,7 +14,6 @@ members = [
   "./crates/fruity_hierarchy_2d",
   "./crates/fruity_input",
   "./crates/fruity_input_winit",
-  "./crates/fruity_native_bundle",
   "./crates/fruity_physic_2d",
   "./crates/fruity_physic_parry_2d",
   "./crates/fruity_windows",

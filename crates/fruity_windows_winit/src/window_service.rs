@@ -9,6 +9,12 @@ use winit::dpi::LogicalSize;
 use winit::event::Event;
 use winit::window::Window;
 
+#[cfg(not(feature = "multi-threaded"))]
+unsafe impl Sync for WinitWindowService {}
+
+#[cfg(not(feature = "multi-threaded"))]
+unsafe impl Send for WinitWindowService {}
+
 #[derive(FruityAny, Resource)]
 #[export_struct]
 pub struct WinitWindowService {

@@ -1,11 +1,11 @@
 [
   {
-    "entity_id": 1,
+    "entityId": 1,
     "name": "Player",
     "enabled": true,
     "components": [
       {
-        "class_name": "Translate2d",
+        "className": "Translate2d",
         "fields": {
           "vec": {
             "y": 2,
@@ -14,13 +14,13 @@
         }
       },
       {
-        "class_name": "Rotate2d",
+        "className": "Rotate2d",
         "fields": {
           "angle": 0.14
         }
       },
       {
-        "class_name": "Scale2d",
+        "className": "Scale2d",
         "fields": {
           "vec": {
             "y": 2.5,
@@ -29,60 +29,58 @@
         }
       },
       {
-        "class_name": "Sprite",
+        "className": "Sprite",
         "fields": {
-          "z_index": 0,
+          "zIndex": 0,
           "texture": null,
-          "material": {
-            "resource_name": "./examples/test/character.material"
-          }
+          "material": "./src/assets/character.material"
         }
       },
       {
-        "class_name": "Move",
+        "className": "Move",
         "fields": {
           "velocity": 1.6
         }
       },
       {
-        "class_name": "Transform2d",
+        "className": "Transform2d",
         "fields": {
           "transform": {}
         }
       },
       {
-        "class_name": "RectCollider",
+        "className": "RectCollider",
         "fields": {
-          "bottom_left": {
+          "bottomLeft": {
             "x": -0.275,
             "y": -0.375
           },
-          "top_right": {
+          "topRight": {
             "x": 0.235,
             "y": 0.45
           }
         }
       },
       {
-        "class_name": "RigidBody",
+        "className": "RigidBody",
         "fields": {}
       }
     ]
   },
   {
-    "entity_id": 3,
+    "entityId": 3,
     "name": "Image 1",
     "enabled": true,
     "components": [
       {
-        "class_name": "Parent",
+        "className": "Parent",
         "fields": {
-          "nested_level": 1,
-          "parent_id": 1
+          "nestedLevel": 1,
+          "parentId": 1
         }
       },
       {
-        "class_name": "Translate2d",
+        "className": "Translate2d",
         "fields": {
           "vec": {
             "y": 0.32,
@@ -91,7 +89,7 @@
         }
       },
       {
-        "class_name": "Scale2d",
+        "className": "Scale2d",
         "fields": {
           "vec": {
             "x": 0.5,
@@ -100,17 +98,15 @@
         }
       },
       {
-        "class_name": "Sprite",
+        "className": "Sprite",
         "fields": {
-          "z_index": 1,
-          "material": {
-            "resource_name": "./examples/test/material.material"
-          },
+          "zIndex": 1,
+          "material": "./src/assets/material.material",
           "texture": null
         }
       },
       {
-        "class_name": "TestVec",
+        "className": "TestVec",
         "fields": {
           "scale": {
             "y": 0.5,
@@ -119,13 +115,13 @@
         }
       },
       {
-        "class_name": "Transform2d",
+        "className": "Transform2d",
         "fields": {
           "transform": {}
         }
       },
       {
-        "class_name": "CircleCollider",
+        "className": "CircleCollider",
         "fields": {
           "radius": 0.5,
           "center": {
@@ -135,7 +131,7 @@
         }
       },
       {
-        "class_name": "CircleCollider",
+        "className": "CircleCollider",
         "fields": {
           "radius": 0.3,
           "center": {
@@ -147,32 +143,32 @@
     ]
   },
   {
-    "entity_id": 5,
+    "entityId": 5,
     "name": "Image 2",
     "enabled": true,
     "components": [
       {
-        "class_name": "Parent",
+        "className": "Parent",
         "fields": {
-          "parent_id": 3,
-          "nested_level": 2
+          "parentId": 3,
+          "nestedLevel": 2
         }
       },
       {
-        "class_name": "RectCollider",
+        "className": "RectCollider",
         "fields": {
-          "bottom_left": {
+          "bottomLeft": {
             "y": -0.5,
             "x": -0.5
           },
-          "top_right": {
+          "topRight": {
             "y": 0.5,
             "x": 0.5
           }
         }
       },
       {
-        "class_name": "Translate2d",
+        "className": "Translate2d",
         "fields": {
           "vec": {
             "x": -0.15,
@@ -181,7 +177,7 @@
         }
       },
       {
-        "class_name": "Scale2d",
+        "className": "Scale2d",
         "fields": {
           "vec": {
             "y": 0.5,
@@ -190,17 +186,15 @@
         }
       },
       {
-        "class_name": "Sprite",
+        "className": "Sprite",
         "fields": {
-          "material": {
-            "resource_name": "./examples/test/material.material"
-          },
+          "material": "./src/assets/material.material",
           "texture": null,
-          "z_index": 2
+          "zIndex": 2
         }
       },
       {
-        "class_name": "Transform2d",
+        "className": "Transform2d",
         "fields": {
           "transform": {}
         }
@@ -208,32 +202,32 @@
     ]
   },
   {
-    "entity_id": 8,
+    "entityId": 8,
     "name": "Image 3",
     "enabled": true,
     "components": [
       {
-        "class_name": "Parent",
+        "className": "Parent",
         "fields": {
-          "parent_id": 3,
-          "nested_level": 2
+          "parentId": 3,
+          "nestedLevel": 2
         }
       },
       {
-        "class_name": "RectCollider",
+        "className": "RectCollider",
         "fields": {
-          "bottom_left": {
+          "bottomLeft": {
             "y": -0.5,
             "x": -0.5
           },
-          "top_right": {
+          "topRight": {
             "y": 0.5,
             "x": 0.5
           }
         }
       },
       {
-        "class_name": "Translate2d",
+        "className": "Translate2d",
         "fields": {
           "vec": {
             "x": 0.15,
@@ -242,7 +236,7 @@
         }
       },
       {
-        "class_name": "Scale2d",
+        "className": "Scale2d",
         "fields": {
           "vec": {
             "y": 0.5,
@@ -251,17 +245,15 @@
         }
       },
       {
-        "class_name": "Sprite",
+        "className": "Sprite",
         "fields": {
-          "material": {
-            "resource_name": "./examples/test/material.material"
-          },
+          "material": "./src/assets/material.material",
           "texture": null,
-          "z_index": 2
+          "zIndex": 2
         }
       },
       {
-        "class_name": "Transform2d",
+        "className": "Transform2d",
         "fields": {
           "transform": {}
         }
@@ -269,12 +261,12 @@
     ]
   },
   {
-    "entity_id": 7,
+    "entityId": 7,
     "name": "Camera",
     "enabled": true,
     "components": [
       {
-        "class_name": "Translate2d",
+        "className": "Translate2d",
         "fields": {
           "vec": {
             "y": 0,
@@ -283,20 +275,20 @@
         }
       },
       {
-        "class_name": "Scale2d",
+        "className": "Scale2d",
         "fields": {
           "vec": {
-            "x": 3,
-            "y": 2
+            "x": 64,
+            "y": 12
           }
         }
       },
       {
-        "class_name": "Camera",
+        "className": "Camera",
         "fields": {
           "far": 1,
           "near": -1,
-          "background_color": {
+          "backgroundColor": {
             "r": 0.07,
             "g": 0.09,
             "b": 0.09,
@@ -305,7 +297,7 @@
         }
       },
       {
-        "class_name": "Transform2d",
+        "className": "Transform2d",
         "fields": {
           "transform": {}
         }
@@ -313,12 +305,12 @@
     ]
   },
   {
-    "entity_id": 10,
+    "entityId": 10,
     "name": "Ground",
     "enabled": true,
     "components": [
       {
-        "class_name": "Translate2d",
+        "className": "Translate2d",
         "fields": {
           "vec": {
             "y": -4,
@@ -327,7 +319,7 @@
         }
       },
       {
-        "class_name": "Scale2d",
+        "className": "Scale2d",
         "fields": {
           "vec": {
             "x": 24,
@@ -336,29 +328,27 @@
         }
       },
       {
-        "class_name": "Sprite",
+        "className": "Sprite",
         "fields": {
-          "z_index": 0,
+          "zIndex": 0,
           "texture": null,
-          "material": {
-            "resource_name": "./examples/test/platform.material"
-          }
+          "material": "./src/assets/platform.material"
         }
       },
       {
-        "class_name": "Transform2d",
+        "className": "Transform2d",
         "fields": {
           "transform": {}
         }
       },
       {
-        "class_name": "RectCollider",
+        "className": "RectCollider",
         "fields": {
-          "bottom_left": {
+          "bottomLeft": {
             "y": -0.5,
             "x": -0.5
           },
-          "top_right": {
+          "topRight": {
             "y": 0.5,
             "x": 0.5
           }

@@ -14,5 +14,6 @@ pub fn create_fruity_windows_module() -> Module {
         dependencies: vec![],
         setup: Some(Rc::new(|_world, _settings| Ok(()))),
         load_resources: None,
+        run_middleware: None,
     }
 }

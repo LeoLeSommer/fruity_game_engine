@@ -1,3 +1,5 @@
-import bundle from "fruity_native_bundle";
+import { getBundle } from "fruity_game_engine";
 
-export const createFruityGraphicWgpuModule = bundle.createFruityGraphicWgpuModule
+export function createFruityGraphicWgpuModule(...args) {
+  return getBundle().createFruityGraphicWgpuModule(...args)
+}

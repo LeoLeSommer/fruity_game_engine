@@ -16,6 +16,7 @@ export interface EntityProperties {
 }
 
 export interface EntityReference {
+
   getEntityId(): EntityId
   getName(): string
   isEnabled(): boolean
@@ -37,6 +38,7 @@ export interface EntityService {
 }
 
 export interface ExtensionComponentService {
+
 }
 
 export interface ScriptQuery<Args extends any[] = []> {
@@ -52,11 +54,6 @@ export interface ScriptQuery<Args extends any[] = []> {
   onCreated(callback: ScriptCallback): ObserverHandler;
 }
 export interface SerializedAnyComponent {
-  className: string
-  fields: {[key: string]: ScriptValue}
-}
-
-export interface SerializedAnyEntityComponent {
   className: string
   fields: {[key: string]: ScriptValue}
 }
@@ -78,6 +75,7 @@ export interface SystemParams {
 }
 
 export interface SystemService {
+
   addSystem(identifier: string, callback: ScriptCallback, params?: SystemParams | null | undefined)
   addStartupSystem(identifier: string, callback: ScriptCallback, params?: StartupSystemParams | null | undefined)
   isPaused(): boolean

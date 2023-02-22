@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+fruity_game_engine_code_parser = { path = "../fruity_game_engine_code_parser" }
 syn = { version = "1.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"

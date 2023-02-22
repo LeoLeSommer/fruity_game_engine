@@ -11,6 +11,9 @@
     "triples": {}
   },
   "license": "MIT",
+  "dependencies": {
+    "fruity_game_engine": "file:../../../crates/fruity_game_engine"
+  },
   "devDependencies": {
     "@wasm-tool/wasm-pack-plugin": "1.5.0",
     "@napi-rs/cli": "^2.14.7",
@@ -32,6 +35,5 @@
     "napi-universal": "napi universal",
     "napi-version": "napi version",
     "wasm-build": "webpack"
-  },
-  "packageManager": "yarn@3.4.1"
+  }
 }

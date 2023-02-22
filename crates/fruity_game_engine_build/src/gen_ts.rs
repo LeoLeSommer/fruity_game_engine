@@ -1,6 +1,7 @@
 use convert_case::{Case, Casing};
 use fruity_game_engine_code_parser::{
-    parse_fruity_exports, FruityExport, FruityExportArg, FruityExportClassFieldName,
+    parse_fruity_exports, FruityExport, FruityExportArg, FruityExportClassField,
+    FruityExportClassFieldName,
 };
 use std::io::Write;
 use std::{fs::File, path::Path};
@@ -109,30 +110,8 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
                 let mut member_exports = Vec::<String>::new();
 
                 // Generate field exports
-                class
-                    .fields
-                    .iter()
-                    .filter(|field| field.public)
-                    .for_each(|field| {
-                        let field_type = rust_type_to_ts_type(&field.ty, true, &class_name);
-
-                        match &field.name {
-                            FruityExportClassFieldName::Named(name) => {
-                                member_exports.push(format!(
-                                    "{}: {}",
-                                    &name.to_string().to_case(Case::Camel),
-                                    field_type
-                                ));
-                            }
-                            FruityExportClassFieldName::Unnamed(name) => {
-                                member_exports.push(format!(
-                                    "{}: {}",
-                                    &name.to_string(),
-                                    field_type
-                                ));
-                            }
-                        }
-                    });
+                let fields_str = generate_fields_str(&class.fields, &class_name);
+                exports.push(fields_str);
 
                 // Generate constructor exports
                 if let Some(constructor) = class.constructor {
@@ -207,6 +186,47 @@ fn generate_args_str(args: &Vec<FruityExportArg>, self_ident: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+fn generate_fields_str(fields: &Vec<FruityExportClassField>, self_ident: &str) -> String {
+    fields
+        .iter()
+        .filter(|field| field.public)
+        .map(|field| {
+            let is_optional = is_rust_type_optional(&field.ty);
+            let field_type = rust_type_to_ts_type(&field.ty, true, self_ident);
+
+            if is_optional {
+                match &field.name {
+                    FruityExportClassFieldName::Named(name) => {
+                        format!(
+                            "  {}?: {}",
+                            &name.to_string().to_case(Case::Camel),
+                            field_type
+                        )
+                    }
+                    FruityExportClassFieldName::Unnamed(name) => {
+                        format!("  {}?: {}", &name.to_string(), field_type)
+                    }
+                }
+            } else {
+                match &field.name {
+                    FruityExportClassFieldName::Named(name) => {
+                        format!(
+                            "  {}: {}",
+                            &name.to_string().to_case(Case::Camel),
+                            field_type
+                        )
+                    }
+                    FruityExportClassFieldName::Unnamed(name) => {
+                        format!("  {}: {}", &name.to_string(), field_type)
+                    }
+                }
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
 }
 
 /// arg_or_return_type should be true if arg

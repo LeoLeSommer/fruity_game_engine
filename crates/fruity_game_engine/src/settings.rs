@@ -9,8 +9,6 @@ use crate::FruityError;
 use crate::FruityResult;
 use std::collections::HashMap;
 use std::io::Read;
-use yaml_rust::Yaml;
-use yaml_rust::YamlLoader;
 
 /// Settings collection
 #[typescript(
@@ -83,65 +81,6 @@ impl Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings::Null
-    }
-}
-
-/// Build a Settings by reading a yaml document
-pub fn read_settings(reader: &mut dyn Read, path: &str) -> FruityResult<Settings> {
-    // Open the file
-    let mut buffer = String::new();
-    reader
-        .read_to_string(&mut buffer)
-        .map_err(|_| FruityError::GenericFailure(format!("File couldn't be read: {:?}", path)))?;
-
-    // Parse the yaml
-    let docs = YamlLoader::load_from_str(&buffer)
-        .map_err(|_| FruityError::GenericFailure(format!("Incorrect Yaml file: {:?}", path)))?;
-
-    let root = &docs[0];
-
-    // Build the setting object
-    Ok(if let Some(settings) = build_settings_from_yaml(root) {
-        settings
-    } else {
-        Settings::Object(HashMap::new())
-    })
-}
-
-/// Build a Settings by reading a yaml document
-pub fn build_settings_from_yaml(yaml: &Yaml) -> Option<Settings> {
-    match yaml {
-        Yaml::Real(string) => match string.parse::<f64>() {
-            Ok(value) => Some(Settings::F64(value)),
-            Err(_) => None,
-        },
-        Yaml::Integer(value) => Some(Settings::F64(*value as f64)),
-        Yaml::String(value) => Some(Settings::String(value.clone())),
-        Yaml::Boolean(value) => Some(Settings::Bool(*value)),
-        Yaml::Array(array) => {
-            let settings_array = array
-                .iter()
-                .filter_map(|elem| build_settings_from_yaml(elem))
-                .collect::<Vec<_>>();
-
-            Some(Settings::Array(settings_array))
-        }
-        Yaml::Hash(hashmap) => {
-            let mut fields = HashMap::new();
-
-            for (key, value) in hashmap {
-                if let Yaml::String(key) = key {
-                    if let Some(settings) = build_settings_from_yaml(value) {
-                        fields.insert(key.clone(), settings);
-                    }
-                }
-            }
-
-            Some(Settings::Object(fields))
-        }
-        Yaml::Alias(_) => None,
-        Yaml::Null => None,
-        Yaml::BadValue => None,
     }
 }
 

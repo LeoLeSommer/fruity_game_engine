@@ -33,6 +33,7 @@ export interface WgpuGraphicService {
 }
 
 export interface WgpuMaterialResource {
+
   getShader(): ResourceReference<ShaderResource> | null
 }
 
@@ -45,6 +46,7 @@ export interface WgpuShaderResource {
 }
 
 export interface WgpuTextureResource {
+
   getSize(): [number, number]
 }
 

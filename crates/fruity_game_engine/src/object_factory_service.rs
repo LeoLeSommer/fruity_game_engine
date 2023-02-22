@@ -12,12 +12,16 @@ pub use fruity_game_engine_macro::ObjectFactory;
 /// Trait to implement a generic constructor from a ScriptValue
 pub trait ObjectFactory {
     /// Get a constructor to instantiate an object
-    fn get_factory() -> Constructor;
+    fn get_factory() -> Factory;
 }
 
 /// A setter caller
-pub type Constructor = Arc<
-    dyn Fn(ResourceContainer, HashMap<String, ScriptValue>) -> FruityResult<ScriptValue>
+pub type Factory = Arc<
+    dyn Fn(
+            &ObjectFactoryService,
+            ResourceContainer,
+            HashMap<String, ScriptValue>,
+        ) -> FruityResult<ScriptValue>
         + Send
         + Sync,
 >;
@@ -28,7 +32,7 @@ pub type Constructor = Arc<
 #[export_struct]
 pub struct ObjectFactoryService {
     resource_container: ResourceContainer,
-    factories: HashMap<String, Constructor>,
+    factories: HashMap<String, Factory>,
 }
 
 #[export_impl]
@@ -66,7 +70,11 @@ impl ObjectFactoryService {
     pub fn register_func(
         &mut self,
         object_type: &str,
-        constructor: impl Fn(ResourceContainer, HashMap<String, ScriptValue>) -> FruityResult<ScriptValue>
+        constructor: impl Fn(
+                &ObjectFactoryService,
+                ResourceContainer,
+                HashMap<String, ScriptValue>,
+            ) -> FruityResult<ScriptValue>
             + Send
             + Sync
             + 'static,
@@ -86,14 +94,15 @@ impl ObjectFactoryService {
         &self,
         object_type: String,
         fields: HashMap<String, ScriptValue>,
-    ) -> Option<ScriptValue> {
-        let factory = self.factories.get(&object_type)?;
-        let instantied = factory(self.resource_container.clone(), fields).ok()?;
-        Some(instantied)
+    ) -> FruityResult<Option<ScriptValue>> {
+        Ok(match self.factories.get(&object_type) {
+            Some(factory) => Some(factory(&self, self.resource_container.clone(), fields)?),
+            None => None,
+        })
     }
 
     /// Iterate over all object factories
-    pub fn iter(&self) -> impl Iterator<Item = (&String, &Constructor)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Factory)> {
         self.factories.iter()
     }
 }

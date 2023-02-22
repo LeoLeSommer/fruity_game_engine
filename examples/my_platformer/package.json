@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "build": "cd fruity_native_bundle && npm install && npm run napi-build && npm run wasm-build && cd ../ && tsc",
+    "napi-build": "cd fruity_native_bundle && npm install && npm run napi-build:debug && cd ../ && tsc",
+    "wasm-build": "cd fruity_native_bundle && npm install && npm run wasm-build && cd ../ && tsc",
     "start": "cd fruity_native_bundle && npm install && npm run napi-build:debug && cd ../ && tsc && node dist/src/index.js",
     "serve": "cd fruity_native_bundle && npm install && npm run wasm-build && cd ../ && tsc && webpack serve"
   },
@@ -78,6 +80,5 @@
     "fruity_windows_winit": {
       "fruity_native_bundle": "$fruity_native_bundle"
     }
-  },
-  "packageManager": "yarn@3.4.1"
+  }
 }
