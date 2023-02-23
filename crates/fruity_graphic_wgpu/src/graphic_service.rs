@@ -666,54 +666,54 @@ impl WgpuGraphicService {
                         top_right,
                     } => {
                         if let InstanceField::Rect {
-                            vec0_location,
-                            vec1_location,
+                            location_0,
+                            location_1,
                         } = material_field
                         {
                             encode_into_bytes(
                                 &mut instance_buffer,
-                                vec0_location.offset,
-                                vec0_location.size,
+                                location_0.offset,
+                                location_0.size,
                                 bottom_left,
                             );
                             encode_into_bytes(
                                 &mut instance_buffer,
-                                vec1_location.offset,
-                                vec1_location.size,
+                                location_1.offset,
+                                location_1.size,
                                 top_right,
                             );
                         }
                     }
                     MaterialParam::Matrix4(value) => {
                         if let InstanceField::Matrix4 {
-                            vec0_location,
-                            vec1_location,
-                            vec2_location,
-                            vec3_location,
+                            location_0,
+                            location_1,
+                            location_2,
+                            location_3,
                         } = material_field
                         {
                             encode_into_bytes(
                                 &mut instance_buffer,
-                                vec0_location.offset,
-                                vec0_location.size,
+                                location_0.offset,
+                                location_0.size,
                                 value.0[0],
                             );
                             encode_into_bytes(
                                 &mut instance_buffer,
-                                vec1_location.offset,
-                                vec1_location.size,
+                                location_1.offset,
+                                location_1.size,
                                 value.0[1],
                             );
                             encode_into_bytes(
                                 &mut instance_buffer,
-                                vec2_location.offset,
-                                vec2_location.size,
+                                location_2.offset,
+                                location_2.size,
                                 value.0[2],
                             );
                             encode_into_bytes(
                                 &mut instance_buffer,
-                                vec3_location.offset,
-                                vec3_location.size,
+                                location_3.offset,
+                                location_3.size,
                                 value.0[3],
                             );
                         }
@@ -926,7 +926,7 @@ impl GraphicService for WgpuGraphicService {
         _identifier: &str,
         params: MaterialResourceSettings,
     ) -> FruityResult<Box<dyn MaterialResource>> {
-        let resource = WgpuMaterialResource::new(self, &params);
+        let resource = WgpuMaterialResource::new(self, &params)?;
 
         Ok(Box::new(resource))
     }

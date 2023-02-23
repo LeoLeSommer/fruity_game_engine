@@ -5,32 +5,51 @@
     "height": 800,
     "resizable": true
   },
-  "input": {
-    "Jump": ["Keyboard/Up"],
-    "Run Right": ["Keyboard/Right"],
-    "Run Left": ["Keyboard/Left"],
-    "Down": ["Keyboard/Down"],
-    "Rotate": ["Keyboard/A"],
-    "Action 1": ["Keyboard/E"]
-  },
+  "input": [
+    {
+      "name": "Jump",
+      "source": ["Keyboard/Up"]
+    },
+    {
+      "name": "Run Right",
+      "source": ["Keyboard/Right"]
+    },
+    {
+      "name": "Run Left",
+      "source": ["Keyboard/Left"]
+    },
+    {
+      "name": "Down",
+      "source": ["Keyboard/Down"]
+    },
+    {
+      "name": "Rotate",
+      "source": ["Keyboard/A"]
+    },
+    {
+      "name": "Action 1",
+      "source": ["Keyboard/E"]
+    }
+  ],
   "resources": [
     {
       "name": "./src/assets/platform.png",
-      "path": "./src/assets/platform.png",
-      "type": "texture"
+      "type": "texture",
+      "path": "./src/assets/platform.png"
     },
     {
       "name": "./src/assets/ball.png",
-      "path": "./src/assets/ball.png",
-      "type": "texture"
+      "type": "texture",
+      "path": "./src/assets/ball.png"
     },
     {
       "name": "./src/assets/character.png",
-      "path": "./src/assets/character.png",
-      "type": "texture"
+      "type": "texture",
+      "path": "./src/assets/character.png"
     },
     {
       "name": "./src/assets/shader.wgsl",
+      "type": "shader",
       "path": "./src/assets/shader.wgsl",
       "bindingGroups": [
         [
@@ -71,15 +90,72 @@
     },
     {
       "name": "./src/assets/character.material",
-      "path": "./src/assets/character.material"
+      "type": "material",
+      "shader": "./src/assets/shader.wgsl",
+      "bindings": [
+        {
+          "type": "texture",
+          "value": "./src/assets/character.png",
+          "bindGroup": 0
+        },
+        { "type": "camera", "bindGroup": 1 }
+      ],
+      "instanceAttributes": [
+        {
+          "type": "matrix4",
+          "name": "transform",
+          "location0": 5,
+          "location1": 6,
+          "location2": 7,
+          "location3": 8
+        }
+      ]
     },
     {
       "name": "./src/assets/material.material",
-      "path": "./src/assets/material.material"
+      "type": "material",
+      "shader": "./src/assets/shader.wgsl",
+      "bindings": [
+        {
+          "type": "texture",
+          "value": "./src/assets/ball.png",
+          "bindGroup": 0
+        },
+        { "type": "camera", "bindGroup": 1 }
+      ],
+      "instanceAttributes": [
+        {
+          "type": "matrix4",
+          "name": "transform",
+          "location0": 5,
+          "location1": 6,
+          "location2": 7,
+          "location3": 8
+        }
+      ]
     },
     {
       "name": "./src/assets/platform.material",
-      "path": "./src/assets/platform.material"
+      "type": "material",
+      "shader": "./src/assets/shader.wgsl",
+      "bindings": [
+        {
+          "type": "texture",
+          "value": "./src/assets/platform.png",
+          "bindGroup": 0
+        },
+        { "type": "camera", "bindGroup": 1 }
+      ],
+      "instanceAttributes": [
+        {
+          "type": "matrix4",
+          "name": "transform",
+          "location0": 5,
+          "location1": 6,
+          "location2": 7,
+          "location3": 8
+        }
+      ]
     }
   ]
 }

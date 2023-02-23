@@ -7,7 +7,7 @@ use fruity_game_engine::{
     settings::Settings,
     FruityError, FruityResult,
 };
-use std::io::Read;
+use std::{fs::File, io::Read};
 
 #[export_trait]
 pub trait ShaderResource: Resource {}
@@ -80,7 +80,6 @@ impl Default for ShaderInstanceAttributeType {
 
 pub fn load_shader(
     identifier: &str,
-    reader: &mut dyn Read,
     settings: Settings,
     resource_container: ResourceContainer,
 ) -> FruityResult<()> {
@@ -88,7 +87,12 @@ pub fn load_shader(
     let graphic_service = resource_container.require::<dyn GraphicService>();
     let graphic_service = graphic_service.read();
 
+    // Get the resource path
+    let path = settings.get("path", String::default());
+
     // read the whole file
+    let mut reader = File::open(&path)
+        .map_err(|_| FruityError::GenericFailure(format!("Could not read file {}", &path)))?;
     let mut buffer = String::new();
     if let Err(err) = reader.read_to_string(&mut buffer) {
         return Err(FruityError::GenericFailure(err.to_string()));

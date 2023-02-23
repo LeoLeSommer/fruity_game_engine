@@ -77,12 +77,12 @@ impl InputService {
     }
 
     pub fn read_input_settings(&mut self, settings: &Settings) -> FruityResult<()> {
-        println!("1: {:?}", &settings);
-        let settings = settings.get_settings("input");
-        println!("2: {:?}", &settings);
+        // println!("1: {:?}", &settings);
+        let settings = settings.get("input", Settings::default());
+        // println!("2: {:?}", &settings);
 
         if let Settings::Object(input_map) = settings {
-            println!("3: {:?}", &input_map);
+            // println!("3: {:?}", &input_map);
             input_map.iter().try_for_each(|(input, sources)| {
                 let sources = Vec::<String>::try_from(sources.clone())?;
                 sources

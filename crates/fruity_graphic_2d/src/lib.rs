@@ -35,7 +35,7 @@ pub fn create_fruity_graphic_2d_module() -> Module {
         setup: Some(Rc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
-            let graphic_2d_service = Graphic2dService::new(resource_container.clone());
+            let graphic_2d_service = Graphic2dService::new(resource_container.clone())?;
             resource_container
                 .add::<Graphic2dService>("graphic_2d_service", Box::new(graphic_2d_service));
 

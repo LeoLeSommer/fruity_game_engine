@@ -39,14 +39,8 @@ pub fn create_fruity_graphic_module() -> Module {
             object_factory_service.register::<Matrix4>("Matrix4");
 
             resource_container.add_resource_loader("material", load_material);
-            resource_container.add_resource_loader("wgsl", load_shader);
-            resource_container.add_resource_loader("png", load_texture);
-            resource_container.add_resource_loader("jpeg", load_texture);
-            resource_container.add_resource_loader("jpg", load_texture);
-            resource_container.add_resource_loader("gif", load_texture);
-            resource_container.add_resource_loader("bmp", load_texture);
-            resource_container.add_resource_loader("ico", load_texture);
-            resource_container.add_resource_loader("tiff", load_texture);
+            resource_container.add_resource_loader("shader", load_shader);
+            resource_container.add_resource_loader("texture", load_texture);
 
             load_default_resources(resource_container)?;
 

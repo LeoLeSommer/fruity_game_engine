@@ -146,7 +146,7 @@ world.registerModule({
       };
     });*/
 
-    systemService.addStartupSystem("test startup 3", () => {
+    /*systemService.addStartupSystem("test startup 3", () => {
       let createdEntityId: number | null = null;
       const materialResource = resourceContainer.get<MaterialResource>(
         "./src/assets/material.material"
@@ -173,7 +173,7 @@ world.registerModule({
         handle1.dispose();
         handle2.dispose();
       };
-    });
+    });*/
 
     systemService.addSystem("test 1", () => {
       entityService

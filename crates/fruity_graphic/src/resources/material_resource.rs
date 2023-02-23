@@ -8,7 +8,6 @@ use fruity_game_engine::resource::Resource;
 use fruity_game_engine::settings::Settings;
 use fruity_game_engine::{export_trait, FruityResult};
 use std::collections::HashMap;
-use std::io::Read;
 
 #[export_trait]
 pub trait MaterialResource: Resource {
@@ -57,29 +56,25 @@ pub enum MaterialSettingsInstanceAttribute {
         location: u32,
     },
     Rect {
-        vec0_location: u32,
-        vec1_location: u32,
+        location_0: u32,
+        location_1: u32,
     },
     Matrix4 {
-        vec0_location: u32,
-        vec1_location: u32,
-        vec2_location: u32,
-        vec3_location: u32,
+        location_0: u32,
+        location_1: u32,
+        location_2: u32,
+        location_3: u32,
     },
 }
 
 pub fn load_material(
     identifier: &str,
-    reader: &mut dyn Read,
-    _settings: Settings,
+    settings: Settings,
     resource_container: ResourceContainer,
 ) -> FruityResult<()> {
     // Get the graphic service state
     let graphic_service = resource_container.require::<dyn GraphicService>();
     let graphic_service = graphic_service.read();
-
-    // read the whole file
-    let settings = read_settings(reader, identifier)?;
 
     // Parse settings
     let settings = read_material_settings(&settings, resource_container.clone());
@@ -164,25 +159,25 @@ fn build_material_instance_attribute(
 ) -> Option<MaterialSettingsInstanceAttribute> {
     match &settings.get::<String>("type", String::default()) as &str {
         "matrix4" => {
-            let vec0_location = settings.get::<u32>("vec0_location", u32::default());
-            let vec1_location = settings.get::<u32>("vec1_location", u32::default());
-            let vec2_location = settings.get::<u32>("vec2_location", u32::default());
-            let vec3_location = settings.get::<u32>("vec3_location", u32::default());
+            let location_0 = settings.get::<u32>("location_0", u32::default());
+            let location_1 = settings.get::<u32>("location_1", u32::default());
+            let location_2 = settings.get::<u32>("location_2", u32::default());
+            let location_3 = settings.get::<u32>("location_3", u32::default());
 
             Some(MaterialSettingsInstanceAttribute::Matrix4 {
-                vec0_location,
-                vec1_location,
-                vec2_location,
-                vec3_location,
+                location_0,
+                location_1,
+                location_2,
+                location_3,
             })
         }
         "rect" => {
-            let vec0_location = settings.get::<u32>("vec0_location", u32::default());
-            let vec1_location = settings.get::<u32>("vec1_location", u32::default());
+            let location_0 = settings.get::<u32>("location_0", u32::default());
+            let location_1 = settings.get::<u32>("location_1", u32::default());
 
             Some(MaterialSettingsInstanceAttribute::Rect {
-                vec0_location,
-                vec1_location,
+                location_0,
+                location_1,
             })
         }
         "vec2" => {

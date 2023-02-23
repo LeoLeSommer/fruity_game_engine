@@ -100,9 +100,6 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             .get_undefined()
             .map_err(|e| FruityError::from_napi(e))?
             .into_unknown(),
-        ScriptValue::Iterator(_value) => {
-            todo!()
-        }
         ScriptValue::Callback(callback) => env
             .create_function_from_closure("unknown", move |ctx| {
                 let args = ctx
@@ -317,7 +314,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                     match env.unwrap::<Box<dyn ScriptObject>>(&js_object) {
                         Ok(wrapped) => {
                             // Second case, a value is wrapped into the object
-                            ScriptValue::Object(wrapped.deref().duplicate()?)
+                            ScriptValue::Object(wrapped.deref().duplicate())
                         }
                         Err(_) => {
                             // Third case, the object is a plain javascript object

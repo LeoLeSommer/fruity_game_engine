@@ -39,7 +39,6 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
 
             js_array.into()
         }
-        ScriptValue::Iterator(_) => todo!(),
         ScriptValue::Callback(value) => {
             let closure = wasm_bindgen::closure::Closure::wrap(Box::new(
                 move |arg0: JsValue,
@@ -271,7 +270,7 @@ pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
                                 as *const RefCell<Box<dyn ScriptObject>>,
                         )
                     };
-                    let native_object = ref_ptr_value.borrow().duplicate()?;
+                    let native_object = ref_ptr_value.borrow().duplicate();
                     ScriptValue::Object(native_object)
                 } else {
                     // Second case, the object is a js object

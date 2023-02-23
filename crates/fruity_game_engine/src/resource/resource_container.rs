@@ -9,13 +9,10 @@ use crate::RwLock;
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fs::File;
-use std::io::Read;
-use std::path::Path;
 use std::sync::Arc;
 
 /// A a function that is used to load a resource
-pub type ResourceLoader = fn(&str, &mut dyn Read, Settings, ResourceContainer) -> FruityResult<()>;
+pub type ResourceLoader = fn(&str, Settings, ResourceContainer) -> FruityResult<()>;
 
 pub(crate) struct InnerResourceContainer {
     resources: HashMap<String, AnyResourceReference>,
@@ -167,34 +164,16 @@ impl ResourceContainer {
             .insert(resource_type.to_string(), loader);
     }
 
-    /// Load an any resource file
-    ///
-    /// # Arguments
-    /// * `path` - The path of the file
-    /// * `resource_type` - The resource type
-    ///
-    pub fn load_resource_file(&self, path: &str, resource_type: &str) -> FruityResult<()> {
-        let mut file = File::open(path).map_err(|_| {
-            FruityError::GenericFailure(format!("File couldn't be opened: {:?}", path))
-        })?;
-
-        Self::load_resource(self, path, resource_type, &mut file, Settings::default())?;
-
-        Ok(())
-    }
-
     /// Load and add a resource into the collection
     ///
     /// # Arguments
     /// * `identifier` - The resource identifier
     /// * `resource_type` - The resource type
-    /// * `read` - The reader, generaly a file reader
     ///
     pub fn load_resource(
         &self,
         identifier: &str,
         resource_type: &str,
-        reader: &mut dyn Read,
         settings: Settings,
     ) -> FruityResult<()> {
         let resource_loader = {
@@ -210,7 +189,7 @@ impl ResourceContainer {
             }?
         };
 
-        resource_loader(identifier, reader, settings, self.clone())
+        resource_loader(identifier, settings, self.clone())
     }
 
     /// Load many resources for settings
@@ -218,14 +197,16 @@ impl ResourceContainer {
     /// # Arguments
     /// * `settings` - The settings of resources
     ///
-    pub fn load_resources_settings(&self, settings: Settings) {
+    pub fn load_resources_settings(&self, settings: Settings) -> FruityResult<()> {
         if let Settings::Object(settings) = settings {
             if let Some(Settings::Array(resources_settings)) = settings.get("resources") {
-                resources_settings.into_iter().for_each(|settings| {
-                    Self::load_resource_settings(self, settings.clone());
-                })
+                resources_settings.into_iter().try_for_each(|settings| {
+                    Self::load_single_resource_settings(self, settings.clone())
+                })?;
             }
         }
+
+        Ok(())
     }
 
     /// Load resources for settings
@@ -233,48 +214,45 @@ impl ResourceContainer {
     /// # Arguments
     /// * `settings` - The settings of resources
     ///
-    pub fn load_resource_settings(&self, settings: Settings) -> Option<()> {
+    pub fn load_single_resource_settings(&self, settings: Settings) -> FruityResult<()> {
         // Parse settings
         let fields = if let Settings::Object(fields) = settings {
             fields
         } else {
-            return None;
+            return Err(FruityError::GenericFailure(
+                "Wrong resource settings, an object is required".to_string(),
+            ));
         };
 
         // Get the resource name
         let name = {
-            if let Settings::String(name) = fields.get("name")? {
+            if let Some(Settings::String(name)) = fields.get("name") {
                 name.clone()
             } else {
-                return None;
+                return Err(FruityError::GenericFailure(
+                    "Wrong resource settings, field name is required".to_string(),
+                ));
             }
         };
 
-        // Get the resource path
-        let path = {
-            if let Settings::String(path) = fields.get("path")? {
-                path.clone()
+        // Get the resource type
+        let resource_type = {
+            if let Some(Settings::String(resource_type)) = fields.get("type") {
+                resource_type.clone()
             } else {
-                return None;
+                return Err(FruityError::GenericFailure(
+                    "Wrong resource settings, field type is required".to_string(),
+                ));
             }
         };
-
-        // Deduce informations about the resource from the path
-        let resource_type = Path::new(&path).extension()?;
-        let resource_type = resource_type.to_str()?;
-        let mut resource_file = File::open(&path).ok()?;
 
         // Load the resource
         Self::load_resource(
             self,
             &name,
-            resource_type,
-            &mut resource_file,
+            &resource_type,
             Settings::Object(fields.clone()),
         )
-        .ok()?;
-
-        Some(())
     }
 }
 

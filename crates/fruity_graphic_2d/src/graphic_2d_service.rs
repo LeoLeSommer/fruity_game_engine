@@ -6,6 +6,8 @@ use fruity_game_engine::export_struct;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
+use fruity_game_engine::FruityError;
+use fruity_game_engine::FruityResult;
 use fruity_graphic::graphic_service::GraphicService;
 use fruity_graphic::graphic_service::MaterialParam;
 use fruity_graphic::math::matrix3::Matrix3;
@@ -31,33 +33,45 @@ pub struct Graphic2dService {
 
 #[export_impl]
 impl Graphic2dService {
-    pub fn new(resource_container: ResourceContainer) -> Self {
+    pub fn new(resource_container: ResourceContainer) -> FruityResult<Self> {
         let graphic_service = resource_container.require::<dyn GraphicService>();
 
         let draw_line_material = resource_container
             .get::<dyn MaterialResource>("Materials/Draw Line")
-            .unwrap();
+            .ok_or(FruityError::GenericFailure(format!(
+                "Missing shader {}",
+                "Materials/Draw Line"
+            )))?;
 
         let draw_dotted_line_material = resource_container
             .get::<dyn MaterialResource>("Materials/Draw Dotted Line")
-            .unwrap();
+            .ok_or(FruityError::GenericFailure(format!(
+                "Missing shader {}",
+                "Materials/Draw Dotted Line"
+            )))?;
 
         let draw_rect_material = resource_container
             .get::<dyn MaterialResource>("Materials/Draw Rect")
-            .unwrap();
+            .ok_or(FruityError::GenericFailure(format!(
+                "Missing shader {}",
+                "Materials/Draw Rect"
+            )))?;
 
         let draw_arc_material = resource_container
             .get::<dyn MaterialResource>("Materials/Draw Arc")
-            .unwrap();
+            .ok_or(FruityError::GenericFailure(format!(
+                "Missing shader {}",
+                "Materials/Draw Arc"
+            )))?;
 
-        Self {
+        Ok(Self {
             graphic_service,
             resource_container,
             draw_line_material,
             draw_dotted_line_material,
             draw_rect_material,
             draw_arc_material,
-        }
+        })
     }
 
     #[export]

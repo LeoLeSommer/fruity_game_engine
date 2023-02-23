@@ -393,10 +393,10 @@ pub fn load_draw_dotted_line_material(resource_container: ResourceContainer) -> 
             ],
             instance_attributes: hashmap! {
                 "transform".to_string() => MaterialSettingsInstanceAttribute::Matrix4 {
-                    vec0_location: 5,
-                    vec1_location: 6,
-                    vec2_location: 7,
-                    vec3_location: 8,
+                    location_0: 5,
+                    location_1: 6,
+                    location_2: 7,
+                    location_3: 8,
                 },
                 "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 9,
@@ -613,10 +613,10 @@ pub fn load_draw_rect_material(resource_container: ResourceContainer) -> FruityR
             ],
             instance_attributes: hashmap! {
                 "transform".to_string() => MaterialSettingsInstanceAttribute::Matrix4 {
-                    vec0_location: 5,
-                    vec1_location: 6,
-                    vec2_location: 7,
-                    vec3_location: 8,
+                    location_0: 5,
+                    location_1: 6,
+                    location_2: 7,
+                    location_3: 8,
                 },
                 "bottom_left".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 9,
@@ -842,10 +842,10 @@ pub fn load_draw_arc_material(resource_container: ResourceContainer) -> FruityRe
             ],
             instance_attributes: hashmap! {
                 "transform".to_string() => MaterialSettingsInstanceAttribute::Matrix4 {
-                    vec0_location: 5,
-                    vec1_location: 6,
-                    vec2_location: 7,
-                    vec3_location: 8,
+                    location_0: 5,
+                    location_1: 6,
+                    location_2: 7,
+                    location_3: 8,
                 },
                 "center".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
                     location: 9,

@@ -65,7 +65,7 @@ export interface ScriptResourceContainer {
   contains(identifier: string): boolean
   add(identifier: string, resource: JsIntrospectObject)
   remove(identifier: string): void
-  loadResourcesSettings(settings: Settings)
+  loadResourcesSettings(settings: Settings): void
 }
 
 export class World {

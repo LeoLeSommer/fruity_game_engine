@@ -8,7 +8,6 @@ use crate::typescript;
 use crate::FruityError;
 use crate::FruityResult;
 use std::collections::HashMap;
-use std::io::Read;
 
 /// Settings collection
 #[typescript(
@@ -214,7 +213,6 @@ impl TryFromScriptValue for Settings {
             ),
             ScriptValue::Null => Settings::Null,
             ScriptValue::Undefined => Settings::Null,
-            ScriptValue::Iterator(_) => unimplemented!(),
             ScriptValue::Callback(_) => unimplemented!(),
             ScriptValue::Object(value) => Settings::Object(
                 value

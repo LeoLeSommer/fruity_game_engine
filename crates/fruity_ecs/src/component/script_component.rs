@@ -63,8 +63,6 @@ impl Component for ScriptComponent {
     }
 
     fn duplicate(&self) -> Box<dyn Component> {
-        Box::new(ScriptComponent(SendWrapper::new(
-            self.0.duplicate().unwrap(),
-        )))
+        Box::new(ScriptComponent(SendWrapper::new(self.0.duplicate())))
     }
 }

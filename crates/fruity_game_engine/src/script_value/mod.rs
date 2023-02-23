@@ -13,7 +13,6 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::typescript;
 use crate::FruityError;
 use crate::FruityResult;
-use crate::RwLock;
 use lazy_static::__Deref;
 use std::any::Any;
 use std::collections::HashMap;
@@ -35,9 +34,6 @@ pub mod impl_containers;
 
 /// Implementation of script value conversions for tuples
 pub mod impl_tuples;
-
-/// Implementation of script value conversions for tuples
-// pub mod yaml;
 
 /// a script value
 #[typescript("type ScriptValue = any")]
@@ -93,9 +89,6 @@ pub enum ScriptValue {
     /// A null value, correspond to ()
     Undefined,
 
-    /// Iterator over values
-    Iterator(Rc<RwLock<dyn Iterator<Item = ScriptValue>>>),
-
     /// A callback
     Callback(Rc<dyn ScriptCallback>),
 
@@ -121,7 +114,7 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
 /// A trait that can be implemented for an object storable in a ScriptValue
 pub trait ScriptObject: IntrospectFields + IntrospectMethods {
     /// Duplicate the script object
-    fn duplicate(&self) -> FruityResult<Box<dyn ScriptObject>>;
+    fn duplicate(&self) -> Box<dyn ScriptObject>;
 }
 
 impl dyn ScriptObject {
@@ -140,8 +133,8 @@ impl<T> ScriptObject for T
 where
     T: Clone + IntrospectFields + IntrospectMethods,
 {
-    fn duplicate(&self) -> FruityResult<Box<dyn ScriptObject>> {
-        Ok(Box::new(self.clone()))
+    fn duplicate(&self) -> Box<dyn ScriptObject> {
+        Box::new(self.clone())
     }
 }
 
@@ -200,7 +193,6 @@ impl Debug for ScriptValue {
             ScriptValue::Array(value) => value.fmt(formatter),
             ScriptValue::Null => formatter.write_str("null"),
             ScriptValue::Undefined => formatter.write_str("undefined"),
-            ScriptValue::Iterator(_) => formatter.write_str("iterator"),
             ScriptValue::Callback(_) => formatter.write_str("function"),
             ScriptValue::Object(value) => value.fmt(formatter),
         }
@@ -227,9 +219,8 @@ impl Clone for ScriptValue {
             Self::Array(value) => Self::Array(value.clone()),
             Self::Null => Self::Null,
             Self::Undefined => Self::Undefined,
-            Self::Iterator(value) => Self::Iterator(value.clone()),
             Self::Callback(value) => Self::Callback(value.clone()),
-            Self::Object(value) => Self::Object(value.duplicate().unwrap()),
+            Self::Object(value) => Self::Object(value.duplicate()),
         }
     }
 }

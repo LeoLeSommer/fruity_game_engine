@@ -8,6 +8,8 @@ use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
+use fruity_game_engine::FruityError;
+use fruity_game_engine::FruityResult;
 use fruity_graphic::resources::material_resource::MaterialResource;
 use fruity_graphic::resources::material_resource::MaterialResourceSettings;
 use fruity_graphic::resources::material_resource::MaterialSettingsBinding;
@@ -42,14 +44,14 @@ pub enum InstanceField {
         location: BufferLocation,
     },
     Rect {
-        vec0_location: BufferLocation,
-        vec1_location: BufferLocation,
+        location_0: BufferLocation,
+        location_1: BufferLocation,
     },
     Matrix4 {
-        vec0_location: BufferLocation,
-        vec1_location: BufferLocation,
-        vec2_location: BufferLocation,
-        vec3_location: BufferLocation,
+        location_0: BufferLocation,
+        location_1: BufferLocation,
+        location_2: BufferLocation,
+        location_3: BufferLocation,
     },
 }
 
@@ -63,16 +65,25 @@ pub struct WgpuMaterialResource {
 }
 
 impl WgpuMaterialResource {
-    pub fn new(graphic_service: &WgpuGraphicService, params: &MaterialResourceSettings) -> Self {
+    pub fn new(
+        graphic_service: &WgpuGraphicService,
+        params: &MaterialResourceSettings,
+    ) -> FruityResult<Self> {
+        let shader_name = params
+            .shader
+            .as_ref()
+            .map(|shader| shader.name.clone())
+            .unwrap_or("".to_string());
+
         let shader = if let Some(shader) = params.shader.as_ref().map(|shader| shader.read()) {
             shader
         } else {
-            return Self {
+            return Ok(Self {
                 params: params.clone(),
                 binding_groups: Vec::new(),
                 fields: HashMap::new(),
                 instance_size: 0,
-            };
+            });
         };
 
         let shader = shader.downcast_ref::<WgpuShaderResource>();
@@ -132,90 +143,160 @@ impl WgpuMaterialResource {
         params
             .instance_attributes
             .iter()
-            .for_each(|instance_attribute| match instance_attribute.1 {
-                MaterialSettingsInstanceAttribute::Uint { location } => {
-                    insert_in_hashmap_vec(
-                        &mut fields,
-                        instance_attribute.0.clone(),
-                        InstanceField::Uint {
-                            location: fields_by_locations.get(location).unwrap().clone(),
-                        },
-                    );
+            .try_for_each(|instance_attribute| {
+                match instance_attribute.1 {
+                    MaterialSettingsInstanceAttribute::Uint { location } => {
+                        insert_in_hashmap_vec(
+                            &mut fields,
+                            instance_attribute.0.clone(),
+                            InstanceField::Uint {
+                                location: fields_by_locations
+                                    .get(location)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location, shader_name
+                                    )))?
+                                    .clone(),
+                            },
+                        );
+                    }
+                    MaterialSettingsInstanceAttribute::Int { location } => {
+                        insert_in_hashmap_vec(
+                            &mut fields,
+                            instance_attribute.0.clone(),
+                            InstanceField::Int {
+                                location: fields_by_locations
+                                    .get(location)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location, shader_name
+                                    )))?
+                                    .clone(),
+                            },
+                        );
+                    }
+                    MaterialSettingsInstanceAttribute::Float { location } => {
+                        insert_in_hashmap_vec(
+                            &mut fields,
+                            instance_attribute.0.clone(),
+                            InstanceField::Float {
+                                location: fields_by_locations
+                                    .get(location)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location, shader_name
+                                    )))?
+                                    .clone(),
+                            },
+                        );
+                    }
+                    MaterialSettingsInstanceAttribute::Vector2d { location } => {
+                        insert_in_hashmap_vec(
+                            &mut fields,
+                            instance_attribute.0.clone(),
+                            InstanceField::Vector2d {
+                                location: fields_by_locations
+                                    .get(location)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location, shader_name
+                                    )))?
+                                    .clone(),
+                            },
+                        );
+                    }
+                    MaterialSettingsInstanceAttribute::Vector4d { location } => {
+                        insert_in_hashmap_vec(
+                            &mut fields,
+                            instance_attribute.0.clone(),
+                            InstanceField::Vector4d {
+                                location: fields_by_locations
+                                    .get(location)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location, shader_name
+                                    )))?
+                                    .clone(),
+                            },
+                        );
+                    }
+                    MaterialSettingsInstanceAttribute::Rect {
+                        location_0,
+                        location_1,
+                    } => {
+                        insert_in_hashmap_vec(
+                            &mut fields,
+                            instance_attribute.0.clone(),
+                            InstanceField::Rect {
+                                location_0: fields_by_locations
+                                    .get(location_0)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location_0, shader_name
+                                    )))?
+                                    .clone(),
+                                location_1: fields_by_locations
+                                    .get(location_1)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location_1, shader_name
+                                    )))?
+                                    .clone(),
+                            },
+                        );
+                    }
+                    MaterialSettingsInstanceAttribute::Matrix4 {
+                        location_0,
+                        location_1,
+                        location_2,
+                        location_3,
+                    } => {
+                        insert_in_hashmap_vec(
+                            &mut fields,
+                            instance_attribute.0.clone(),
+                            InstanceField::Matrix4 {
+                                location_0: fields_by_locations
+                                    .get(location_0)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location_0, shader_name
+                                    )))?
+                                    .clone(),
+                                location_1: fields_by_locations
+                                    .get(location_1)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location_1, shader_name
+                                    )))?
+                                    .clone(),
+                                location_2: fields_by_locations
+                                    .get(location_2)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location_2, shader_name
+                                    )))?
+                                    .clone(),
+                                location_3: fields_by_locations
+                                    .get(location_3)
+                                    .ok_or(FruityError::GenericFailure(format!(
+                                        "Cannot find the location {} in shader {}",
+                                        location_3, shader_name
+                                    )))?
+                                    .clone(),
+                            },
+                        );
+                    }
                 }
-                MaterialSettingsInstanceAttribute::Int { location } => {
-                    insert_in_hashmap_vec(
-                        &mut fields,
-                        instance_attribute.0.clone(),
-                        InstanceField::Int {
-                            location: fields_by_locations.get(location).unwrap().clone(),
-                        },
-                    );
-                }
-                MaterialSettingsInstanceAttribute::Float { location } => {
-                    insert_in_hashmap_vec(
-                        &mut fields,
-                        instance_attribute.0.clone(),
-                        InstanceField::Float {
-                            location: fields_by_locations.get(location).unwrap().clone(),
-                        },
-                    );
-                }
-                MaterialSettingsInstanceAttribute::Vector2d { location } => {
-                    insert_in_hashmap_vec(
-                        &mut fields,
-                        instance_attribute.0.clone(),
-                        InstanceField::Vector2d {
-                            location: fields_by_locations.get(location).unwrap().clone(),
-                        },
-                    );
-                }
-                MaterialSettingsInstanceAttribute::Vector4d { location } => {
-                    insert_in_hashmap_vec(
-                        &mut fields,
-                        instance_attribute.0.clone(),
-                        InstanceField::Vector4d {
-                            location: fields_by_locations.get(location).unwrap().clone(),
-                        },
-                    );
-                }
-                MaterialSettingsInstanceAttribute::Rect {
-                    vec0_location,
-                    vec1_location,
-                } => {
-                    insert_in_hashmap_vec(
-                        &mut fields,
-                        instance_attribute.0.clone(),
-                        InstanceField::Rect {
-                            vec0_location: fields_by_locations.get(vec0_location).unwrap().clone(),
-                            vec1_location: fields_by_locations.get(vec1_location).unwrap().clone(),
-                        },
-                    );
-                }
-                MaterialSettingsInstanceAttribute::Matrix4 {
-                    vec0_location,
-                    vec1_location,
-                    vec2_location,
-                    vec3_location,
-                } => {
-                    insert_in_hashmap_vec(
-                        &mut fields,
-                        instance_attribute.0.clone(),
-                        InstanceField::Matrix4 {
-                            vec0_location: fields_by_locations.get(vec0_location).unwrap().clone(),
-                            vec1_location: fields_by_locations.get(vec1_location).unwrap().clone(),
-                            vec2_location: fields_by_locations.get(vec2_location).unwrap().clone(),
-                            vec3_location: fields_by_locations.get(vec3_location).unwrap().clone(),
-                        },
-                    );
-                }
-            });
 
-        Self {
+                FruityResult::Ok(())
+            })?;
+
+        Ok(Self {
             params: params.clone(),
             binding_groups,
             fields,
             instance_size: current_offset,
-        }
+        })
     }
 }
 

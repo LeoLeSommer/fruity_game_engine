@@ -19,7 +19,6 @@ js-sys = { version = "0.3.60", optional = true }
 web-sys = { version = "0.3.60", features = ["console"], optional = true }
 puffin = "0.12.1"
 parking_lot = { version = "0.12.1" }
-yaml-rust = "0.4"
 lazy_static = "1.4.0"
 linked-hash-map = "0.5.3"
 convert_case = "0.6.0"

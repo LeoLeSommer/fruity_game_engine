@@ -123,7 +123,7 @@ impl ScriptResourceContainer {
     /// * `settings` - The settings of resources
     ///
     #[export]
-    pub fn load_resources_settings(&self, settings: Settings) {
+    pub fn load_resources_settings(&self, settings: Settings) -> FruityResult<()> {
         self.resource_container.load_resources_settings(settings)
     }
 }

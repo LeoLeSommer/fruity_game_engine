@@ -5,7 +5,7 @@ use fruity_game_engine::{
     settings::Settings,
     FruityError, FruityResult,
 };
-use std::io::Read;
+use std::{fs::File, io::Read};
 
 pub struct TextureResourceSettings {}
 
@@ -17,7 +17,6 @@ pub trait TextureResource: Resource {
 
 pub fn load_texture(
     identifier: &str,
-    reader: &mut dyn Read,
     settings: Settings,
     resource_container: ResourceContainer,
 ) -> FruityResult<()> {
@@ -25,7 +24,12 @@ pub fn load_texture(
     let graphic_service = resource_container.require::<dyn GraphicService>();
     let graphic_service = graphic_service.read();
 
+    // Get the resource path
+    let path = settings.get("path", String::default());
+
     // read the whole file
+    let mut reader = File::open(&path)
+        .map_err(|_| FruityError::GenericFailure(format!("Could not read file {}", &path)))?;
     let mut buffer = Vec::new();
     if let Err(err) = reader.read_to_end(&mut buffer) {
         return Err(FruityError::GenericFailure(err.to_string()));
