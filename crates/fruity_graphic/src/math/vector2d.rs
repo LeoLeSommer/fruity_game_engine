@@ -29,7 +29,7 @@ use std::ops::SubAssign;
     bytemuck::Zeroable,
 )]
 #[export_struct]
-pub struct Vector2d {
+pub struct Vector2D {
     /// Horizontal component
     pub x: f32,
 
@@ -38,10 +38,10 @@ pub struct Vector2d {
 }
 
 #[export_impl]
-impl Vector2d {
+impl Vector2D {
     /// Create a new `Vector2D` with the provided components.
     #[export_constructor]
-    pub fn new(x: f32, y: f32) -> Vector2d {
+    pub fn new(x: f32, y: f32) -> Vector2D {
         Self { x, y }
     }
 
@@ -78,8 +78,8 @@ impl Vector2d {
 
     /// Get the absolute value of the vector
     #[export]
-    pub fn abs(&self) -> Vector2d {
-        Vector2d::new(self.x.abs(), self.y.abs())
+    pub fn abs(&self) -> Vector2D {
+        Vector2D::new(self.x.abs(), self.y.abs())
     }
 
     /// Returns a vector perpendicular to the current one.
@@ -146,8 +146,8 @@ impl Vector2d {
 
     /// Check if the point is in a triangle
     #[export]
-    pub fn in_triangle(&self, p1: Vector2d, p2: Vector2d, p3: Vector2d) -> bool {
-        pub fn sign(p1: &Vector2d, p2: &Vector2d, p3: &Vector2d) -> f32 {
+    pub fn in_triangle(&self, p1: Vector2D, p2: Vector2D, p3: Vector2D) -> bool {
+        pub fn sign(p1: &Vector2D, p2: &Vector2D, p3: &Vector2D) -> f32 {
             (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y)
         }
 
@@ -163,122 +163,122 @@ impl Vector2d {
 
     /// Check if the point is in a circle
     #[export]
-    pub fn in_circle(&self, center: Vector2d, radius: f32) -> bool {
+    pub fn in_circle(&self, center: Vector2D, radius: f32) -> bool {
         return (*self - center).length() <= radius;
     }
 
     /// Add two vectors
     #[export]
-    pub fn add(&self, rhs: Vector2d) -> Vector2d {
+    pub fn add(&self, rhs: Vector2D) -> Vector2D {
         return *self + rhs;
     }
 
     /// Subtract two vectors
     #[export]
-    pub fn sub(&self, rhs: Vector2d) -> Vector2d {
+    pub fn sub(&self, rhs: Vector2D) -> Vector2D {
         return *self + rhs;
     }
 
     /// Multiply a vector by a number
     #[export]
-    pub fn mul(&self, rhs: f32) -> Vector2d {
+    pub fn mul(&self, rhs: f32) -> Vector2D {
         return *self * rhs;
     }
 
     /// Divide a vector by a number
     #[export]
-    pub fn div(&self, rhs: f32) -> Vector2d {
+    pub fn div(&self, rhs: f32) -> Vector2D {
         return *self / rhs;
     }
 }
 
 // Ops Implementations
-impl Add<Vector2d> for Vector2d {
-    type Output = Vector2d;
+impl Add<Vector2D> for Vector2D {
+    type Output = Vector2D;
 
-    fn add(self, rhs: Vector2d) -> Self::Output {
-        Vector2d {
+    fn add(self, rhs: Vector2D) -> Self::Output {
+        Vector2D {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
         }
     }
 }
 
-impl AddAssign<Vector2d> for Vector2d {
-    fn add_assign(&mut self, rhs: Vector2d) {
+impl AddAssign<Vector2D> for Vector2D {
+    fn add_assign(&mut self, rhs: Vector2D) {
         self.x = self.x + rhs.x;
         self.y = self.y + rhs.y;
     }
 }
 
-impl Sub<Vector2d> for Vector2d {
-    type Output = Vector2d;
+impl Sub<Vector2D> for Vector2D {
+    type Output = Vector2D;
 
-    fn sub(self, rhs: Vector2d) -> Self::Output {
-        Vector2d {
+    fn sub(self, rhs: Vector2D) -> Self::Output {
+        Vector2D {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
     }
 }
 
-impl SubAssign<Vector2d> for Vector2d {
-    fn sub_assign(&mut self, rhs: Vector2d) {
+impl SubAssign<Vector2D> for Vector2D {
+    fn sub_assign(&mut self, rhs: Vector2D) {
         self.x = self.x - rhs.x;
         self.y = self.y - rhs.y;
     }
 }
 
-impl Mul<f32> for Vector2d {
-    type Output = Vector2d;
+impl Mul<f32> for Vector2D {
+    type Output = Vector2D;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        Vector2d {
+        Vector2D {
             x: self.x * rhs,
             y: self.y * rhs,
         }
     }
 }
 
-impl Mul<Vector2d> for Matrix3 {
-    type Output = Vector2d;
+impl Mul<Vector2D> for Matrix3 {
+    type Output = Vector2D;
 
-    fn mul(self, rhs: Vector2d) -> Self::Output {
+    fn mul(self, rhs: Vector2D) -> Self::Output {
         let cgmath_vec = cgmath::Vector3::new(rhs.x, rhs.y, 1.0);
         let cgmath_matrix = cgmath::Matrix3::from(self.0);
         let cgmath_result = cgmath_matrix * cgmath_vec;
 
-        Vector2d {
+        Vector2D {
             x: cgmath_result.x,
             y: cgmath_result.y,
         }
     }
 }
 
-impl Mul<Vector2d> for Matrix4 {
-    type Output = Vector2d;
+impl Mul<Vector2D> for Matrix4 {
+    type Output = Vector2D;
 
-    fn mul(self, rhs: Vector2d) -> Self::Output {
+    fn mul(self, rhs: Vector2D) -> Self::Output {
         let cgmath_vec = cgmath::Vector4::new(rhs.x, rhs.y, 0.0, 1.0);
         let cgmath_matrix = cgmath::Matrix4::from(self.0);
         let cgmath_result = cgmath_matrix * cgmath_vec;
 
-        Vector2d {
+        Vector2D {
             x: cgmath_result.x,
             y: cgmath_result.y,
         }
     }
 }
 
-impl MulAssign<f32> for Vector2d {
+impl MulAssign<f32> for Vector2D {
     fn mul_assign(&mut self, rhs: f32) {
         self.x = self.x * rhs;
         self.y = self.y * rhs;
     }
 }
 
-impl Div<f32> for Vector2d {
-    type Output = Vector2d;
+impl Div<f32> for Vector2D {
+    type Output = Vector2D;
 
     fn div(self, rhs: f32) -> Self::Output {
         Self::Output {
@@ -288,7 +288,7 @@ impl Div<f32> for Vector2d {
     }
 }
 
-impl DivAssign<f32> for Vector2d {
+impl DivAssign<f32> for Vector2D {
     fn div_assign(&mut self, rhs: f32) {
         self.x = self.x / rhs;
         self.y = self.y / rhs;

@@ -28,7 +28,7 @@ use std::ops::SubAssign;
     bytemuck::Zeroable,
 )]
 #[export_struct]
-pub struct Vector3d {
+pub struct Vector3D {
     /// Horizontal component
     pub x: f32,
 
@@ -40,10 +40,10 @@ pub struct Vector3d {
 }
 
 #[export_impl]
-impl Vector3d {
+impl Vector3D {
     /// Create a new `Vector3D` with the provided components.
     #[export_constructor]
-    pub fn new(x: f32, y: f32, z: f32) -> Vector3d {
+    pub fn new(x: f32, y: f32, z: f32) -> Vector3D {
         Self { x, y, z }
     }
 
@@ -162,11 +162,11 @@ impl Vector3d {
 }
 
 // Ops Implementations
-impl Add<Vector3d> for Vector3d {
-    type Output = Vector3d;
+impl Add<Vector3D> for Vector3D {
+    type Output = Vector3D;
 
-    fn add(self, rhs: Vector3d) -> Self::Output {
-        Vector3d {
+    fn add(self, rhs: Vector3D) -> Self::Output {
+        Vector3D {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
             z: self.z + rhs.z,
@@ -174,19 +174,19 @@ impl Add<Vector3d> for Vector3d {
     }
 }
 
-impl AddAssign<Vector3d> for Vector3d {
-    fn add_assign(&mut self, rhs: Vector3d) {
+impl AddAssign<Vector3D> for Vector3D {
+    fn add_assign(&mut self, rhs: Vector3D) {
         self.x = self.x + rhs.x;
         self.y = self.y + rhs.y;
         self.z = self.z + rhs.z;
     }
 }
 
-impl Sub<Vector3d> for Vector3d {
-    type Output = Vector3d;
+impl Sub<Vector3D> for Vector3D {
+    type Output = Vector3D;
 
-    fn sub(self, rhs: Vector3d) -> Self::Output {
-        Vector3d {
+    fn sub(self, rhs: Vector3D) -> Self::Output {
+        Vector3D {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
             z: self.z - rhs.z,
@@ -194,19 +194,19 @@ impl Sub<Vector3d> for Vector3d {
     }
 }
 
-impl SubAssign<Vector3d> for Vector3d {
-    fn sub_assign(&mut self, rhs: Vector3d) {
+impl SubAssign<Vector3D> for Vector3D {
+    fn sub_assign(&mut self, rhs: Vector3D) {
         self.x = self.x - rhs.x;
         self.y = self.y - rhs.y;
         self.z = self.z - rhs.z;
     }
 }
 
-impl Mul<f32> for Vector3d {
-    type Output = Vector3d;
+impl Mul<f32> for Vector3D {
+    type Output = Vector3D;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        Vector3d {
+        Vector3D {
             x: self.x * rhs,
             y: self.y * rhs,
             z: self.z * rhs,
@@ -214,15 +214,15 @@ impl Mul<f32> for Vector3d {
     }
 }
 
-impl Mul<Vector3d> for Matrix4 {
-    type Output = Vector3d;
+impl Mul<Vector3D> for Matrix4 {
+    type Output = Vector3D;
 
-    fn mul(self, rhs: Vector3d) -> Self::Output {
+    fn mul(self, rhs: Vector3D) -> Self::Output {
         let cgmath_vec = cgmath::Vector4::new(rhs.x, rhs.y, rhs.z, 1.0);
         let cgmath_matrix = cgmath::Matrix4::from(self.0);
         let cgmath_result = cgmath_matrix * cgmath_vec;
 
-        Vector3d {
+        Vector3D {
             x: cgmath_result.x,
             y: cgmath_result.y,
             z: cgmath_result.z,
@@ -230,7 +230,7 @@ impl Mul<Vector3d> for Matrix4 {
     }
 }
 
-impl MulAssign<f32> for Vector3d {
+impl MulAssign<f32> for Vector3D {
     fn mul_assign(&mut self, rhs: f32) {
         self.x = self.x * rhs;
         self.y = self.y * rhs;
@@ -238,8 +238,8 @@ impl MulAssign<f32> for Vector3d {
     }
 }
 
-impl Div<f32> for Vector3d {
-    type Output = Vector3d;
+impl Div<f32> for Vector3D {
+    type Output = Vector3D;
 
     fn div(self, rhs: f32) -> Self::Output {
         Self::Output {
@@ -250,7 +250,7 @@ impl Div<f32> for Vector3d {
     }
 }
 
-impl DivAssign<f32> for Vector3d {
+impl DivAssign<f32> for Vector3D {
     fn div_assign(&mut self, rhs: f32) {
         self.x = self.x / rhs;
         self.y = self.y / rhs;

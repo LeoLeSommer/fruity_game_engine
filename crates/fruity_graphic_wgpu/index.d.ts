@@ -8,7 +8,7 @@ import {
   Matrix4,
   Color,
   TextureResource,
-  Vector2d,
+  Vector2D,
   ShaderResource,
   MeshResourceSettings,
   ShaderResourceSettings,
@@ -22,9 +22,9 @@ export interface WgpuGraphicService {
   renderScene(viewProj: Matrix4, backgroundColor: Color, target?: ResourceReference<TextureResource> | null | undefined)
   getCameraTransform(): Matrix4
   resize(width: number, height: number)
-  worldPositionToViewportPosition(pos: Vector2d): [number, number]
-  viewportPositionToWorldPosition(x: number, y: number): Vector2d
-  getCursorPosition(): Vector2d
+  worldPositionToViewportPosition(pos: Vector2D): [number, number]
+  viewportPositionToWorldPosition(x: number, y: number): Vector2D
+  getCursorPosition(): Vector2D
   isCursorHoverScene(): boolean
   getViewportOffset(): [number, number]
   setViewportOffset(x: number, y: number)

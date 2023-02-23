@@ -103,7 +103,7 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
         let item: ItemFn = parse_macro_input!(input);
         let exported_fn = parse_fn_item(item);
 
-        napi_function_export(exported_fn, Case::Camel)
+        napi_function_export(exported_fn, Some(Case::Camel))
     };
 
     #[cfg(not(feature = "wasm-module"))]
@@ -115,7 +115,7 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
         let item: ItemFn = parse_macro_input!(input);
         let exported_fn = parse_fn_item(item);
 
-        wasm_function_export(exported_fn, Case::Camel)
+        wasm_function_export(exported_fn, Some(Case::Camel))
     };
 
     let input: TokenStream2 = input.clone().into();

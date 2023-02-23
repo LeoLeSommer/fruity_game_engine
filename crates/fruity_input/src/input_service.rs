@@ -77,19 +77,20 @@ impl InputService {
     }
 
     pub fn read_input_settings(&mut self, settings: &Settings) -> FruityResult<()> {
-        // println!("1: {:?}", &settings);
-        let settings = settings.get("input", Settings::default());
-        // println!("2: {:?}", &settings);
+        let input_settings = settings.get("input", Settings::default());
 
-        if let Settings::Object(input_map) = settings {
-            // println!("3: {:?}", &input_map);
-            input_map.iter().try_for_each(|(input, sources)| {
-                let sources = Vec::<String>::try_from(sources.clone())?;
-                sources
-                    .into_iter()
-                    .for_each(|source| self.register_input(input.clone(), source));
+        if let Settings::Array(inputs_settings) = input_settings {
+            inputs_settings.iter().try_for_each(|input_settings| {
+                let name = input_settings.get::<String>("name", "".to_string());
+                let sources = input_settings.get::<Vec<String>>("source", vec![]);
 
-                Ok(())
+                if name.len() > 0 && sources.len() > 0 {
+                    sources
+                        .into_iter()
+                        .for_each(|source| self.register_input(name.clone(), source));
+                }
+
+                FruityResult::Ok(())
             })?;
         }
 
@@ -159,7 +160,6 @@ impl InputService {
                 self.pressed_inputs.insert(input.clone());
                 self.pressed_this_frame_inputs.insert(input.to_string());
                 self.on_pressed.notify(input.clone())?;
-                println!("test: {}", &input);
             }
         }
 

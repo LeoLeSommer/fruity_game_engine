@@ -19,7 +19,7 @@ pub fn create_fruity_input_module() -> Module {
             let resource_container = world.get_resource_container();
 
             let mut input_service = InputService::new(resource_container.clone());
-            // input_service.read_input_settings(&settings)?;
+            input_service.read_input_settings(&settings)?;
             resource_container.add::<InputService>("input_service", Box::new(input_service));
 
             let drag_service = DragService::new(resource_container.clone());

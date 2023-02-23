@@ -7,11 +7,11 @@ export type MaterialParam =
   | { type: 'uint', value: number }
   | { type: 'int', value: number }
   | { type: 'float', value: number }
-  | { type: 'vector2d', value: Vector2d }
+  | { type: 'vector2d', value: Vector2D }
   | { type: 'color', value: Color }
   | { type: 'rect', value: {
-    bottomLeft: Vector2d,
-    topRight: Vector2d,
+    bottomLeft: Vector2D,
+    topRight: Vector2D,
   } }
   | { type: 'matrix4', value: Matrix4 }
 
@@ -33,9 +33,9 @@ export interface GraphicService {
   renderScene(viewProj: Matrix4, backgroundColor: Color, target?: ResourceReference<TextureResource> | null | undefined)
   getCameraTransform(): Matrix4
   resize(width: number, height: number)
-  worldPositionToViewportPosition(pos: Vector2d): [number, number]
-  viewportPositionToWorldPosition(x: number, y: number): Vector2d
-  getCursorPosition(): Vector2d
+  worldPositionToViewportPosition(pos: Vector2D): [number, number]
+  viewportPositionToWorldPosition(x: number, y: number): Vector2D
+  getCursorPosition(): Vector2D
   isCursorHoverScene(): boolean
   getViewportOffset(): [number, number]
   setViewportOffset(x: number, y: number)
@@ -49,9 +49,9 @@ export interface MaterialResource {
 
 export interface Matrix3 {
   0: number[][]
-  translation(): Vector2d
+  translation(): Vector2D
   rotation(): number
-  scale(): Vector2d
+  scale(): Vector2D
   invert(): Matrix3
 }
 
@@ -97,51 +97,51 @@ export interface TextureResource {
   getSize(): [number, number]
 }
 
-export class Vector2d {
+export class Vector2D {
   x: number
   y: number
   constructor(x: number, y: number)
-  horizontal(): Vector2d
-  vertical(): Vector2d
-  abs(): Vector2d
-  normal(): Vector2d
-  dot(v2: Vector2d): number
+  horizontal(): Vector2D
+  vertical(): Vector2D
+  abs(): Vector2D
+  normal(): Vector2D
+  dot(v2: Vector2D): number
   lengthSquared(): number
-  lerp(end: Vector2d, progress: number): Vector2d
+  lerp(end: Vector2D, progress: number): Vector2D
   length(): number
-  normalize(): Vector2d
+  normalize(): Vector2D
   angle(): number
-  inTriangle(p1: Vector2d, p2: Vector2d, p3: Vector2d): boolean
-  inCircle(center: Vector2d, radius: number): boolean
-  add(rhs: Vector2d): Vector2d
-  sub(rhs: Vector2d): Vector2d
-  mul(rhs: number): Vector2d
-  div(rhs: number): Vector2d
+  inTriangle(p1: Vector2D, p2: Vector2D, p3: Vector2D): boolean
+  inCircle(center: Vector2D, radius: number): boolean
+  add(rhs: Vector2D): Vector2D
+  sub(rhs: Vector2D): Vector2D
+  mul(rhs: number): Vector2D
+  div(rhs: number): Vector2D
 }
 
-export class Vector3d {
+export class Vector3D {
   x: number
   y: number
   z: number
   constructor(x: number, y: number, z: number)
-  horizontal(): Vector3d
-  vertical(): Vector3d
-  depth(): Vector3d
-  dot(v2: Vector3d): number
+  horizontal(): Vector3D
+  vertical(): Vector3D
+  depth(): Vector3D
+  dot(v2: Vector3D): number
   lengthSquared(): number
-  lerp(end: Vector3d, progress: number): Vector3d
+  lerp(end: Vector3D, progress: number): Vector3D
   length(): number
-  normalize(): Vector3d
-  add(rhs: Vector3d): Vector3d
-  sub(rhs: Vector3d): Vector3d
-  mul(rhs: number): Vector3d
-  div(rhs: number): Vector3d
+  normalize(): Vector3D
+  add(rhs: Vector3D): Vector3D
+  sub(rhs: Vector3D): Vector3D
+  mul(rhs: number): Vector3D
+  div(rhs: number): Vector3D
 }
 
 export interface Vertex {
-  position: Vector3d
-  texCoords: Vector2d
-  normal: Vector3d
+  position: Vector3D
+  texCoords: Vector2D
+  normal: Vector3D
 }
 
 export function createFruityGraphicModule(): Module

@@ -1,4 +1,5 @@
 use fruity_game_engine::{
+    console_log,
     frame_service::FrameService,
     profile::{profile_new_frame, profile_scope, profile_start},
     settings::Settings,
@@ -19,6 +20,8 @@ use crate::{fps_counter::FPSCounter, window_service::WinitWindowService};
 pub fn window_middleware(world: World, settings: Settings) -> FruityResult<()> {
     let resource_container = world.get_resource_container();
 
+    console_log("1");
+
     // Read settings
     let window_settings = read_window_settings(&settings);
 
@@ -37,17 +40,25 @@ pub fn window_middleware(world: World, settings: Settings) -> FruityResult<()> {
         .build(&event_loop)
         .unwrap();
 
+    console_log("2");
+
     let window_id = window.id();
 
     // Initialize windows service
     let window_service = WinitWindowService::new(resource_container.clone(), window);
     resource_container.add::<dyn WindowService>("window_service", Box::new(window_service));
 
+    console_log("3");
+
     // Setup modules
     world.setup_modules()?;
 
+    console_log("4");
+
     // Initialize the resources
     world.load_resources()?;
+
+    console_log("5");
 
     // Build and inject the window in the windows service
     let (on_start_update, on_end_update, on_resize, on_cursor_moved, on_event, on_events_cleared) = {
@@ -64,6 +75,8 @@ pub fn window_middleware(world: World, settings: Settings) -> FruityResult<()> {
             window_service_reader.on_events_cleared.clone(),
         )
     };
+
+    console_log("6");
 
     // Run the begin systems before everything
     world.start()?;

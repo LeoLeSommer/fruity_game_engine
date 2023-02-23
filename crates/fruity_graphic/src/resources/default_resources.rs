@@ -1,5 +1,5 @@
 use crate::graphic_service::GraphicService;
-use crate::math::vector3d::Vector3d;
+use crate::math::vector3d::Vector3D;
 use crate::resources::material_resource::MaterialResourceSettings;
 use crate::resources::material_resource::MaterialSettingsBinding;
 use crate::resources::material_resource::MaterialSettingsInstanceAttribute;
@@ -13,7 +13,7 @@ use crate::resources::shader_resource::ShaderInstanceAttribute;
 use crate::resources::shader_resource::ShaderInstanceAttributeType;
 use crate::resources::shader_resource::ShaderResource;
 use crate::resources::shader_resource::ShaderResourceSettings;
-use crate::Vector2d;
+use crate::Vector2D;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::FruityResult;
 use maplit::hashmap;
@@ -41,24 +41,24 @@ pub fn load_squad_mesh(resource_container: ResourceContainer) -> FruityResult<()
         MeshResourceSettings {
             vertices: vec![
                 Vertex {
-                    position: Vector3d::new(-0.5, -0.5, 0.0),
-                    tex_coords: Vector2d::new(0.0, 1.0),
-                    normal: Vector3d::new(0.0, 0.0, -1.0),
+                    position: Vector3D::new(-0.5, -0.5, 0.0),
+                    tex_coords: Vector2D::new(0.0, 1.0),
+                    normal: Vector3D::new(0.0, 0.0, -1.0),
                 },
                 Vertex {
-                    position: Vector3d::new(0.5, -0.5, 0.0),
-                    tex_coords: Vector2d::new(1.0, 1.0),
-                    normal: Vector3d::new(0.0, 0.0, -1.0),
+                    position: Vector3D::new(0.5, -0.5, 0.0),
+                    tex_coords: Vector2D::new(1.0, 1.0),
+                    normal: Vector3D::new(0.0, 0.0, -1.0),
                 },
                 Vertex {
-                    position: Vector3d::new(0.5, 0.5, 0.0),
-                    tex_coords: Vector2d::new(1.0, 0.0),
-                    normal: Vector3d::new(0.0, 0.0, -1.0),
+                    position: Vector3D::new(0.5, 0.5, 0.0),
+                    tex_coords: Vector2D::new(1.0, 0.0),
+                    normal: Vector3D::new(0.0, 0.0, -1.0),
                 },
                 Vertex {
-                    position: Vector3d::new(-0.5, 0.5, 0.0),
-                    tex_coords: Vector2d::new(0.0, 0.0),
-                    normal: Vector3d::new(0.0, 0.0, -1.0),
+                    position: Vector3D::new(-0.5, 0.5, 0.0),
+                    tex_coords: Vector2D::new(0.0, 0.0),
+                    normal: Vector3D::new(0.0, 0.0, -1.0),
                 },
             ],
             indices: vec![0, 1, 2, 3, 0, 2, /* padding */ 0],
@@ -163,11 +163,11 @@ pub fn load_draw_line_shader(resource_container: ResourceContainer) -> FruityRes
             instance_attributes: vec![
                 ShaderInstanceAttribute {
                     location: 5,
-                    ty: ShaderInstanceAttributeType::Vector2d,
+                    ty: ShaderInstanceAttributeType::Vector2D,
                 },
                 ShaderInstanceAttribute {
                     location: 6,
-                    ty: ShaderInstanceAttributeType::Vector2d,
+                    ty: ShaderInstanceAttributeType::Vector2D,
                 },
                 ShaderInstanceAttribute {
                     location: 7,
@@ -201,10 +201,10 @@ pub fn load_draw_line_material(resource_container: ResourceContainer) -> FruityR
                 MaterialSettingsBinding::RenderSurfaceSize { bind_group: 1 },
             ],
             instance_attributes: hashmap! {
-                "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
+                "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2D {
                     location: 5,
                 },
-                "pos2".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
+                "pos2".to_string() => MaterialSettingsInstanceAttribute::Vector2D {
                     location: 6,
                 },
                 "width".to_string() => MaterialSettingsInstanceAttribute::Uint {
@@ -354,11 +354,11 @@ pub fn load_draw_dotted_line_shader(resource_container: ResourceContainer) -> Fr
                 },
                 ShaderInstanceAttribute {
                     location: 9,
-                    ty: ShaderInstanceAttributeType::Vector2d,
+                    ty: ShaderInstanceAttributeType::Vector2D,
                 },
                 ShaderInstanceAttribute {
                     location: 10,
-                    ty: ShaderInstanceAttributeType::Vector2d,
+                    ty: ShaderInstanceAttributeType::Vector2D,
                 },
                 ShaderInstanceAttribute {
                     location: 11,
@@ -398,10 +398,10 @@ pub fn load_draw_dotted_line_material(resource_container: ResourceContainer) -> 
                     location_2: 7,
                     location_3: 8,
                 },
-                "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
+                "pos1".to_string() => MaterialSettingsInstanceAttribute::Vector2D {
                     location: 9,
                 },
-                "pos2".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
+                "pos2".to_string() => MaterialSettingsInstanceAttribute::Vector2D {
                     location: 10,
                 },
                 "width".to_string() => MaterialSettingsInstanceAttribute::Uint {
@@ -570,11 +570,11 @@ pub fn load_draw_rect_shader(resource_container: ResourceContainer) -> FruityRes
                 },
                 ShaderInstanceAttribute {
                     location: 9,
-                    ty: ShaderInstanceAttributeType::Vector2d,
+                    ty: ShaderInstanceAttributeType::Vector2D,
                 },
                 ShaderInstanceAttribute {
                     location: 10,
-                    ty: ShaderInstanceAttributeType::Vector2d,
+                    ty: ShaderInstanceAttributeType::Vector2D,
                 },
                 ShaderInstanceAttribute {
                     location: 11,
@@ -618,10 +618,10 @@ pub fn load_draw_rect_material(resource_container: ResourceContainer) -> FruityR
                     location_2: 7,
                     location_3: 8,
                 },
-                "bottom_left".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
+                "bottom_left".to_string() => MaterialSettingsInstanceAttribute::Vector2D {
                     location: 9,
                 },
-                "top_right".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
+                "top_right".to_string() => MaterialSettingsInstanceAttribute::Vector2D {
                     location: 10,
                 },
                 "width".to_string() => MaterialSettingsInstanceAttribute::Uint {
@@ -791,7 +791,7 @@ pub fn load_draw_arc_shader(resource_container: ResourceContainer) -> FruityResu
                 },
                 ShaderInstanceAttribute {
                     location: 9,
-                    ty: ShaderInstanceAttributeType::Vector2d,
+                    ty: ShaderInstanceAttributeType::Vector2D,
                 },
                 ShaderInstanceAttribute {
                     location: 10,
@@ -847,7 +847,7 @@ pub fn load_draw_arc_material(resource_container: ResourceContainer) -> FruityRe
                     location_2: 7,
                     location_3: 8,
                 },
-                "center".to_string() => MaterialSettingsInstanceAttribute::Vector2d {
+                "center".to_string() => MaterialSettingsInstanceAttribute::Vector2D {
                     location: 9,
                 },
                 "radius".to_string() => MaterialSettingsInstanceAttribute::Float {

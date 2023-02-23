@@ -49,7 +49,7 @@ pub enum MaterialSettingsInstanceAttribute {
     Float {
         location: u32,
     },
-    Vector2d {
+    Vector2D {
         location: u32,
     },
     Vector4d {
@@ -183,7 +183,7 @@ fn build_material_instance_attribute(
         "vec2" => {
             let location = settings.get::<u32>("location", u32::default());
 
-            Some(MaterialSettingsInstanceAttribute::Vector2d { location })
+            Some(MaterialSettingsInstanceAttribute::Vector2D { location })
         }
         "vec4" => {
             let location = settings.get::<u32>("location", u32::default());

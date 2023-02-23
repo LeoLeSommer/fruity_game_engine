@@ -68,7 +68,7 @@ pub enum ShaderInstanceAttributeType {
     Int,
     Uint,
     Float,
-    Vector2d,
+    Vector2D,
     Vector4d,
 }
 
@@ -171,7 +171,7 @@ pub fn read_shader_instance_attributes_settings(
                 "int" => ShaderInstanceAttributeType::Int,
                 "uint" => ShaderInstanceAttributeType::Uint,
                 "float" => ShaderInstanceAttributeType::Float,
-                "vec2" => ShaderInstanceAttributeType::Vector2d,
+                "vec2" => ShaderInstanceAttributeType::Vector2D,
                 "vec4" => ShaderInstanceAttributeType::Vector4d,
                 _ => ShaderInstanceAttributeType::default(),
             },

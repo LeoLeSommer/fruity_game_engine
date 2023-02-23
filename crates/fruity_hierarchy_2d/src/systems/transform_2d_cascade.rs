@@ -4,7 +4,7 @@ use fruity_ecs::entity::entity_query::Query;
 use fruity_ecs::entity::entity_service::EntityService;
 use fruity_game_engine::inject::Ref;
 use fruity_game_engine::FruityResult;
-use fruity_graphic_2d::components::transform_2d::Transform2d;
+use fruity_graphic_2d::components::transform_2d::Transform2D;
 use fruity_hierarchy::components::parent::Parent;
 use std::ops::Deref;
 use std::sync::atomic::AtomicBool;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 pub fn transform_2d_cascade(
     entity_service: Ref<EntityService>,
-    query: Query<(With<Parent>, WithMut<Transform2d>)>,
+    query: Query<(With<Parent>, WithMut<Transform2D>)>,
 ) -> FruityResult<()> {
     let mut current_nested_level = 1;
     while transform_2d_cascade_for_nested_level(
@@ -29,7 +29,7 @@ pub fn transform_2d_cascade(
 
 pub fn transform_2d_cascade_for_nested_level(
     entity_service: Ref<EntityService>,
-    query: Query<(With<Parent>, WithMut<Transform2d>)>,
+    query: Query<(With<Parent>, WithMut<Transform2D>)>,
     nested_level: usize,
 ) -> FruityResult<bool> {
     let did_transform = Arc::new(AtomicBool::new(false));
@@ -48,7 +48,7 @@ pub fn transform_2d_cascade_for_nested_level(
             // Apply the parent transform to the child
             if let Some(parent_entity) = parent_entity {
                 if let Some(parent_transform) =
-                    parent_entity.read().read_single_component::<Transform2d>()
+                    parent_entity.read().read_single_component::<Transform2D>()
                 {
                     transform.transform = parent_transform.transform * transform.transform;
                     did_transform.store(true, Relaxed);

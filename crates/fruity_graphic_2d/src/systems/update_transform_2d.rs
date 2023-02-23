@@ -1,7 +1,7 @@
-use crate::Rotate2d;
-use crate::Scale2d;
-use crate::Transform2d;
-use crate::Translate2d;
+use crate::Rotate2D;
+use crate::Scale2D;
+use crate::Transform2D;
+use crate::Translate2D;
 use fruity_ecs::entity::entity_query::with::WithMut;
 use fruity_ecs::entity::entity_query::with::WithOptional;
 use fruity_ecs::entity::entity_query::Query;
@@ -10,10 +10,10 @@ use fruity_graphic::math::matrix3::Matrix3;
 
 pub fn update_transform_2d(
     query: Query<(
-        WithMut<Transform2d>,
-        WithOptional<Translate2d>,
-        WithOptional<Rotate2d>,
-        WithOptional<Scale2d>,
+        WithMut<Transform2D>,
+        WithOptional<Translate2D>,
+        WithOptional<Rotate2D>,
+        WithOptional<Scale2D>,
     )>,
 ) -> FruityResult<()> {
     query.for_each(|(mut transform, translate_2d, rotate_2d, scale_2d)| {

@@ -9,7 +9,7 @@ use fruity_game_engine::{export_function, typescript_import};
 pub mod components;
 
 #[typescript_import({Module} from "fruity_game_engine")]
-#[typescript_import({Vector2d} from "fruity_graphic")]
+#[typescript_import({Vector2D} from "fruity_graphic")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]

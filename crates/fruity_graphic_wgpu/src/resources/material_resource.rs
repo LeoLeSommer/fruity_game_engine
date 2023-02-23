@@ -37,7 +37,7 @@ pub enum InstanceField {
     Float {
         location: BufferLocation,
     },
-    Vector2d {
+    Vector2D {
         location: BufferLocation,
     },
     Vector4d {
@@ -123,7 +123,7 @@ impl WgpuMaterialResource {
                     ShaderInstanceAttributeType::Int => size_of::<i32>(),
                     ShaderInstanceAttributeType::Uint => size_of::<u32>(),
                     ShaderInstanceAttributeType::Float => size_of::<f32>(),
-                    ShaderInstanceAttributeType::Vector2d => size_of::<[f32; 2]>(),
+                    ShaderInstanceAttributeType::Vector2D => size_of::<[f32; 2]>(),
                     ShaderInstanceAttributeType::Vector4d => size_of::<[f32; 4]>(),
                 };
 
@@ -190,11 +190,11 @@ impl WgpuMaterialResource {
                             },
                         );
                     }
-                    MaterialSettingsInstanceAttribute::Vector2d { location } => {
+                    MaterialSettingsInstanceAttribute::Vector2D { location } => {
                         insert_in_hashmap_vec(
                             &mut fields,
                             instance_attribute.0.clone(),
-                            InstanceField::Vector2d {
+                            InstanceField::Vector2D {
                                 location: fields_by_locations
                                     .get(location)
                                     .ok_or(FruityError::GenericFailure(format!(

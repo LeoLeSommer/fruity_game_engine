@@ -51,8 +51,7 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
                     .name_overwrite
                     .clone()
                     .unwrap_or(enumeration.name.clone())
-                    .to_string()
-                    .to_case(Case::Pascal);
+                    .to_string();
 
                 let variants_str = enumeration
                     .variants

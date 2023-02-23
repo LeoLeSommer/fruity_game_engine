@@ -1,11 +1,11 @@
 use std::rc::Rc;
 
 use crate::components::camera::Camera;
-use crate::components::rotate_2d::Rotate2d;
-use crate::components::scale_2d::Scale2d;
+use crate::components::rotate_2d::Rotate2D;
+use crate::components::scale_2d::Scale2D;
 use crate::components::sprite::Sprite;
-use crate::components::transform_2d::Transform2d;
-use crate::components::translate_2d::Translate2d;
+use crate::components::transform_2d::Transform2D;
+use crate::components::translate_2d::Translate2D;
 use crate::graphic_2d_service::Graphic2dService;
 use crate::systems::draw_camera::draw_camera;
 use crate::systems::draw_sprite::draw_sprite;
@@ -20,7 +20,7 @@ pub mod graphic_2d_service;
 pub mod systems;
 
 #[typescript_import({ResourceReference, Module} from "fruity_game_engine")]
-#[typescript_import({TextureResource, Color, MaterialResource, MaterialParam, Vector2d, Matrix3} from "fruity_graphic")]
+#[typescript_import({TextureResource, Color, MaterialResource, MaterialParam, Vector2D, Matrix3} from "fruity_graphic")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]
@@ -42,10 +42,10 @@ pub fn create_fruity_graphic_2d_module() -> Module {
             let object_factory_service = resource_container.require::<ObjectFactoryService>();
             let mut object_factory_service = object_factory_service.write();
 
-            object_factory_service.register::<Transform2d>("Transform2d");
-            object_factory_service.register::<Translate2d>("Translate2d");
-            object_factory_service.register::<Rotate2d>("Rotate2d");
-            object_factory_service.register::<Scale2d>("Scale2d");
+            object_factory_service.register::<Transform2D>("Transform2D");
+            object_factory_service.register::<Translate2D>("Translate2D");
+            object_factory_service.register::<Rotate2D>("Rotate2D");
+            object_factory_service.register::<Scale2D>("Scale2D");
             object_factory_service.register::<Sprite>("Sprite");
             object_factory_service.register::<Camera>("Camera");
 

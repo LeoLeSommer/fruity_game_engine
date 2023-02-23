@@ -3,19 +3,19 @@ import {
 } from "fruity_game_engine"
 
 import {
-  Vector2d,
+  Vector2D,
 } from "fruity_graphic"
 
 export class CircleCollider {
-  center: Vector2d
+  center: Vector2D
   radius: number
-  constructor(center: Vector2d, radius: number)
+  constructor(center: Vector2D, radius: number)
 }
 
 export class RectCollider {
-  bottomLeft: Vector2d
-  topRight: Vector2d
-  constructor(bottomLeft: Vector2d, topRight: Vector2d)
+  bottomLeft: Vector2D
+  topRight: Vector2D
+  constructor(bottomLeft: Vector2D, topRight: Vector2D)
 }
 
 export function createFruityPhysic2DModule(): Module

@@ -1,6 +1,7 @@
 use fruity_game_engine_macro::typescript;
 
 use crate::any::FruityAny;
+use crate::console_log;
 use crate::export;
 use crate::frame_service::FrameService;
 use crate::module::Module;
@@ -116,6 +117,8 @@ impl World {
         let module_service = self.module_service.deref().borrow();
 
         module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
+            console_log(&module.name);
+
             if let Some(setup) = module.setup {
                 setup(self.clone(), settings.clone())?;
             }

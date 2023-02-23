@@ -1,5 +1,5 @@
-use crate::math::vector3d::Vector3d;
-use crate::Vector2d;
+use crate::math::vector3d::Vector3D;
+use crate::Vector2D;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export_trait;
 use fruity_game_engine::resource::Resource;
@@ -18,9 +18,9 @@ use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScrip
     bytemuck::Zeroable,
 )]
 pub struct Vertex {
-    pub position: Vector3d,
-    pub tex_coords: Vector2d,
-    pub normal: Vector3d,
+    pub position: Vector3D,
+    pub tex_coords: Vector2D,
+    pub normal: Vector3D,
 }
 
 #[export_trait]

@@ -1,4 +1,4 @@
-use crate::math::vector2d::Vector2d;
+use crate::math::vector2d::Vector2D;
 use crate::Matrix4;
 use cgmath::Angle;
 use cgmath::Rad;
@@ -20,7 +20,7 @@ impl Matrix3 {
         Matrix3(cgmath::Matrix3::identity().into())
     }
 
-    pub fn new_translation(vec: Vector2d) -> Matrix3 {
+    pub fn new_translation(vec: Vector2D) -> Matrix3 {
         Matrix3(
             cgmath::Matrix3::from_translation(cgmath::Vector2::<f32> { x: vec.x, y: vec.y }).into(),
         )
@@ -31,13 +31,13 @@ impl Matrix3 {
         Matrix3([[c, s, 0.0], [-s, c, 0.0], [0.0, 0.0, 1.0]])
     }
 
-    pub fn new_scaling(vec: Vector2d) -> Matrix3 {
+    pub fn new_scaling(vec: Vector2D) -> Matrix3 {
         Matrix3(cgmath::Matrix3::from_nonuniform_scale(vec.x, vec.y).into())
     }
 
     #[export]
-    pub fn translation(&self) -> Vector2d {
-        Vector2d::new(self.0[2][0], self.0[2][1])
+    pub fn translation(&self) -> Vector2D {
+        Vector2D::new(self.0[2][0], self.0[2][1])
     }
 
     #[export]
@@ -46,9 +46,9 @@ impl Matrix3 {
     }
 
     #[export]
-    pub fn scale(&self) -> Vector2d {
+    pub fn scale(&self) -> Vector2D {
         // TODO: Take in care negative scaling
-        Vector2d::new(
+        Vector2D::new(
             f32::sqrt(self.0[0][0].powf(2.0) + self.0[0][1].powf(2.0)),
             f32::sqrt(self.0[1][0].powf(2.0) + self.0[1][1].powf(2.0)),
         )
@@ -99,75 +99,75 @@ impl Mul<Matrix3> for Matrix3 {
 #[cfg(test)]
 mod matrix3 {
     use crate::Matrix3;
-    use crate::Vector2d;
+    use crate::Vector2D;
     use std::f32::consts::PI;
 
     #[test]
     fn translation() {
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(1.0, 1.0))
+            (Matrix3::new_translation(Vector2D::new(1.0, 1.0))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(-1.4, 2.3)))
+                * Matrix3::new_scaling(Vector2D::new(-1.4, 2.3)))
             .translation(),
-            Vector2d::new(1.0, 1.0)
+            Vector2D::new(1.0, 1.0)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(1.4, -2.3))
+            (Matrix3::new_translation(Vector2D::new(1.4, -2.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(-1.4, 2.3)))
+                * Matrix3::new_scaling(Vector2D::new(-1.4, 2.3)))
             .translation(),
-            Vector2d::new(1.4, -2.3)
+            Vector2D::new(1.4, -2.3)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(0.0, 0.0))
+            (Matrix3::new_translation(Vector2D::new(0.0, 0.0))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(-1.4, 2.3)))
+                * Matrix3::new_scaling(Vector2D::new(-1.4, 2.3)))
             .translation(),
-            Vector2d::new(0.0, 0.0)
+            Vector2D::new(0.0, 0.0)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(-1.4, 2.3)))
+                * Matrix3::new_scaling(Vector2D::new(-1.4, 2.3)))
             .translation(),
-            Vector2d::new(13.2, 0.3)
+            Vector2D::new(13.2, 0.3)
         );
     }
 
     #[test]
     fn rotation() {
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(0.0)
-                * Matrix3::new_scaling(Vector2d::new(1.0, 1.0)))
+                * Matrix3::new_scaling(Vector2D::new(1.0, 1.0)))
             .rotation(),
             0.0
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(1.0, 1.0)))
+                * Matrix3::new_scaling(Vector2D::new(1.0, 1.0)))
             .rotation(),
             PI / 5.0
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(-PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(1.0, 1.0)))
+                * Matrix3::new_scaling(Vector2D::new(1.0, 1.0)))
             .rotation(),
             -PI / 5.0
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(2.0 * PI + PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(1.0, 1.0)))
+                * Matrix3::new_scaling(Vector2D::new(1.0, 1.0)))
             .rotation(),
             PI / 5.0
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(-2.0 * PI - PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(1.0, 1.0)))
+                * Matrix3::new_scaling(Vector2D::new(1.0, 1.0)))
             .rotation(),
             -PI / 5.0
         );
@@ -176,53 +176,53 @@ mod matrix3 {
     #[test]
     fn scale() {
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(1.0, 1.0)))
+                * Matrix3::new_scaling(Vector2D::new(1.0, 1.0)))
             .scale(),
-            Vector2d::new(1.0, 1.0)
+            Vector2D::new(1.0, 1.0)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(1.4, 2.3)))
+                * Matrix3::new_scaling(Vector2D::new(1.4, 2.3)))
             .scale(),
-            Vector2d::new(1.4, 2.3)
+            Vector2D::new(1.4, 2.3)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(1.4, -2.3)))
+                * Matrix3::new_scaling(Vector2D::new(1.4, -2.3)))
             .scale(),
-            Vector2d::new(1.4, -2.3)
+            Vector2D::new(1.4, -2.3)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(-1.4, 2.3)))
+                * Matrix3::new_scaling(Vector2D::new(-1.4, 2.3)))
             .scale(),
-            Vector2d::new(-1.4, 2.3)
+            Vector2D::new(-1.4, 2.3)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(-1.4, -2.3)))
+                * Matrix3::new_scaling(Vector2D::new(-1.4, -2.3)))
             .scale(),
-            Vector2d::new(-1.4, -2.3)
+            Vector2D::new(-1.4, -2.3)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(0.0, 0.0)))
+                * Matrix3::new_scaling(Vector2D::new(0.0, 0.0)))
             .scale(),
-            Vector2d::new(0.0, 0.0)
+            Vector2D::new(0.0, 0.0)
         );
         assert_eq!(
-            (Matrix3::new_translation(Vector2d::new(13.2, 0.3))
+            (Matrix3::new_translation(Vector2D::new(13.2, 0.3))
                 * Matrix3::new_rotation(PI / 5.0)
-                * Matrix3::new_scaling(Vector2d::new(13.2, 0.3)))
+                * Matrix3::new_scaling(Vector2D::new(13.2, 0.3)))
             .scale(),
-            Vector2d::new(13.2, 0.3)
+            Vector2D::new(13.2, 0.3)
         );
     }
 }

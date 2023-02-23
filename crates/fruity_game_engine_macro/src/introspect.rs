@@ -335,7 +335,7 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
                         args: constructor.args,
                         return_ty: constructor.return_ty,
                         typescript_overwrite: constructor.typescript_overwrite,
-                    }, Case::Pascal
+                    }, None
                 )
             });
         
@@ -370,7 +370,7 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
                         args: constructor.args,
                         return_ty: constructor.return_ty,
                         typescript_overwrite: constructor.typescript_overwrite,
-                    }, Case::Pascal
+                    }, None
                 )
             });
         

@@ -8,7 +8,7 @@ use crate::resources::shader_resource::ShaderResource;
 use crate::resources::shader_resource::ShaderResourceSettings;
 use crate::resources::texture_resource::TextureResource;
 use crate::resources::texture_resource::TextureResourceSettings;
-use crate::Vector2d;
+use crate::Vector2D;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
@@ -25,11 +25,11 @@ use std::collections::HashMap;
   | { type: 'uint', value: number }
   | { type: 'int', value: number }
   | { type: 'float', value: number }
-  | { type: 'vector2d', value: Vector2d }
+  | { type: 'vector2d', value: Vector2D }
   | { type: 'color', value: Color }
   | { type: 'rect', value: {
-    bottomLeft: Vector2d,
-    topRight: Vector2d,
+    bottomLeft: Vector2D,
+    topRight: Vector2D,
   } }
   | { type: 'matrix4', value: Matrix4 }"
 )]
@@ -37,11 +37,11 @@ pub enum MaterialParam {
     Uint(u32),
     Int(i32),
     Float(f32),
-    Vector2d(Vector2d),
+    Vector2D(Vector2D),
     Color(Color),
     Rect {
-        bottom_left: Vector2d,
-        top_right: Vector2d,
+        bottom_left: Vector2D,
+        top_right: Vector2D,
     },
     Matrix4(Matrix4),
 }
@@ -64,7 +64,7 @@ impl TryIntoScriptValue for MaterialParam {
                 "value".to_string() => value.into_script_value()?,
             }
             .into_script_value()?,
-            MaterialParam::Vector2d(value) => hashmap! {
+            MaterialParam::Vector2D(value) => hashmap! {
                 "type".to_string() => "vector2d".to_string().into_script_value()?,
                 "value".to_string() => value.into_script_value()?,
             }
@@ -112,7 +112,7 @@ impl TryFromScriptValue for MaterialParam {
                         "int" => Ok(MaterialParam::Int(i32::from_script_value(value)?)),
                         "float" => Ok(MaterialParam::Float(f32::from_script_value(value)?)),
                         "vector2d" => {
-                            Ok(MaterialParam::Vector2d(Vector2d::from_script_value(value)?))
+                            Ok(MaterialParam::Vector2D(Vector2D::from_script_value(value)?))
                         }
                         "color" => Ok(MaterialParam::Color(Color::from_script_value(value)?)),
                         "rect" => {
@@ -122,11 +122,11 @@ impl TryFromScriptValue for MaterialParam {
                                 if field_names.contains(&"bottomLeft".to_string())
                                     && field_names.contains(&"topRight".to_string())
                                 {
-                                    let bottom_left = Vector2d::from_script_value(
+                                    let bottom_left = Vector2D::from_script_value(
                                         script_object.get_field_value("bottomLeft")?,
                                     )?;
 
-                                    let top_right = Vector2d::from_script_value(
+                                    let top_right = Vector2D::from_script_value(
                                         script_object.get_field_value("topRight")?,
                                     )?;
 
@@ -191,13 +191,13 @@ pub trait GraphicService: Resource {
     fn resize(&mut self, width: u32, height: u32);
 
     #[export]
-    fn world_position_to_viewport_position(&self, pos: Vector2d) -> (u32, u32);
+    fn world_position_to_viewport_position(&self, pos: Vector2D) -> (u32, u32);
 
     #[export]
-    fn viewport_position_to_world_position(&self, x: u32, y: u32) -> Vector2d;
+    fn viewport_position_to_world_position(&self, x: u32, y: u32) -> Vector2D;
 
     #[export]
-    fn get_cursor_position(&self) -> Vector2d;
+    fn get_cursor_position(&self) -> Vector2D;
 
     #[export]
     fn is_cursor_hover_scene(&self) -> bool;

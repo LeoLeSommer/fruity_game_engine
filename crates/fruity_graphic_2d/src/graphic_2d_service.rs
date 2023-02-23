@@ -11,7 +11,7 @@ use fruity_game_engine::FruityResult;
 use fruity_graphic::graphic_service::GraphicService;
 use fruity_graphic::graphic_service::MaterialParam;
 use fruity_graphic::math::matrix3::Matrix3;
-use fruity_graphic::math::vector2d::Vector2d;
+use fruity_graphic::math::vector2d::Vector2D;
 use fruity_graphic::math::Color;
 use fruity_graphic::resources::material_resource::MaterialResource;
 use fruity_graphic::resources::mesh_resource::MeshResource;
@@ -95,8 +95,8 @@ impl Graphic2dService {
     #[export]
     pub fn draw_line(
         &self,
-        pos1: Vector2d,
-        pos2: Vector2d,
+        pos1: Vector2D,
+        pos2: Vector2D,
         width: u32,
         color: Color,
         z_index: i32,
@@ -107,8 +107,8 @@ impl Graphic2dService {
             self.draw_line_material.clone(),
             hashmap! {
                 "transform".to_string() => MaterialParam::Matrix4(transform.into()),
-                "pos1".to_string() => MaterialParam::Vector2d(pos1),
-                "pos2".to_string() => MaterialParam::Vector2d(pos2),
+                "pos1".to_string() => MaterialParam::Vector2D(pos1),
+                "pos2".to_string() => MaterialParam::Vector2D(pos2),
                 "width".to_string() => MaterialParam::Uint(width),
                 "color".to_string() => MaterialParam::Color(color),
             },
@@ -119,7 +119,7 @@ impl Graphic2dService {
     #[export]
     pub fn draw_polyline(
         &self,
-        points: Vec<Vector2d>,
+        points: Vec<Vector2D>,
         width: u32,
         color: Color,
         z_index: i32,
@@ -133,8 +133,8 @@ impl Graphic2dService {
     #[export]
     pub fn draw_dotted_line(
         &self,
-        pos1: Vector2d,
-        pos2: Vector2d,
+        pos1: Vector2D,
+        pos2: Vector2D,
         width: u32,
         color: Color,
         z_index: i32,
@@ -145,8 +145,8 @@ impl Graphic2dService {
             self.draw_dotted_line_material.clone(),
             hashmap! {
                 "transform".to_string() => MaterialParam::Matrix4(transform.into()),
-                "pos1".to_string() => MaterialParam::Vector2d(pos1),
-                "pos2".to_string() => MaterialParam::Vector2d(pos2),
+                "pos1".to_string() => MaterialParam::Vector2D(pos1),
+                "pos2".to_string() => MaterialParam::Vector2D(pos2),
                 "width".to_string() => MaterialParam::Uint(width),
                 "color".to_string() => MaterialParam::Color(color),
             },
@@ -157,8 +157,8 @@ impl Graphic2dService {
     #[export]
     pub fn draw_rect(
         &self,
-        bottom_left: Vector2d,
-        top_right: Vector2d,
+        bottom_left: Vector2D,
+        top_right: Vector2D,
         width: u32,
         fill_color: Color,
         border_color: Color,
@@ -170,8 +170,8 @@ impl Graphic2dService {
             self.draw_rect_material.clone(),
             hashmap! {
                 "transform".to_string() => MaterialParam::Matrix4(transform.into()),
-                "bottom_left".to_string() => MaterialParam::Vector2d(bottom_left),
-                "top_right".to_string() => MaterialParam::Vector2d(top_right),
+                "bottom_left".to_string() => MaterialParam::Vector2D(bottom_left),
+                "top_right".to_string() => MaterialParam::Vector2D(top_right),
                 "width".to_string() => MaterialParam::Uint(width),
                 "fill_color".to_string() => MaterialParam::Color(fill_color),
                 "border_color".to_string() => MaterialParam::Color(border_color),
@@ -183,7 +183,7 @@ impl Graphic2dService {
     #[export]
     pub fn draw_arc(
         &self,
-        center: Vector2d,
+        center: Vector2D,
         radius: f32,
         angle_range: Range<f32>,
         width: u32,
@@ -201,7 +201,7 @@ impl Graphic2dService {
             self.draw_arc_material.clone(),
             hashmap! {
                 "transform".to_string() => MaterialParam::Matrix4(transform.into()),
-                "center".to_string() => MaterialParam::Vector2d(center),
+                "center".to_string() => MaterialParam::Vector2D(center),
                 "radius".to_string() => MaterialParam::Float(radius),
                 "fill_color".to_string() => MaterialParam::Color(fill_color),
                 "border_color".to_string() => MaterialParam::Color(border_color),
@@ -216,7 +216,7 @@ impl Graphic2dService {
     #[export]
     pub fn draw_circle(
         &self,
-        center: Vector2d,
+        center: Vector2D,
         radius: f32,
         width: u32,
         fill_color: Color,

@@ -8,14 +8,14 @@ import {
 import {
   createFruityGraphicModule,
   MaterialResource,
-  Vector2d,
+  Vector2D,
 } from "fruity_graphic";
 import {
   createFruityGraphic2DModule,
-  Rotate2d,
+  Rotate2D,
   Sprite,
-  Transform2d,
-  Translate2d,
+  Transform2D,
+  Translate2D,
 } from "fruity_graphic_2d";
 import { createFruityGraphicWgpuModule } from "fruity_graphic_wgpu";
 import { createFruityHierarchyModule } from "fruity_hierarchy";
@@ -46,14 +46,6 @@ class Velocity {
   }
 
   velocity = 1.0;
-}
-
-class TestVec {
-  constructor(args: Partial<TestVec>) {
-    Object.assign(this, args);
-  }
-
-  scale = new Vector2d(0, 0);
 }
 
 const world = new World(settings as any);
@@ -131,7 +123,7 @@ world.registerModule({
       let handle = entityService
         .query()
         .withName()
-        .with("Translate2d")
+        .with("Translate2D")
         .with("Velocity")
         .onCreated((name) => {
           console.log(`Entity created ${name}`);
@@ -155,9 +147,9 @@ world.registerModule({
       let handle1 = inputService.onPressed.addObserver((input) => {
         if (input === "Action 1") {
           createdEntityId = entityService.create("New Entity", true, [
-            new Transform2d(),
+            new Transform2D(),
             new Sprite(materialResource, null, 30),
-            new Translate2d(new Vector2d(1, 1)),
+            new Translate2D(new Vector2D(1, 1)),
             new Velocity({ velocity: 1.0 }),
           ]);
         }
@@ -178,7 +170,7 @@ world.registerModule({
     systemService.addSystem("test 1", () => {
       entityService
         .query()
-        .with<Translate2d>("Translate2d")
+        .with<Translate2D>("Translate2D")
         .with<Velocity>("Velocity")
         .forEach(([translate, velocity]) => {
           const beforeTranslate = translate.vec;
@@ -192,11 +184,11 @@ world.registerModule({
       entityService
         .query()
         .withEntity()
-        .with<Translate2d>("Translate2d")
+        .with<Translate2D>("Translate2D")
         .with<Move>("Move")
         .forEach(([entity, translate, move]) => {
-          //let vel = new Vector2d(0, 0);
-          /*if (inputService.isPressed("Run Left")) {
+          let vel = new Vector2D(0, 0);
+          if (inputService.isPressed("Run Left")) {
             vel.x -= move.velocity;
           }
 
@@ -210,15 +202,16 @@ world.registerModule({
 
           if (inputService.isPressed("Down")) {
             vel.y -= move.velocity;
-          }*/
-          // translate.vec = translate.vec.add(vel.mul(frameService.getDelta()));
+          }
+
+          translate.vec = translate.vec.add(vel.mul(frameService.getDelta()));
         });
     });
 
     systemService.addSystem("test 3", () => {
       entityService
         .query()
-        .with<Rotate2d>("Rotate2d")
+        .with<Rotate2D>("Rotate2D")
         .with<Move>("Move")
         .forEach(([rotate, move]) => {
           if (inputService.isPressed("Rotate")) {

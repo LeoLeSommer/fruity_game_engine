@@ -4,15 +4,15 @@ use fruity_graphic::math::matrix3::Matrix3;
 
 #[derive(Debug, Clone, Default, Component, FruityAny)]
 #[export_struct]
-pub struct Transform2d {
+pub struct Transform2D {
     pub transform: Matrix3,
 }
 
 #[export_impl]
-impl Transform2d {
+impl Transform2D {
     /// Returns a new Camera
     #[export_constructor]
-    pub fn new() -> Transform2d {
+    pub fn new() -> Transform2D {
         Self {
             transform: Default::default(),
         }

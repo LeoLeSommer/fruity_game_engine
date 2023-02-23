@@ -3,15 +3,15 @@ use fruity_game_engine::{any::FruityAny, export_constructor, export_impl, export
 
 #[derive(Debug, Clone, Default, Component, FruityAny)]
 #[export_struct]
-pub struct Rotate2d {
+pub struct Rotate2D {
     pub angle: f32,
 }
 
 #[export_impl]
-impl Rotate2d {
-    /// Returns a new Rotate2d
+impl Rotate2D {
+    /// Returns a new Rotate2D
     #[export_constructor]
-    pub fn new(angle: f32) -> Rotate2d {
+    pub fn new(angle: f32) -> Rotate2D {
         Self { angle }
     }
 }

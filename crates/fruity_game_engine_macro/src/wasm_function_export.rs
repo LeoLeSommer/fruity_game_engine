@@ -5,15 +5,21 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::__private::TokenStream2;
 
-pub(crate) fn wasm_function_export(exported_fn: FruityExportFn, case: Case) -> TokenStream2 {
+pub(crate) fn wasm_function_export(
+    exported_fn: FruityExportFn,
+    case: Option<Case>,
+) -> TokenStream2 {
     let fruity_crate = fruity_crate();
 
     let fn_identifier = exported_fn.name;
-    let exported_name = exported_fn
+    let mut exported_name = exported_fn
         .name_overwrite
         .map(|name_overwrite| name_overwrite.to_string())
-        .unwrap_or(quote! {#fn_identifier}.to_string())
-        .to_case(case);
+        .unwrap_or(quote! {#fn_identifier}.to_string());
+
+    if let Some(case) = case {
+        exported_name = exported_name.to_case(case);
+    }
 
     let return_ty = match exported_fn.return_ty {
         syn::ReturnType::Default => Box::new(syn::Type::Tuple(syn::TypeTuple {

@@ -186,7 +186,7 @@ impl WgpuShaderResource {
                     ShaderInstanceAttributeType::Float => {
                         (wgpu::VertexFormat::Float32, size_of::<f32>())
                     }
-                    ShaderInstanceAttributeType::Vector2d => {
+                    ShaderInstanceAttributeType::Vector2D => {
                         (wgpu::VertexFormat::Float32x2, size_of::<[f32; 2]>())
                     }
                     ShaderInstanceAttributeType::Vector4d => {

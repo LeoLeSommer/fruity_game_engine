@@ -5,7 +5,7 @@
     "enabled": true,
     "components": [
       {
-        "className": "Translate2d",
+        "className": "Translate2D",
         "fields": {
           "vec": {
             "y": 2,
@@ -14,13 +14,13 @@
         }
       },
       {
-        "className": "Rotate2d",
+        "className": "Rotate2D",
         "fields": {
           "angle": 0.14
         }
       },
       {
-        "className": "Scale2d",
+        "className": "Scale2D",
         "fields": {
           "vec": {
             "y": 2.5,
@@ -43,7 +43,7 @@
         }
       },
       {
-        "className": "Transform2d",
+        "className": "Transform2D",
         "fields": {
           "transform": {}
         }
@@ -80,7 +80,7 @@
         }
       },
       {
-        "className": "Translate2d",
+        "className": "Translate2D",
         "fields": {
           "vec": {
             "y": 0.32,
@@ -89,7 +89,7 @@
         }
       },
       {
-        "className": "Scale2d",
+        "className": "Scale2D",
         "fields": {
           "vec": {
             "x": 0.5,
@@ -115,7 +115,7 @@
         }
       },
       {
-        "className": "Transform2d",
+        "className": "Transform2D",
         "fields": {
           "transform": {}
         }
@@ -168,7 +168,7 @@
         }
       },
       {
-        "className": "Translate2d",
+        "className": "Translate2D",
         "fields": {
           "vec": {
             "x": -0.15,
@@ -177,7 +177,7 @@
         }
       },
       {
-        "className": "Scale2d",
+        "className": "Scale2D",
         "fields": {
           "vec": {
             "y": 0.5,
@@ -194,7 +194,7 @@
         }
       },
       {
-        "className": "Transform2d",
+        "className": "Transform2D",
         "fields": {
           "transform": {}
         }
@@ -227,7 +227,7 @@
         }
       },
       {
-        "className": "Translate2d",
+        "className": "Translate2D",
         "fields": {
           "vec": {
             "x": 0.15,
@@ -236,7 +236,7 @@
         }
       },
       {
-        "className": "Scale2d",
+        "className": "Scale2D",
         "fields": {
           "vec": {
             "y": 0.5,
@@ -253,7 +253,7 @@
         }
       },
       {
-        "className": "Transform2d",
+        "className": "Transform2D",
         "fields": {
           "transform": {}
         }
@@ -266,7 +266,7 @@
     "enabled": true,
     "components": [
       {
-        "className": "Translate2d",
+        "className": "Translate2D",
         "fields": {
           "vec": {
             "y": 0,
@@ -275,7 +275,7 @@
         }
       },
       {
-        "className": "Scale2d",
+        "className": "Scale2D",
         "fields": {
           "vec": {
             "x": 64,
@@ -297,7 +297,7 @@
         }
       },
       {
-        "className": "Transform2d",
+        "className": "Transform2D",
         "fields": {
           "transform": {}
         }
@@ -310,7 +310,7 @@
     "enabled": true,
     "components": [
       {
-        "className": "Translate2d",
+        "className": "Translate2D",
         "fields": {
           "vec": {
             "y": -4,
@@ -319,7 +319,7 @@
         }
       },
       {
-        "className": "Scale2d",
+        "className": "Scale2D",
         "fields": {
           "vec": {
             "x": 24,
@@ -336,7 +336,7 @@
         }
       },
       {
-        "className": "Transform2d",
+        "className": "Transform2D",
         "fields": {
           "transform": {}
         }

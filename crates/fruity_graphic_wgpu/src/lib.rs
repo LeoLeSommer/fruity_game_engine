@@ -9,7 +9,7 @@ pub mod utils;
 pub mod wgpu_bridge;
 
 #[typescript_import({Signal, ResourceReference, Module} from "fruity_game_engine")]
-#[typescript_import({Matrix4, Color, TextureResource, Vector2d, ShaderResource, MeshResourceSettings, ShaderResourceSettings} from "fruity_graphic")]
+#[typescript_import({Matrix4, Color, TextureResource, Vector2D, ShaderResource, MeshResourceSettings, ShaderResourceSettings} from "fruity_graphic")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]

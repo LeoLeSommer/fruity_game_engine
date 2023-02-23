@@ -17,22 +17,24 @@ fruity_graphic = { path = "../fruity_graphic" }
 fruity_windows = { path = "../fruity_windows" }
 fruity_windows_winit = { path = "../fruity_windows_winit" }
 wasm-bindgen = { version = "0.2.83", optional = true }
+wasm-bindgen-futures = { version = "0.4.34", optional = true }
 
 [build-dependencies]
 fruity_game_engine_build = { path = "../fruity_game_engine_build" }
 napi-build = { version = "2.0.1", optional = true }
 
 [features]
-default = []
+default = ["wasm-module"]
 napi-module = [
     "multi-threaded",
     "napi-build",
     "fruity_game_engine/napi-module"
 ]
 wasm-module = [
+    "wasm-bindgen-futures",
     "wasm-bindgen",
     "fruity_game_engine/wasm-module"
 ]
 multi-threaded = [
-    "tokio/rt-multi-thread"
+    "tokio/rt-multi-thread",
 ]

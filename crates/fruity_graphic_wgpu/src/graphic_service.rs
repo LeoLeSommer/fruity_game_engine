@@ -5,6 +5,7 @@ use crate::resources::shader_resource::WgpuShaderResource;
 use crate::resources::texture_resource::WgpuTextureResource;
 use crate::utils::encode_into_bytes;
 use fruity_game_engine::any::FruityAny;
+use fruity_game_engine::console_log;
 use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
@@ -19,7 +20,7 @@ use fruity_game_engine::RwLock;
 use fruity_graphic::graphic_service::GraphicService;
 use fruity_graphic::graphic_service::MaterialParam;
 use fruity_graphic::math::matrix4::Matrix4;
-use fruity_graphic::math::vector2d::Vector2d;
+use fruity_graphic::math::vector2d::Vector2D;
 use fruity_graphic::math::Color;
 use fruity_graphic::resources::material_resource::MaterialResource;
 use fruity_graphic::resources::material_resource::MaterialResourceSettings;
@@ -194,6 +195,7 @@ impl WgpuGraphicService {
     }
 
     pub fn initialize(window: &Window) -> State {
+        console_log("1 1");
         let future = async {
             // The instance is a handle to our GPU
             // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
@@ -207,6 +209,7 @@ impl WgpuGraphicService {
                 })
                 .await
                 .unwrap();
+            console_log("1 2");
 
             // Create the device and queue
             let (device, queue) = adapter
@@ -220,9 +223,11 @@ impl WgpuGraphicService {
                 )
                 .await
                 .unwrap();
+            console_log("1 3");
 
             // Base configuration for the surface
             let size = window.inner_size();
+            console_log("1 4");
 
             let surface_caps = surface.get_capabilities(&adapter);
             let surface_format = surface_caps
@@ -232,6 +237,7 @@ impl WgpuGraphicService {
                 .filter(|f| f.describe().srgb)
                 .next()
                 .unwrap_or(surface_caps.formats[0]);
+            console_log("1 5");
 
             let config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -244,23 +250,28 @@ impl WgpuGraphicService {
             };
 
             surface.configure(&device, &config);
+            console_log("1 6");
 
             // Get the texture view where the scene will be rendered
             let output = surface.get_current_texture().unwrap();
             let rendering_view = output
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
+            console_log("1 7");
 
             // Create camera bind group
             let (camera_buffer, camera_bind_group) = Self::initialize_camera(&device);
+            console_log("1 8");
 
             // Create camera bind group
             let (viewport_size_buffer, viewport_size_bind_group) =
                 Self::initialize_viewport_size(&device);
+            console_log("1 9");
 
             // Create camera bind group
             let (render_surface_size_buffer, render_surface_size_bind_group) =
                 Self::initialize_render_surface_size(&device);
+            console_log("1 10");
 
             // Update state
             State {
@@ -278,6 +289,7 @@ impl WgpuGraphicService {
                 render_surface_size_bind_group,
             }
         };
+        console_log("1 1.2");
 
         #[cfg(not(feature = "multi-threaded"))]
         let result = Builder::new_current_thread()
@@ -285,6 +297,7 @@ impl WgpuGraphicService {
             .build()
             .unwrap()
             .block_on(future);
+        console_log("1 1.3");
 
         #[cfg(feature = "multi-threaded")]
         let result = Builder::new_multi_thread()
@@ -436,8 +449,8 @@ impl WgpuGraphicService {
         );
 
         // Update viewport size bind group
-        let screen_bottom_left = view_proj * Vector2d::new(-1.0, -1.0);
-        let screen_top_right = view_proj * Vector2d::new(1.0, 1.0);
+        let screen_bottom_left = view_proj * Vector2D::new(-1.0, -1.0);
+        let screen_top_right = view_proj * Vector2D::new(1.0, 1.0);
         let viewport_size = (screen_bottom_left - screen_top_right).abs();
         let viewport_size_uniform = ViewportSizeUniform([viewport_size.x, viewport_size.y]);
         self.state.queue.write_buffer(
@@ -517,7 +530,7 @@ impl WgpuGraphicService {
     }
 
     fn initialize_viewport_size(device: &wgpu::Device) -> (wgpu::Buffer, Arc<wgpu::BindGroup>) {
-        let viewport_size = Vector2d::default();
+        let viewport_size = Vector2D::default();
 
         let viewport_size_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Viewport Size Buffer"),
@@ -641,8 +654,8 @@ impl WgpuGraphicService {
                             );
                         }
                     }
-                    MaterialParam::Vector2d(value) => {
-                        if let InstanceField::Vector2d { location } = material_field {
+                    MaterialParam::Vector2D(value) => {
+                        if let InstanceField::Vector2D { location } = material_field {
                             encode_into_bytes(
                                 &mut instance_buffer,
                                 location.offset,
@@ -932,7 +945,7 @@ impl GraphicService for WgpuGraphicService {
     }
 
     #[export]
-    fn world_position_to_viewport_position(&self, pos: Vector2d) -> (u32, u32) {
+    fn world_position_to_viewport_position(&self, pos: Vector2D) -> (u32, u32) {
         let viewport_offset = self.get_viewport_offset();
         let viewport_size = self.get_viewport_size();
         let camera_transform = self.get_camera_transform().clone();
@@ -948,13 +961,13 @@ impl GraphicService for WgpuGraphicService {
     }
 
     #[export]
-    fn viewport_position_to_world_position(&self, x: u32, y: u32) -> Vector2d {
+    fn viewport_position_to_world_position(&self, x: u32, y: u32) -> Vector2D {
         let viewport_offset = self.get_viewport_offset();
         let viewport_size = self.get_viewport_size();
         let camera_transform = self.get_camera_transform().clone();
 
         // Transform the cursor in the engine world (especialy taking care of camera)
-        let cursor_pos = Vector2d::new(
+        let cursor_pos = Vector2D::new(
             ((x as f32 - viewport_offset.0 as f32) / viewport_size.0 as f32) * 2.0 - 1.0,
             ((y as f32 - viewport_offset.1 as f32) / viewport_size.1 as f32) * -2.0 + 1.0,
         );
@@ -963,7 +976,7 @@ impl GraphicService for WgpuGraphicService {
     }
 
     #[export]
-    fn get_cursor_position(&self) -> Vector2d {
+    fn get_cursor_position(&self) -> Vector2D {
         // Get informations from the resource dependencies
         let cursor_position = {
             let window_service = self.window_service.read();
@@ -984,7 +997,7 @@ impl GraphicService for WgpuGraphicService {
         let viewport_offset = self.get_viewport_offset();
         let viewport_size = self.get_viewport_size();
 
-        let cursor_pos = Vector2d::new(
+        let cursor_pos = Vector2D::new(
             (cursor_position.0 as f32 - viewport_offset.0 as f32) / viewport_size.0 as f32,
             (cursor_position.1 as f32 - viewport_offset.1 as f32) / viewport_size.1 as f32,
         );
