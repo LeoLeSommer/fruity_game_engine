@@ -213,6 +213,7 @@ impl TryFromScriptValue for Settings {
             ),
             ScriptValue::Null => Settings::Null,
             ScriptValue::Undefined => Settings::Null,
+            ScriptValue::Future(_) => unimplemented!(),
             ScriptValue::Callback(_) => unimplemented!(),
             ScriptValue::Object(value) => Settings::Object(
                 value

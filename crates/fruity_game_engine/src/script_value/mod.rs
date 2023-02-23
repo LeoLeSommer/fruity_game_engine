@@ -17,6 +17,7 @@ use lazy_static::__Deref;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::future::Future;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -88,6 +89,9 @@ pub enum ScriptValue {
 
     /// A null value, correspond to ()
     Undefined,
+
+    /// A future
+    Future(Rc<Box<dyn Unpin + Future<Output = FruityResult<ScriptValue>>>>),
 
     /// A callback
     Callback(Rc<dyn ScriptCallback>),
@@ -193,6 +197,7 @@ impl Debug for ScriptValue {
             ScriptValue::Array(value) => value.fmt(formatter),
             ScriptValue::Null => formatter.write_str("null"),
             ScriptValue::Undefined => formatter.write_str("undefined"),
+            ScriptValue::Future(_) => formatter.write_str("future"),
             ScriptValue::Callback(_) => formatter.write_str("function"),
             ScriptValue::Object(value) => value.fmt(formatter),
         }
@@ -219,6 +224,7 @@ impl Clone for ScriptValue {
             Self::Array(value) => Self::Array(value.clone()),
             Self::Null => Self::Null,
             Self::Undefined => Self::Undefined,
+            Self::Future(value) => Self::Future(value.clone()),
             Self::Callback(value) => Self::Callback(value.clone()),
             Self::Object(value) => Self::Object(value.duplicate()),
         }

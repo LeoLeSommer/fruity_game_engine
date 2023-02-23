@@ -554,7 +554,9 @@ dependencies = [
  "parking_lot",
  "puffin",
  "send_wrapper",
+ "tokio",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 
@@ -1243,6 +1245,7 @@ dependencies = [
  "napi-sys",
  "once_cell",
  "thread_local",
+ "tokio",
 ]
 
 [[package]]

@@ -5,7 +5,6 @@ use crate::resources::shader_resource::WgpuShaderResource;
 use crate::resources::texture_resource::WgpuTextureResource;
 use crate::utils::encode_into_bytes;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::console_log;
 use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
@@ -195,7 +194,6 @@ impl WgpuGraphicService {
     }
 
     pub fn initialize(window: &Window) -> State {
-        console_log("1 1");
         let future = async {
             // The instance is a handle to our GPU
             // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
@@ -209,7 +207,6 @@ impl WgpuGraphicService {
                 })
                 .await
                 .unwrap();
-            console_log("1 2");
 
             // Create the device and queue
             let (device, queue) = adapter
@@ -223,11 +220,9 @@ impl WgpuGraphicService {
                 )
                 .await
                 .unwrap();
-            console_log("1 3");
 
             // Base configuration for the surface
             let size = window.inner_size();
-            console_log("1 4");
 
             let surface_caps = surface.get_capabilities(&adapter);
             let surface_format = surface_caps
@@ -237,7 +232,6 @@ impl WgpuGraphicService {
                 .filter(|f| f.describe().srgb)
                 .next()
                 .unwrap_or(surface_caps.formats[0]);
-            console_log("1 5");
 
             let config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -250,28 +244,23 @@ impl WgpuGraphicService {
             };
 
             surface.configure(&device, &config);
-            console_log("1 6");
 
             // Get the texture view where the scene will be rendered
             let output = surface.get_current_texture().unwrap();
             let rendering_view = output
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
-            console_log("1 7");
 
             // Create camera bind group
             let (camera_buffer, camera_bind_group) = Self::initialize_camera(&device);
-            console_log("1 8");
 
             // Create camera bind group
             let (viewport_size_buffer, viewport_size_bind_group) =
                 Self::initialize_viewport_size(&device);
-            console_log("1 9");
 
             // Create camera bind group
             let (render_surface_size_buffer, render_surface_size_bind_group) =
                 Self::initialize_render_surface_size(&device);
-            console_log("1 10");
 
             // Update state
             State {
@@ -289,7 +278,6 @@ impl WgpuGraphicService {
                 render_surface_size_bind_group,
             }
         };
-        console_log("1 1.2");
 
         #[cfg(not(feature = "multi-threaded"))]
         let result = Builder::new_current_thread()
@@ -297,7 +285,6 @@ impl WgpuGraphicService {
             .build()
             .unwrap()
             .block_on(future);
-        console_log("1 1.3");
 
         #[cfg(feature = "multi-threaded")]
         let result = Builder::new_multi_thread()

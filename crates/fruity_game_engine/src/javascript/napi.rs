@@ -8,16 +8,18 @@ use crate::{
 use convert_case::{Case, Casing};
 use fruity_game_engine_macro::FruityAny;
 use napi::{
-    bindgen_prelude::CallbackInfo,
+    bindgen_prelude::{CallbackInfo, FromNapiValue, Promise},
     sys::{napi_env, napi_value},
     Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, PropertyAttributes, Ref,
     ValueType,
 };
 use napi::{check_status, NapiValue};
 use napi::{JsError, NapiRaw};
-use std::{ffi::CString, marker::PhantomData, ops::Deref};
+use napi_sys::{napi_create_promise, napi_deferred, napi_reject_deferred, napi_resolve_deferred};
+use std::{ffi::CString, future::Future, marker::PhantomData, ops::Deref};
 use std::{fmt::Debug, vec};
 use std::{rc::Rc, sync::Arc};
+use tokio::task;
 
 /// Create a napi js value from a script value
 pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<JsUnknown> {
@@ -100,6 +102,52 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             .get_undefined()
             .map_err(|e| FruityError::from_napi(e))?
             .into_unknown(),
+        ScriptValue::Future(future) => {
+            let mut deferred: napi_deferred = std::ptr::null_mut();
+            let mut promise: napi_value = std::ptr::null_mut();
+
+            check_status!(unsafe {
+                napi_create_promise(env.raw(), &mut deferred as *mut _, &mut promise as *mut _)
+            })
+            .map_err(|e| FruityError::from_napi(e))?;
+
+            let future = Rc::<
+                Box<dyn Unpin + Future<Output = Result<ScriptValue, FruityError>>>,
+            >::try_unwrap(future);
+
+            match future {
+                Ok(future) => {
+                    // TODO: Catch errors in this thread
+                    let env = env.clone();
+                    task::spawn_local(async move {
+                        match future.await {
+                            Ok(result) => {
+                                let js_result = script_value_to_js_value(&env, result).unwrap();
+                                unsafe {
+                                    napi_resolve_deferred(env.raw(), deferred, js_result.raw())
+                                };
+                            }
+                            Err(err) => {
+                                let js_error = JsError::from(err.into_napi());
+                                unsafe {
+                                    napi_reject_deferred(
+                                        env.raw(),
+                                        deferred,
+                                        js_error.into_value(env.raw()),
+                                    )
+                                };
+                            }
+                        }
+                    });
+                }
+                Err(_) => {
+                    todo!()
+                }
+            };
+
+            unsafe { JsUnknown::from_napi_value(env.raw(), promise) }
+                .map_err(|e| FruityError::from_napi(e))?
+        }
         ScriptValue::Callback(callback) => env
             .create_function_from_closure("unknown", move |ctx| {
                 let args = ctx
@@ -310,6 +358,24 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                             })
                             .try_collect::<Vec<_>>()?,
                     )
+                } else if js_object
+                    .is_promise()
+                    .map_err(|e| FruityError::from_napi(e))?
+                {
+                    // Convert js value to promise
+                    let promise = unsafe {
+                        Promise::<JsUnknown>::from_napi_value(env.raw(), js_object.raw())
+                    }
+                    .map_err(|e| FruityError::from_napi(e))?;
+
+                    // Encapsulate the js promise into a rust future
+                    let env = env.clone();
+                    let future = async move {
+                        let result = promise.await.map_err(|e| FruityError::from_napi(e))?;
+                        js_value_to_script_value(&env, result)
+                    };
+
+                    ScriptValue::Future(Rc::new(Box::new(Box::pin(future))))
                 } else {
                     match env.unwrap::<Box<dyn ScriptObject>>(&js_object) {
                         Ok(wrapped) => {

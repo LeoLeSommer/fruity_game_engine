@@ -6,9 +6,10 @@ use crate::{
 };
 use convert_case::{Case, Casing};
 use lazy_static::__Deref;
-use std::fmt::Debug;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{fmt::Debug, future::Future};
 use wasm_bindgen::{JsCast, JsError, JsValue};
+use wasm_bindgen_futures::{future_to_promise, JsFuture};
 
 /// Create a wasm js value from a script value
 pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
@@ -29,6 +30,34 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
         ScriptValue::String(value) => JsValue::from(&value),
         ScriptValue::Null => JsValue::NULL,
         ScriptValue::Undefined => JsValue::UNDEFINED,
+        ScriptValue::Future(future) => {
+            let future = Rc::<
+                Box<dyn Unpin + Future<Output = Result<ScriptValue, FruityError>>>,
+            >::try_unwrap(future);
+
+            let future = match future {
+                Ok(future) => {
+                    let future = async {
+                        match future
+                            .await
+                            .map_err(|err| JsValue::from(JsError::from(err)))
+                        {
+                            Ok(result) => script_value_to_js_value(result)
+                                .map_err(|err| JsValue::from(JsError::from(err))),
+                            Err(err) => Err(err),
+                        }
+                    };
+
+                    future
+                }
+                Err(_) => {
+                    todo!()
+                }
+            };
+
+            let promise = future_to_promise(future);
+            promise.into()
+        }
         ScriptValue::Array(value) => {
             let js_array = js_sys::Array::new();
 
@@ -288,10 +317,34 @@ pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
                 }))
             }
         }
+    } else if is_promise(&value)? {
+        // Third case, the object is a promise
+        let promise = js_sys::Promise::from(value);
+        let future = JsFuture::from(promise);
+        let future = async move {
+            match future.await.map(|result| js_value_to_script_value(result)) {
+                Ok(result) => result,
+                Err(err) => Err(FruityError::from(err)),
+            }
+        };
+
+        ScriptValue::Future(Rc::new(Box::new(Box::pin(future))))
     } else if value.is_bigint() {
+        // Fourth case, the object is a big int
         todo!()
     } else {
         ScriptValue::Undefined
+    })
+}
+
+fn is_promise(value: &JsValue) -> FruityResult<bool> {
+    Ok(if value.is_falsy() {
+        false
+    } else {
+        let then =
+            js_sys::Reflect::get(value, &"then".into()).map_err(|err| FruityError::from(err))?;
+
+        js_sys::Function::is_type_of(&then)
     })
 }
 
