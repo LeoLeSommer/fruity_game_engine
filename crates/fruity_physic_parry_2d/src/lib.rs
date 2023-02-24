@@ -80,7 +80,6 @@ pub fn create_fruity_physic_parry_2d_module() -> Module {
 
             Ok(())
         })),
-        load_resources: None,
-        run_middleware: None,
+        ..Default::default()
     }
 }

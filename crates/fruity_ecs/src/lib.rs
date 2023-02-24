@@ -85,7 +85,6 @@ pub fn create_fruity_ecs_module() -> Module {
 
             Ok(())
         })),
-        load_resources: None,
-        run_middleware: None,
+        ..Default::default()
     }
 }

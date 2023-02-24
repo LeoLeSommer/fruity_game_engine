@@ -3,6 +3,8 @@ use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::utils::introspect::ArgumentCaster;
 use crate::FruityError;
 use crate::FruityResult;
+use std::future::Future;
+use std::pin::Pin;
 use std::rc::Rc;
 
 impl ScriptCallback for Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>> {
@@ -14,23 +16,6 @@ impl ScriptCallback for Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue
         &self,
     ) -> FruityResult<std::sync::Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
         unimplemented!()
-    }
-}
-
-impl<R: TryFromScriptValue> TryFromScriptValue for Rc<dyn Fn() -> FruityResult<R>> {
-    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Callback(value) => Ok(Rc::new(move || {
-                let args: Vec<ScriptValue> = vec![];
-                let result = value.call(args)?;
-
-                <R>::from_script_value(result)
-            })),
-            _ => Err(FruityError::FunctionExpected(format!(
-                "Couldn't convert {:?} to native callback ",
-                value
-            ))),
-        }
     }
 }
 
@@ -81,6 +66,23 @@ impl<T1: TryFromScriptValue, R: TryIntoScriptValue> ScriptCallback for &'static 
     }
 }
 
+impl<R: TryFromScriptValue> TryFromScriptValue for Rc<dyn Fn() -> FruityResult<R>> {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Callback(value) => Ok(Rc::new(move || {
+                let args: Vec<ScriptValue> = vec![];
+                let result = value.call(args)?;
+
+                <R>::from_script_value(result)
+            })),
+            _ => Err(FruityError::FunctionExpected(format!(
+                "Couldn't convert {:?} to native callback ",
+                value
+            ))),
+        }
+    }
+}
+
 impl<T1: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
     for Rc<dyn Fn(T1) -> FruityResult<R>>
 {
@@ -117,74 +119,6 @@ impl<T1: TryFromScriptValue + 'static, R: TryIntoScriptValue + 'static> TryIntoS
     }
 }
 
-impl<
-        T1: TryIntoScriptValue,
-        T2: TryIntoScriptValue,
-        T3: TryIntoScriptValue,
-        T4: TryIntoScriptValue,
-        T5: TryIntoScriptValue,
-        T6: TryIntoScriptValue,
-        T7: TryIntoScriptValue,
-        R: TryFromScriptValue,
-    > TryFromScriptValue for Rc<dyn Fn(T1, T2, T3, T4, T5, T6, T7) -> FruityResult<R>>
-{
-    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Callback(value) => {
-                Ok(Rc::new(move |arg1, arg2, arg3, arg4, arg5, arg6, arg7| {
-                    let args: Vec<ScriptValue> = vec![
-                        arg1.into_script_value()?,
-                        arg2.into_script_value()?,
-                        arg3.into_script_value()?,
-                        arg4.into_script_value()?,
-                        arg5.into_script_value()?,
-                        arg6.into_script_value()?,
-                        arg7.into_script_value()?,
-                    ];
-                    let result = value.call(args)?;
-
-                    <R>::from_script_value(result)
-                }))
-            }
-            _ => Err(FruityError::FunctionExpected(format!(
-                "Couldn't convert {:?} to native callback ",
-                value
-            ))),
-        }
-    }
-}
-
-impl<
-        T1: TryFromScriptValue + 'static,
-        T2: TryFromScriptValue + 'static,
-        T3: TryFromScriptValue + 'static,
-        T4: TryFromScriptValue + 'static,
-        T5: TryFromScriptValue + 'static,
-        T6: TryFromScriptValue + 'static,
-        T7: TryFromScriptValue + 'static,
-        R: TryIntoScriptValue + 'static,
-    > TryIntoScriptValue for Rc<dyn Fn(T1, T2, T3, T4, T5, T6, T7) -> R>
-{
-    fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Rc::new(
-            Box::new(move |args: Vec<ScriptValue>| {
-                let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster.cast_next::<T1>()?;
-                let arg2 = caster.cast_next::<T2>()?;
-                let arg3 = caster.cast_next::<T3>()?;
-                let arg4 = caster.cast_next::<T4>()?;
-                let arg5 = caster.cast_next::<T5>()?;
-                let arg6 = caster.cast_next::<T6>()?;
-                let arg7 = caster.cast_next::<T7>()?;
-
-                let result = self(arg1, arg2, arg3, arg4, arg5, arg6, arg7);
-
-                result.into_script_value()
-            }) as Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
-        )))
-    }
-}
-
 impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
     for Rc<dyn Fn(T1, T2) -> FruityResult<R>>
 {
@@ -196,6 +130,29 @@ impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryF
                 let result = value.call(args)?;
 
                 <R>::from_script_value(result)
+            })),
+            _ => Err(FruityError::FunctionExpected(format!(
+                "Couldn't convert {:?} to native callback ",
+                value
+            ))),
+        }
+    }
+}
+
+impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
+    for Rc<dyn Fn(T1, T2) -> Pin<Box<dyn Future<Output = FruityResult<R>>>>>
+{
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        // TODO: Better catch errors
+        match value {
+            ScriptValue::Callback(value) => Ok(Rc::new(move |arg1: T1, arg2: T2| {
+                let args: Vec<ScriptValue> = vec![
+                    arg1.into_script_value().unwrap(),
+                    arg2.into_script_value().unwrap(),
+                ];
+
+                let result = value.call(args).unwrap();
+                <Pin<Box<dyn Future<Output = FruityResult<R>>>>>::from_script_value(result).unwrap()
             })),
             _ => Err(FruityError::FunctionExpected(format!(
                 "Couldn't convert {:?} to native callback ",

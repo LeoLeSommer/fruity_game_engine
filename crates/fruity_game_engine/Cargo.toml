@@ -26,7 +26,7 @@ convert_case = "0.6.0"
 fruity_game_engine_macro = { path = "../fruity_game_engine_macro" }
 napi-sys = "2.2.2"
 send_wrapper = "0.6.0"
-tokio = { version = "1.12", optional = true }
+tokio = { version = "1.12", features = ["rt", "time"] }
 
 [build-dependencies]
 fruity_game_engine_build = { path = "../fruity_game_engine_build" }
@@ -35,7 +35,7 @@ napi-build = { version = "2.0.1", optional = true }
 [features]
 default = []
 napi-module = [
-    "tokio",
+    "tokio/rt-multi-thread",
     "napi",
     "napi-derive",
     "napi-build",
@@ -48,4 +48,6 @@ wasm-module = [
     "js-sys",
     "web-sys",
     "fruity_game_engine_macro/wasm-module"
+]
+multi-threaded = [
 ]

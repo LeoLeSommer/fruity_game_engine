@@ -636,9 +636,7 @@ dependencies = [
  "fruity_windows_winit",
  "image",
  "napi-build",
- "tokio",
  "wasm-bindgen",
- "wasm-bindgen-futures",
  "wgpu",
  "winit",
 ]

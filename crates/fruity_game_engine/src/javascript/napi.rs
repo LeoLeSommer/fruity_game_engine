@@ -16,7 +16,7 @@ use napi::{
 use napi::{check_status, NapiValue};
 use napi::{JsError, NapiRaw};
 use napi_sys::{napi_create_promise, napi_deferred, napi_reject_deferred, napi_resolve_deferred};
-use std::{ffi::CString, future::Future, marker::PhantomData, ops::Deref};
+use std::{ffi::CString, future::Future, marker::PhantomData, ops::Deref, pin::Pin};
 use std::{fmt::Debug, vec};
 use std::{rc::Rc, sync::Arc};
 use tokio::task;
@@ -111,9 +111,10 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             })
             .map_err(|e| FruityError::from_napi(e))?;
 
-            let future = Rc::<
-                Box<dyn Unpin + Future<Output = Result<ScriptValue, FruityError>>>,
-            >::try_unwrap(future);
+            let future =
+                Rc::<Pin<Box<dyn Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
+                    future,
+                );
 
             match future {
                 Ok(future) => {
@@ -375,7 +376,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                         js_value_to_script_value(&env, result)
                     };
 
-                    ScriptValue::Future(Rc::new(Box::new(Box::pin(future))))
+                    ScriptValue::Future(Rc::new(Box::pin(future)))
                 } else {
                     match env.unwrap::<Box<dyn ScriptObject>>(&js_object) {
                         Ok(wrapped) => {

@@ -6,7 +6,7 @@ use crate::{
 };
 use convert_case::{Case, Casing};
 use lazy_static::__Deref;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, pin::Pin, rc::Rc, sync::Arc};
 use std::{fmt::Debug, future::Future};
 use wasm_bindgen::{JsCast, JsError, JsValue};
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
@@ -31,9 +31,10 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
         ScriptValue::Null => JsValue::NULL,
         ScriptValue::Undefined => JsValue::UNDEFINED,
         ScriptValue::Future(future) => {
-            let future = Rc::<
-                Box<dyn Unpin + Future<Output = Result<ScriptValue, FruityError>>>,
-            >::try_unwrap(future);
+            let future =
+                Rc::<Pin<Box<dyn Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
+                    future,
+                );
 
             let future = match future {
                 Ok(future) => {
@@ -328,7 +329,7 @@ pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
             }
         };
 
-        ScriptValue::Future(Rc::new(Box::new(Box::pin(future))))
+        ScriptValue::Future(Rc::new(Box::pin(future)))
     } else if value.is_bigint() {
         // Fourth case, the object is a big int
         todo!()

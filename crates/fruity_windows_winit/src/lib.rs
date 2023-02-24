@@ -14,8 +14,7 @@ pub fn create_fruity_windows_winit_module() -> Module {
     Module {
         name: "fruity_windows".to_string(),
         dependencies: vec!["fruity_abstract_windows".to_string()],
-        setup: None,
-        load_resources: None,
         run_middleware: Some(Rc::new(window_middleware::window_middleware)),
+        ..Default::default()
     }
 }

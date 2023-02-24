@@ -38,7 +38,6 @@ use std::fmt::Debug;
 use std::iter;
 use std::ops::Deref;
 use std::sync::Arc;
-use tokio::runtime::Builder;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -116,7 +115,7 @@ pub struct WgpuGraphicService {
 }
 
 impl WgpuGraphicService {
-    pub fn new(resource_container: ResourceContainer) -> FruityResult<WgpuGraphicService> {
+    pub async fn new(resource_container: ResourceContainer) -> FruityResult<WgpuGraphicService> {
         let window_service = resource_container.require::<dyn WindowService>();
 
         let state = {
@@ -172,7 +171,7 @@ impl WgpuGraphicService {
                 });
 
             // Initialize the graphics
-            WgpuGraphicService::initialize(window_service.get_window())
+            WgpuGraphicService::initialize(window_service.get_window()).await
         };
 
         // Dispatch initialized event
@@ -193,107 +192,86 @@ impl WgpuGraphicService {
         })
     }
 
-    pub fn initialize(window: &Window) -> State {
-        let future = async {
-            // The instance is a handle to our GPU
-            // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-            let instance = wgpu::Instance::default();
-            let surface = unsafe { instance.create_surface(window.deref()) }.unwrap();
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::default(),
-                    compatible_surface: Some(&surface),
-                    force_fallback_adapter: false,
-                })
-                .await
-                .unwrap();
+    pub async fn initialize(window: &Window) -> State {
+        // The instance is a handle to our GPU
+        // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
+        let instance = wgpu::Instance::default();
+        let surface = unsafe { instance.create_surface(window.deref()) }.unwrap();
+        let adapter = instance
+            .enumerate_adapters(wgpu::Backends::all())
+            .filter(|adapter| adapter.is_surface_supported(&surface))
+            .next()
+            .unwrap();
 
-            // Create the device and queue
-            let (device, queue) = adapter
-                .request_device(
-                    &wgpu::DeviceDescriptor {
-                        features: wgpu::Features::empty(),
-                        limits: wgpu::Limits::default(),
-                        label: None,
-                    },
-                    None,
-                )
-                .await
-                .unwrap();
+        // Create the device and queue
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    features: wgpu::Features::empty(),
+                    limits: wgpu::Limits::default(),
+                    label: None,
+                },
+                None,
+            )
+            .await
+            .unwrap();
 
-            // Base configuration for the surface
-            let size = window.inner_size();
+        // Base configuration for the surface
+        let size = window.inner_size();
 
-            let surface_caps = surface.get_capabilities(&adapter);
-            let surface_format = surface_caps
-                .formats
-                .iter()
-                .copied()
-                .filter(|f| f.describe().srgb)
-                .next()
-                .unwrap_or(surface_caps.formats[0]);
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps
+            .formats
+            .iter()
+            .copied()
+            .filter(|f| f.describe().srgb)
+            .next()
+            .unwrap_or(surface_caps.formats[0]);
 
-            let config = wgpu::SurfaceConfiguration {
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                format: surface_format,
-                width: size.width,
-                height: size.height,
-                present_mode: surface_caps.present_modes[0],
-                alpha_mode: surface_caps.alpha_modes[0],
-                view_formats: vec![],
-            };
-
-            surface.configure(&device, &config);
-
-            // Get the texture view where the scene will be rendered
-            let output = surface.get_current_texture().unwrap();
-            let rendering_view = output
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
-
-            // Create camera bind group
-            let (camera_buffer, camera_bind_group) = Self::initialize_camera(&device);
-
-            // Create camera bind group
-            let (viewport_size_buffer, viewport_size_bind_group) =
-                Self::initialize_viewport_size(&device);
-
-            // Create camera bind group
-            let (render_surface_size_buffer, render_surface_size_bind_group) =
-                Self::initialize_render_surface_size(&device);
-
-            // Update state
-            State {
-                surface,
-                device,
-                queue,
-                config,
-                rendering_view,
-                camera_transform: RwLock::new(Matrix4::identity()),
-                camera_buffer,
-                camera_bind_group,
-                viewport_size_buffer,
-                viewport_size_bind_group,
-                render_surface_size_buffer,
-                render_surface_size_bind_group,
-            }
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface_format,
+            width: size.width,
+            height: size.height,
+            present_mode: surface_caps.present_modes[0],
+            alpha_mode: surface_caps.alpha_modes[0],
+            view_formats: vec![],
         };
 
-        #[cfg(not(feature = "multi-threaded"))]
-        let result = Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(future);
+        surface.configure(&device, &config);
 
-        #[cfg(feature = "multi-threaded")]
-        let result = Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(future);
+        // Get the texture view where the scene will be rendered
+        let output = surface.get_current_texture().unwrap();
+        let rendering_view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-        result
+        // Create camera bind group
+        let (camera_buffer, camera_bind_group) = Self::initialize_camera(&device);
+
+        // Create camera bind group
+        let (viewport_size_buffer, viewport_size_bind_group) =
+            Self::initialize_viewport_size(&device);
+
+        // Create camera bind group
+        let (render_surface_size_buffer, render_surface_size_bind_group) =
+            Self::initialize_render_surface_size(&device);
+
+        // Update state
+        State {
+            surface,
+            device,
+            queue,
+            config,
+            rendering_view,
+            camera_transform: RwLock::new(Matrix4::identity()),
+            camera_buffer,
+            camera_bind_group,
+            viewport_size_buffer,
+            viewport_size_bind_group,
+            render_surface_size_buffer,
+            render_surface_size_bind_group,
+        }
     }
 
     pub fn push_render_instance(

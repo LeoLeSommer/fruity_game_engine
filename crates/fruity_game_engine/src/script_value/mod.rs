@@ -18,6 +18,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
+use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -91,7 +92,7 @@ pub enum ScriptValue {
     Undefined,
 
     /// A future
-    Future(Rc<Box<dyn Unpin + Future<Output = FruityResult<ScriptValue>>>>),
+    Future(Rc<Pin<Box<dyn Future<Output = FruityResult<ScriptValue>>>>>),
 
     /// A callback
     Callback(Rc<dyn ScriptCallback>),

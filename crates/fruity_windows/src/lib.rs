@@ -12,8 +12,6 @@ pub fn create_fruity_windows_module() -> Module {
     Module {
         name: "fruity_abstract_windows".to_string(),
         dependencies: vec![],
-        setup: Some(Rc::new(|_world, _settings| Ok(()))),
-        load_resources: None,
-        run_middleware: None,
+        ..Default::default()
     }
 }

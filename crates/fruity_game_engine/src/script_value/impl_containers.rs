@@ -10,8 +10,11 @@ use crate::FruityResult;
 use std::any::type_name;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::future::Future;
 use std::hash::Hash;
 use std::ops::Range;
+use std::pin::Pin;
+use std::rc::Rc;
 
 impl<T> TryIntoScriptValue for FruityResult<T>
 where
@@ -21,6 +24,101 @@ where
         match self {
             Ok(value) => <T as TryIntoScriptValue>::into_script_value(value),
             Err(err) => Err(err.clone()),
+        }
+    }
+}
+
+impl<T: TryIntoScriptValue + 'static> TryIntoScriptValue
+    for Pin<Box<dyn Future<Output = FruityResult<T>>>>
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        let future = async move {
+            let result = self.await;
+            result.into_script_value()
+        };
+
+        Ok(ScriptValue::Future(Rc::new(Box::pin(future))))
+    }
+}
+
+impl<T: TryFromScriptValue> TryFromScriptValue for Pin<Box<dyn Future<Output = FruityResult<T>>>> {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Future(future) => {
+                let future =
+                    Rc::<Pin<Box<dyn Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
+                        future,
+                    );
+
+                match future {
+                    Ok(future) => {
+                        let future = async {
+                            let result = future.await?;
+                            T::from_script_value(result)
+                        };
+
+                        Ok(Box::pin(future))
+                    }
+                    Err(_) => {
+                        todo!()
+                    }
+                }
+            }
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to future",
+                value
+            ))),
+        }
+    }
+}
+
+impl<T: TryIntoScriptValue + 'static> TryIntoScriptValue
+    for Rc<Pin<Box<dyn Future<Output = FruityResult<T>>>>>
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        let future = match Rc::<Pin<Box<dyn Future<Output = FruityResult<T>>>>>::try_unwrap(self) {
+            Ok(future) => future,
+            Err(_) => todo!(),
+        };
+
+        let future = async move {
+            let result = future.await;
+            result.into_script_value()
+        };
+
+        Ok(ScriptValue::Future(Rc::new(Box::pin(future))))
+    }
+}
+
+impl<T: TryFromScriptValue> TryFromScriptValue
+    for Rc<Pin<Box<dyn Future<Output = FruityResult<T>>>>>
+{
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Future(future) => {
+                let future =
+                    Rc::<Pin<Box<dyn Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
+                        future,
+                    );
+
+                match future {
+                    Ok(future) => {
+                        let future = async {
+                            let result = future.await?;
+                            T::from_script_value(result)
+                        };
+
+                        Ok(Rc::new(Box::pin(future)))
+                    }
+                    Err(_) => {
+                        todo!()
+                    }
+                }
+            }
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to future",
+                value
+            ))),
         }
     }
 }

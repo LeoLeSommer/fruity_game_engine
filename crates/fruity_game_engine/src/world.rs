@@ -8,6 +8,7 @@ use crate::module::Module;
 use crate::object_factory_service::ObjectFactoryService;
 use crate::resource::script_resource_container::ScriptResourceContainer;
 use crate::settings::Settings;
+use crate::utils::asynchronous::block_on;
 use crate::FruityResult;
 use crate::ModulesService;
 use crate::ResourceContainer;
@@ -121,6 +122,16 @@ impl World {
 
             if let Some(setup) = module.setup {
                 setup(self.clone(), settings.clone())?;
+            }
+
+            if let Some(setup_async) = module.setup_async {
+                let world = self.clone();
+                let settings = settings.clone();
+
+                block_on(Box::pin(async move {
+                    // TODO: Better catch errors
+                    setup_async(world.clone(), settings.clone()).await.unwrap();
+                }));
             }
 
             Ok(())

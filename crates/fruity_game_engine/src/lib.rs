@@ -2,6 +2,7 @@
 #![feature(iterator_try_collect)]
 #![feature(downcast_unchecked)]
 #![feature(auto_traits)]
+#![feature(async_closure)]
 
 //! ECS
 //!
