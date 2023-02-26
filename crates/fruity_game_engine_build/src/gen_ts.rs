@@ -358,6 +358,29 @@ fn format_type_generics(
                 unreachable!()
             }
         }
+        "Pin" => {
+            if let syn::PathArguments::AngleBracketed(ab) = ab {
+                if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
+                    rust_type_to_ts_type(ty, arg_or_return_type, self_ident)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                unreachable!()
+            }
+        }
+        "Box" => {
+            if let syn::PathArguments::AngleBracketed(ab) = ab {
+                if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {
+                    rust_type_to_ts_type(ty, arg_or_return_type, self_ident)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                unreachable!()
+            }
+        }
+        "Future" => "Promise<unknown>".to_string(),
         "Rc" => {
             if let syn::PathArguments::AngleBracketed(ab) = ab {
                 if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {

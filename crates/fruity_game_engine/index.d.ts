@@ -49,9 +49,9 @@ export interface Module {
   name: string
   dependencies: string[]
   setup?: ((arg0: World, arg1: Settings) => void) | null | undefined
-  setupAsync?: ((arg0: World, arg1: Settings) => Pin<Box<Future<>>>) | null | undefined
+  setupAsync?: ((arg0: World, arg1: Settings) => Promise<unknown>) | null | undefined
   loadResources?: ((arg0: World, arg1: Settings) => void) | null | undefined
-  loadResourcesAsync?: ((arg0: World, arg1: Settings) => Pin<Box<Future<>>>) | null | undefined
+  loadResourcesAsync?: ((arg0: World, arg1: Settings) => Promise<unknown>) | null | undefined
   runMiddleware?: RunMiddleware | null | undefined
 }
 

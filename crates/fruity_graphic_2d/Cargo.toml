@@ -20,7 +20,7 @@ fruity_game_engine_build = { path = "../fruity_game_engine_build" }
 napi-build = { version = "2.0.1", optional = true }
 
 [features]
-default = []
+default = ["wasm-module"]
 napi-module = [
     "napi-build",
     "fruity_game_engine/napi-module",

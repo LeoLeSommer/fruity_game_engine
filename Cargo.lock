@@ -637,6 +637,7 @@ dependencies = [
  "image",
  "napi-build",
  "wasm-bindgen",
+ "web-sys",
  "wgpu",
  "winit",
 ]

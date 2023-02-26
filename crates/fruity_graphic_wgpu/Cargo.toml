@@ -2,6 +2,7 @@
 edition = "2021"
 name = "fruity_graphic_wgpu"
 version = "0.0.0"
+resolver = "2"
 
 [lib]
 crate-type = ["rlib", "cdylib"]
@@ -11,6 +12,7 @@ wgpu = "0.15.1"
 bytemuck = { version = "1.4", features = [ "derive" ] }
 image = "0.23.14"
 winit = "0.28.1"
+web-sys = { version = "0.3.60", features = ["Window", "Location", "ImageBitmapRenderingContext", "OffscreenCanvas", "Element"], optional = true }
 fruity_game_engine = { path = "../fruity_game_engine" }
 fruity_graphic = { path = "../fruity_graphic" }
 fruity_windows = { path = "../fruity_windows" }
@@ -22,12 +24,13 @@ fruity_game_engine_build = { path = "../fruity_game_engine_build" }
 napi-build = { version = "2.0.1", optional = true }
 
 [features]
-default = []
+default = ["wasm-module"]
 napi-module = [
     "napi-build",
     "fruity_game_engine/napi-module"
 ]
 wasm-module = [
+    "web-sys",
     "wasm-bindgen",
     "fruity_game_engine/wasm-module"
 ]

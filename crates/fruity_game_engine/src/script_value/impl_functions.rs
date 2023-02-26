@@ -139,6 +139,28 @@ impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryF
     }
 }
 
+/*impl<
+        T1: TryFromScriptValue + 'static,
+        T2: TryFromScriptValue + 'static,
+        R: TryIntoScriptValue + 'static,
+    > TryIntoScriptValue
+    for Rc<dyn Fn(T1, T2) -> Pin<Box<dyn Future<Output = FruityResult<R>>>>>
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Callback(Rc::new(
+            Box::new(move |args: Vec<ScriptValue>| {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 = caster.cast_next::<T1>()?;
+                let arg2 = caster.cast_next::<T2>()?;
+
+                let result = self(arg1, arg2);
+
+                result.into_script_value()
+            }) as Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+        )))
+    }
+}*/
+
 impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
     for Rc<dyn Fn(T1, T2) -> Pin<Box<dyn Future<Output = FruityResult<R>>>>>
 {
