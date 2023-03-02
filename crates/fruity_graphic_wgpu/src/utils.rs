@@ -48,6 +48,7 @@ where
     {
         dst.copy(src)
     }
+
     #[cfg(not(feature = "nightly"))]
     {
         let len = min(src.len(), dst.len());

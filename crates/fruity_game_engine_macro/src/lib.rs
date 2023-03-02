@@ -3,7 +3,9 @@ extern crate syn;
 
 use convert::intern_derive_try_from_script_value;
 use convert::intern_derive_try_into_script_value;
+use convert_case::Case;
 use fruity_any::intern_derive_fruity_any;
+use fruity_game_engine_code_parser::parse_fn_item;
 use introspect::intern_derive_object_factory;
 use introspect::intern_export_enum;
 use introspect::{intern_export_impl, intern_export_struct};
@@ -11,29 +13,21 @@ use proc_macro::{self, TokenStream};
 use quote::quote;
 use resource::intern_derive_resource;
 use syn::ItemEnum;
+use syn::ItemFn;
 use syn::__private::TokenStream2;
 use syn::{parse_macro_input, ItemImpl, ItemStruct};
 use utils::fruity_crate;
 
-#[cfg(any(feature = "napi-module", feature = "wasm-module"))]
-use fruity_game_engine_code_parser::parse_fn_item;
-
-#[cfg(any(feature = "napi-module", feature = "wasm-module"))]
-use syn::ItemFn;
-
-#[cfg(any(feature = "napi-module", feature = "wasm-module"))]
-use convert_case::Case;
-
-#[cfg(feature = "wasm-module")]
+#[cfg(feature = "wasm-platform")]
 use wasm_function_export::wasm_function_export;
 
-#[cfg(feature = "napi-module")]
+#[cfg(not(feature = "wasm-platform"))]
 use napi_function_export::napi_function_export;
 
-#[cfg(feature = "napi-module")]
+#[cfg(not(feature = "wasm-platform"))]
 mod napi_function_export;
 
-#[cfg(feature = "wasm-module")]
+#[cfg(feature = "wasm-platform")]
 mod wasm_function_export;
 
 mod convert;
@@ -94,10 +88,10 @@ pub fn typescript(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
-    #[cfg(not(feature = "napi-module"))]
+    #[cfg(feature = "wasm-platform")]
     let napi_function_export = quote! {};
 
-    #[cfg(feature = "napi-module")]
+    #[cfg(not(feature = "wasm-platform"))]
     let napi_function_export = {
         let input = input.clone();
         let item: ItemFn = parse_macro_input!(input);
@@ -106,10 +100,10 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
         napi_function_export(exported_fn, Some(Case::Camel))
     };
 
-    #[cfg(not(feature = "wasm-module"))]
+    #[cfg(not(feature = "wasm-platform"))]
     let wasm_function_export = quote! {};
 
-    #[cfg(feature = "wasm-module")]
+    #[cfg(feature = "wasm-platform")]
     let wasm_function_export = {
         let input = input.clone();
         let item: ItemFn = parse_macro_input!(input);

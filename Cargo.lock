@@ -774,6 +774,7 @@ dependencies = [
  "fruity_windows",
  "napi-build",
  "wasm-bindgen",
+ "web-sys",
  "winit",
 ]
 

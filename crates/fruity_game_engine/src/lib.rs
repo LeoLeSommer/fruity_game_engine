@@ -31,19 +31,16 @@ pub use lazy_static::lazy_static;
 pub use parking_lot::*;
 pub use send_wrapper;
 
-#[cfg(feature = "wasm-module")]
+#[cfg(target_arch = "wasm32")]
 use web_sys::console;
 
-#[cfg(all(feature = "napi-module", feature = "wasm-module"))]
-compile_error!("wasm-module and wasm-module are mutually exclusive and cannot be enabled together");
-
-#[cfg(feature = "napi-module")]
+#[cfg(not(target_arch = "wasm32"))]
 pub use napi;
 
-#[cfg(feature = "wasm-module")]
+#[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
 
-#[cfg(feature = "wasm-module")]
+#[cfg(target_arch = "wasm32")]
 pub use web_sys;
 
 pub mod error;
@@ -91,13 +88,13 @@ pub mod world;
 /// A service for frame management
 pub mod frame_service;
 
-#[cfg(feature = "wasm-module")]
+#[cfg(target_arch = "wasm32")]
 /// Log a message into a console
 pub fn console_log(message: &str) {
     console::log_1(&message.into());
 }
 
-#[cfg(not(feature = "wasm-module"))]
+#[cfg(not(target_arch = "wasm32"))]
 /// Log a message into a console
 pub fn console_log(message: &str) {
     println!("{}", message);

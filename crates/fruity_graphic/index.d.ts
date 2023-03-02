@@ -28,7 +28,7 @@ export class Color {
 
 export interface GraphicService {
 
-  startDraw()
+  startDraw(): void
   endDraw()
   renderScene(viewProj: Matrix4, backgroundColor: Color, target?: ResourceReference<TextureResource> | null | undefined)
   getCameraTransform(): Matrix4

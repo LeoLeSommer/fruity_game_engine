@@ -9,10 +9,10 @@ use winit::dpi::LogicalSize;
 use winit::event::Event;
 use winit::window::Window;
 
-#[cfg(not(feature = "multi-threaded"))]
+#[cfg(target_arch = "wasm32")]
 unsafe impl Sync for WinitWindowService {}
 
-#[cfg(not(feature = "multi-threaded"))]
+#[cfg(target_arch = "wasm32")]
 unsafe impl Send for WinitWindowService {}
 
 #[derive(FruityAny, Resource)]

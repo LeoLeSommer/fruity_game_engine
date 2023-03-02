@@ -17,7 +17,7 @@ import {
 export interface WgpuGraphicService {
   onBeforeDrawEnd: Signal<void>
   onAfterDrawEnd: Signal<void>
-  startDraw()
+  startDraw(): void
   endDraw()
   renderScene(viewProj: Matrix4, backgroundColor: Color, target?: ResourceReference<TextureResource> | null | undefined)
   getCameraTransform(): Matrix4

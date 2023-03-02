@@ -5,7 +5,6 @@ use crate::resources::shader_resource::WgpuShaderResource;
 use crate::resources::texture_resource::WgpuTextureResource;
 use crate::utils::encode_into_bytes;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::console_log;
 use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
@@ -15,6 +14,7 @@ use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::signal::Signal;
+use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
 use fruity_graphic::graphic_service::GraphicService;
@@ -40,12 +40,6 @@ use std::iter;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
-
-#[cfg(feature = "wasm-module")]
-use web_sys::{ImageBitmapRenderingContext, OffscreenCanvas};
-
-#[cfg(feature = "wasm-module")]
-use std::str::FromStr;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -120,35 +114,24 @@ pub struct WgpuGraphicService {
     pub on_after_draw_end: Signal<()>,
 }
 
-#[cfg(feature = "wasm-module")]
-struct OffscreenCanvasSetup {
-    offscreen_canvas: OffscreenCanvas,
-    bitmap_renderer: ImageBitmapRenderingContext,
-}
-
 impl WgpuGraphicService {
     pub async fn new(resource_container: ResourceContainer) -> FruityResult<WgpuGraphicService> {
         let window_service = resource_container.require::<dyn WindowService>();
 
         let state = {
-            console_log("1");
             let window_service = window_service.read();
             let window_service = window_service.downcast_ref::<WinitWindowService>();
 
             // Subscribe to windows observer to proceed the graphics when it's neededs
-            console_log("2");
             let resource_container_2 = resource_container.clone();
             window_service.on_start_update().add_observer(move |_| {
                 profile_scope("start_draw");
                 let graphic_service = resource_container_2.require::<dyn GraphicService>();
                 let mut graphic_service = graphic_service.write();
                 let graphic_service = graphic_service.downcast_mut::<WgpuGraphicService>();
-                graphic_service.start_draw();
-
-                Ok(())
+                graphic_service.start_draw()
             });
 
-            console_log("3");
             let resource_container_2 = resource_container.clone();
             window_service.on_end_update().add_observer(move |_| {
                 profile_scope("end_draw");
@@ -174,7 +157,6 @@ impl WgpuGraphicService {
                 Ok(())
             });
 
-            console_log("4");
             let resource_container_2 = resource_container.clone();
             window_service
                 .on_resize()
@@ -187,8 +169,7 @@ impl WgpuGraphicService {
                 });
 
             // Initialize the graphics
-            console_log("5");
-            WgpuGraphicService::initialize(window_service.get_window()).await
+            WgpuGraphicService::initialize(window_service.get_window()).await?
         };
 
         // Dispatch initialized event
@@ -209,186 +190,45 @@ impl WgpuGraphicService {
         })
     }
 
-    #[cfg(feature = "wasm-module")]
-    pub async fn initialize(window: &Window) -> State {
-        let mut offscreen_canvas_setup: Option<OffscreenCanvasSetup> = None;
-        {
-            use wasm_bindgen::JsCast;
-            use winit::platform::web::WindowExtWebSys;
-
-            WgpuGraphicService::insert_canvas_and_create_log_list(&window);
-
-            let query_string = web_sys::window().unwrap().location().search().unwrap();
-            if let Some(offscreen_canvas_param) =
-                parse_url_query_string(&query_string, "offscreen_canvas")
-            {
-                if FromStr::from_str(offscreen_canvas_param) == Ok(true) {
-                    let offscreen_canvas =
-                        OffscreenCanvas::new(1024, 768).expect("couldn't create OffscreenCanvas");
-
-                    let bitmap_renderer = window
-                        .canvas()
-                        .get_context("bitmaprenderer")
-                        .expect("couldn't create ImageBitmapRenderingContext (Result)")
-                        .expect("couldn't create ImageBitmapRenderingContext (Option)")
-                        .dyn_into::<ImageBitmapRenderingContext>()
-                        .expect("couldn't convert into ImageBitmapRenderingContext");
-
-                    offscreen_canvas_setup = Some(OffscreenCanvasSetup {
-                        offscreen_canvas,
-                        bitmap_renderer,
-                    })
-                }
-            }
-        };
-
+    pub async fn initialize(window: &Window) -> FruityResult<State> {
+        // #[cfg(target_arch = "wasm32")]
         let backends = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
+
         let dx12_shader_compiler = wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
 
+        // The instance is a handle to our GPU
+        // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends,
             dx12_shader_compiler,
         });
 
-        let surface = unsafe {
-            if let Some(offscreen_canvas_setup) = &offscreen_canvas_setup {
-                instance.create_surface(&offscreen_canvas_setup.offscreen_canvas)
-            } else {
-                instance.create_surface(&window)
-            }
-        }
-        .unwrap();
+        let surface = unsafe { instance.create_surface(window) }
+            .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
+
         let adapter =
             wgpu::util::initialize_adapter_from_env_or_default(&instance, backends, Some(&surface))
                 .await
-                .expect("No suitable GPU adapters found on the system!");
-
-        let trace_dir = std::env::var("WGPU_TRACE");
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
-                    label: None,
-                },
-                trace_dir.ok().as_ref().map(std::path::Path::new),
-            )
-            .await
-            .expect("Unable to find a suitable GPU adapter!");
-
-        // Base configuration for the surface
-        let size = window.inner_size();
-
-        let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .copied()
-            .filter(|f| f.describe().srgb)
-            .next()
-            .unwrap_or(surface_caps.formats[0]);
-        console_log("8");
-
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width: size.width,
-            height: size.height,
-            present_mode: surface_caps.present_modes[0],
-            alpha_mode: surface_caps.alpha_modes[0],
-            view_formats: vec![],
-        };
-
-        surface.configure(&device, &config);
-        console_log("9");
-
-        // Get the texture view where the scene will be rendered
-        let output = surface.get_current_texture().unwrap();
-        let rendering_view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        console_log("10");
-
-        // Create camera bind group
-        let (camera_buffer, camera_bind_group) = Self::initialize_camera(&device);
-
-        // Create camera bind group
-        let (viewport_size_buffer, viewport_size_bind_group) =
-            Self::initialize_viewport_size(&device);
-        console_log("11");
-
-        // Create camera bind group
-        let (render_surface_size_buffer, render_surface_size_bind_group) =
-            Self::initialize_render_surface_size(&device);
-        console_log("12");
-
-        // Update state
-        State {
-            surface,
-            device,
-            queue,
-            config,
-            rendering_view,
-            camera_transform: RwLock::new(Matrix4::identity()),
-            camera_buffer,
-            camera_bind_group,
-            viewport_size_buffer,
-            viewport_size_bind_group,
-            render_surface_size_buffer,
-            render_surface_size_bind_group,
-        }
-    }
-
-    #[cfg(feature = "wasm-module")]
-    pub fn insert_canvas_and_create_log_list(window: &Window) -> web_sys::Element {
-        use winit::platform::web::WindowExtWebSys;
-
-        let canvas = window.canvas();
-
-        let window = web_sys::window().unwrap();
-        let document = window.document().unwrap();
-        let body = document.body().unwrap();
-
-        // Set a background color for the canvas to make it easier to tell where the canvas is for debugging purposes.
-        canvas.style().set_css_text("background-color: crimson;");
-        body.append_child(&canvas).unwrap();
-
-        let log_header = document.create_element("h2").unwrap();
-        log_header.set_text_content(Some("Event Log"));
-        body.append_child(&log_header).unwrap();
-
-        let log_list = document.create_element("ul").unwrap();
-        body.append_child(&log_list).unwrap();
-        log_list
-    }
-
-    #[cfg(not(feature = "wasm-module"))]
-    pub async fn initialize(window: &Window) -> State {
-        // The instance is a handle to our GPU
-        // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::default();
-        let surface = unsafe { instance.create_surface(window.deref()) }.unwrap();
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            })
-            .await
-            .unwrap();
+                .ok_or(FruityError::GenericFailure(
+                    "No suitable GPU adapters found on the system!".to_string(),
+                ))?;
 
         // Create the device and queue
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
                     label: None,
+                    features: wgpu::Features::empty(),
+                    limits: if cfg!(target_arch = "wasm32") {
+                        wgpu::Limits::downlevel_webgl2_defaults()
+                    } else {
+                        wgpu::Limits::default()
+                    },
                 },
                 None,
             )
             .await
-            .unwrap();
+            .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
 
         // Base configuration for the surface
         let size = window.inner_size();
@@ -415,7 +255,10 @@ impl WgpuGraphicService {
         surface.configure(&device, &config);
 
         // Get the texture view where the scene will be rendered
-        let output = surface.get_current_texture().unwrap();
+        let output = surface
+            .get_current_texture()
+            .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
+
         let rendering_view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -432,7 +275,7 @@ impl WgpuGraphicService {
             Self::initialize_render_surface_size(&device);
 
         // Update state
-        State {
+        Ok(State {
             surface,
             device,
             queue,
@@ -445,7 +288,7 @@ impl WgpuGraphicService {
             viewport_size_bind_group,
             render_surface_size_buffer,
             render_surface_size_bind_group,
-        }
+        })
     }
 
     pub fn push_render_instance(
@@ -880,9 +723,14 @@ impl WgpuGraphicService {
 #[export_impl]
 impl GraphicService for WgpuGraphicService {
     #[export]
-    fn start_draw(&mut self) {
+    fn start_draw(&mut self) -> FruityResult<()> {
         // Get the texture view where the scene will be rendered
-        let output = self.state.surface.get_current_texture().unwrap();
+        let output = self
+            .state
+            .surface
+            .get_current_texture()
+            .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
+
         let rendering_view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -899,6 +747,8 @@ impl GraphicService for WgpuGraphicService {
 
         // Store the handles about this frame
         self.current_encoder = Some(RwLock::new(encoder));
+
+        Ok(())
     }
 
     #[export]
@@ -1067,7 +917,8 @@ impl GraphicService for WgpuGraphicService {
         let device = self.get_device();
         let queue = self.get_queue();
 
-        let image = load_from_memory(contents).unwrap();
+        let image = load_from_memory(contents)
+            .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
         let resource = WgpuTextureResource::from_image(device, queue, &image, Some(&identifier))?;
 
         Ok(Box::new(resource))
@@ -1167,23 +1018,4 @@ impl GraphicService for WgpuGraphicService {
         let mut viewport_size = self.viewport_size.write();
         *viewport_size = (x, y);
     }
-}
-
-/// Parse the query string as returned by `web_sys::window()?.location().search()?` and get a
-/// specific key out of it.
-#[cfg(feature = "wasm-module")]
-pub fn parse_url_query_string<'a>(query: &'a str, search_key: &str) -> Option<&'a str> {
-    let query_string = query.strip_prefix('?')?;
-
-    for pair in query_string.split('&') {
-        let mut pair = pair.split('=');
-        let key = pair.next()?;
-        let value = pair.next()?;
-
-        if key == search_key {
-            return Some(value);
-        }
-    }
-
-    None
 }

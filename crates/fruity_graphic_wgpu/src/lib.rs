@@ -2,8 +2,8 @@
 
 use crate::graphic_service::WgpuGraphicService;
 use fruity_game_engine::{
-    export_function, module::Module, settings::Settings, typescript_import, world::World,
-    FruityResult,
+    console_log, export_function, module::Module, settings::Settings, typescript_import,
+    world::World, FruityResult,
 };
 use fruity_graphic::graphic_service::GraphicService;
 use std::{future::Future, pin::Pin, rc::Rc};
@@ -19,8 +19,11 @@ pub mod wgpu_bridge;
 async fn setup_async(world: World, _settings: Settings) -> FruityResult<()> {
     let resource_container = world.get_resource_container();
 
+    console_log("1");
     let graphic_service = WgpuGraphicService::new(resource_container.clone()).await?;
+    console_log("2");
     resource_container.add::<dyn GraphicService>("graphic_service", Box::new(graphic_service));
+    console_log("3");
 
     FruityResult::Ok(())
 }

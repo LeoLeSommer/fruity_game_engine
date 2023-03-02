@@ -171,7 +171,7 @@ impl TryFromScriptValue for MaterialParam {
 #[export_trait]
 pub trait GraphicService: Resource {
     #[export]
-    fn start_draw(&mut self);
+    fn start_draw(&mut self) -> FruityResult<()>;
 
     #[export]
     fn end_draw(&mut self);

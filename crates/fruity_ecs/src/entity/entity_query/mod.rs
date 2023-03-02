@@ -14,10 +14,10 @@ use fruity_game_engine::RwLock;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-#[cfg(feature = "multi-threaded")]
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::iter::ParallelBridge;
 
-#[cfg(feature = "multi-threaded")]
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::iter::ParallelIterator;
 
 /// Queries for scripting languages
@@ -105,10 +105,10 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
             .flatten()
             .collect::<Vec<_>>();
 
-        #[cfg(feature = "multi-threaded")]
+        #[cfg(not(target_arch = "wasm32"))]
         let mut iterator = entities.into_iter().par_bridge();
 
-        #[cfg(not(feature = "multi-threaded"))]
+        #[cfg(target_arch = "wasm32")]
         let mut iterator = entities.into_iter();
 
         iterator.try_for_each(|entity| {

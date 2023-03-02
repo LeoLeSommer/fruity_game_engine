@@ -29,8 +29,8 @@
   },
   "scripts": {
     "napi-artifacts": "napi artifacts",
-    "napi-build": "napi build --platform --release --features napi-module --js false",
-    "napi-build:debug": "napi build --platform --features napi-module --js false",
+    "napi-build": "napi build --platform --js false",
+    "napi-build:debug": "napi build --platform --js false",
     "napi-prepublishOnly": "napi prepublish -t npm",
     "napi-universal": "napi universal",
     "napi-version": "napi version",

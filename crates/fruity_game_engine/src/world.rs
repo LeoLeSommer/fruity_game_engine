@@ -1,5 +1,3 @@
-use fruity_game_engine_macro::typescript;
-
 use crate::any::FruityAny;
 use crate::console_log;
 use crate::export;
@@ -13,6 +11,7 @@ use crate::FruityResult;
 use crate::ModulesService;
 use crate::ResourceContainer;
 use crate::{export_constructor, export_impl, export_struct};
+use fruity_game_engine_macro::typescript;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::Deref;

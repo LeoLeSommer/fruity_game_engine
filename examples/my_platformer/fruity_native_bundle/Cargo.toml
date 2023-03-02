@@ -20,48 +20,16 @@ fruity_physic_2d = { path = "../../../crates/fruity_physic_2d" }
 fruity_physic_parry_2d = { path = "../../../crates/fruity_physic_parry_2d" }
 fruity_windows = { path = "../../../crates/fruity_windows" }
 fruity_windows_winit = { path = "../../../crates/fruity_windows_winit" }
-napi = { version = "2.10.16", optional = true, default-features = false, features = ["napi4"] }
-napi-derive = { version = "2.10.1", optional = true, features = ["compat-mode", "strict"] }
-wasm-bindgen = { version = "0.2.83", optional = true }
 
 [build-dependencies]
-napi-build = { version = "2.0.1", optional = true }
+napi-build = "2.0.1"
 
-[features]
-napi-module = [
-    "napi",
-    "napi-derive",
-    "napi-build",
-    "fruity_game_engine/napi-module",
-    "fruity_ecs/napi-module",
-    "fruity_graphic/napi-module",
-    "fruity_graphic_2d/napi-module",
-    "fruity_graphic_wgpu/napi-module",
-    "fruity_hierarchy/napi-module",
-    "fruity_hierarchy_2d/napi-module",
-    "fruity_input/napi-module",
-    "fruity_input_winit/napi-module",
-    "fruity_physic_2d/napi-module",
-    "fruity_physic_parry_2d/napi-module",
-    "fruity_windows/napi-module",
-    "fruity_windows_winit/napi-module",
-]
-wasm-module = [
-    "wasm-bindgen",
-    "fruity_game_engine/wasm-module",
-    "fruity_ecs/wasm-module",
-    "fruity_graphic/wasm-module",
-    "fruity_graphic_2d/wasm-module",
-    "fruity_graphic_wgpu/wasm-module",
-    "fruity_hierarchy/wasm-module",
-    "fruity_hierarchy_2d/wasm-module",
-    "fruity_input/wasm-module",
-    "fruity_input_winit/wasm-module",
-    "fruity_physic_2d/wasm-module",
-    "fruity_physic_parry_2d/wasm-module",
-    "fruity_windows/wasm-module",
-    "fruity_windows_winit/wasm-module",
-]
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.83"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+napi = { version = "2.10.16", default-features = false, features = ["napi4"] }
+napi-derive = { version = "2.10.1", features = ["compat-mode", "strict"] }
 
 # [profile.release]
 # lto = true

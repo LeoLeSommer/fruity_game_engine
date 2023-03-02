@@ -1,6 +1,5 @@
 use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
-use std::rc::Rc;
 
 pub mod window_service;
 

@@ -5,14 +5,12 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{ItemStruct, __private::TokenStream2, ItemImpl, DeriveInput, parse_macro_input, ItemEnum};
-
-#[cfg(any(feature = "napi-module", feature = "wasm-module"))]
 use fruity_game_engine_code_parser::FruityExportFn;
 
-#[cfg(feature = "wasm-module")]
+#[cfg(feature = "wasm-platform")]
 use crate::wasm_function_export::wasm_function_export;
 
-#[cfg(feature = "napi-module")]
+#[cfg(not(feature = "wasm-platform"))]
 use crate::napi_function_export;
 
 pub fn intern_export_struct(item: ItemStruct) -> TokenStream2 {
@@ -309,10 +307,10 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
         }
     };
 
-    #[cfg(not(feature = "napi-module"))]
+    #[cfg(feature = "wasm-platform")]
     let napi_constructor_bindings = quote!{};
 
-    #[cfg(feature = "napi-module")]
+    #[cfg(not(feature = "wasm-platform"))]
     let napi_constructor_bindings = {
         let napi_function_exports = exported_struct.clone().constructor
             .map(|constructor| {
@@ -344,10 +342,10 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
             }
         };
 
-    #[cfg(not(feature = "wasm-module"))]
+    #[cfg(not(feature = "wasm-platform"))]
     let wasm_constructor_bindings = quote!{};
 
-    #[cfg(feature = "wasm-module")]
+    #[cfg(feature = "wasm-platform")]
     let wasm_constructor_bindings = {
         let wasm_function_exports = exported_struct.clone().constructor
             .map(|constructor| {

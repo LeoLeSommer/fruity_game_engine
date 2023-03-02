@@ -1,19 +1,13 @@
 #![allow(missing_docs)]
 
-#[cfg(feature = "wasm-module")]
+#[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
-#[cfg(feature = "wasm-module")]
+#[cfg(target_arch = "wasm32")]
 pub use crate::javascript::wasm::*;
 
-#[cfg(feature = "napi-module")]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod napi;
 
-#[cfg(feature = "napi-module")]
+#[cfg(not(target_arch = "wasm32"))]
 pub use crate::javascript::napi::*;
-
-#[cfg(not(any(feature = "napi-module", feature = "wasm-module")))]
-pub mod none;
-
-#[cfg(not(any(feature = "napi-module", feature = "wasm-module")))]
-pub use crate::javascript::none::*;

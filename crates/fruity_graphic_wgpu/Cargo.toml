@@ -12,25 +12,23 @@ wgpu = "0.15.1"
 bytemuck = { version = "1.4", features = [ "derive" ] }
 image = "0.23.14"
 winit = "0.28.1"
-web-sys = { version = "0.3.60", features = ["Window", "Location", "ImageBitmapRenderingContext", "OffscreenCanvas", "Element"], optional = true }
 fruity_game_engine = { path = "../fruity_game_engine" }
 fruity_graphic = { path = "../fruity_graphic" }
 fruity_windows = { path = "../fruity_windows" }
 fruity_windows_winit = { path = "../fruity_windows_winit" }
-wasm-bindgen = { version = "0.2.83", optional = true }
+wasm-bindgen = "0.2.83"
 
 [build-dependencies]
 fruity_game_engine_build = { path = "../fruity_game_engine_build" }
-napi-build = { version = "2.0.1", optional = true }
+napi-build = "2.0.1"
 
-[features]
-default = ["wasm-module"]
-napi-module = [
-    "napi-build",
-    "fruity_game_engine/napi-module"
-]
-wasm-module = [
-    "web-sys",
-    "wasm-bindgen",
-    "fruity_game_engine/wasm-module"
-]
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.83"
+web-sys = { version = "0.3.60", features = [
+    "Window",
+    "Location",
+    "ImageBitmapRenderingContext",
+    "OffscreenCanvas",
+    "Element",
+] }
+wgpu = { version = "0.15.1", features = ["webgl"] }

@@ -9,21 +9,11 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 fruity_game_engine = { path = "../fruity_game_engine" }
 fruity_ecs = { path = "../fruity_ecs" }
-wasm-bindgen = { version = "0.2.83", optional = true }
+wasm-bindgen = "0.2.83"
 
 [build-dependencies]
 fruity_game_engine_build = { path = "../fruity_game_engine_build" }
-napi-build = { version = "2.0.1", optional = true }
+napi-build = "2.0.1"
 
-[features]
-default = ["wasm-module"]
-napi-module = [
-    "napi-build",
-    "fruity_game_engine/napi-module",
-    "fruity_ecs/napi-module"
-]
-wasm-module = [
-    "wasm-bindgen",
-    "fruity_game_engine/wasm-module",
-    "fruity_ecs/wasm-module"
-]
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.83"

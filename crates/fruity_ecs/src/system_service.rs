@@ -19,10 +19,10 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-#[cfg(feature = "multi-threaded")]
+#[cfg(not(target_arch = "wasm32"))]
 use std::thread;
 
-#[cfg(feature = "multi-threaded")]
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 
 /// A callback for a system called every frame
@@ -302,10 +302,10 @@ impl SystemService {
                     let resource_container = world.get_resource_container();
 
                     let execute_frame_systems_closure = move || {
-                        #[cfg(feature = "multi-threaded")]
+                        #[cfg(not(target_arch = "wasm32"))]
                         let iterator = pool.systems.iter().par_bridge();
 
-                        #[cfg(not(feature = "multi-threaded"))]
+                        #[cfg(target_arch = "wasm32")]
                         let mut iterator = pool.systems.iter();
 
                         iterator.try_for_each(|system| {
@@ -318,10 +318,10 @@ impl SystemService {
                         })
                     };
 
-                    #[cfg(feature = "multi-threaded")]
+                    #[cfg(not(target_arch = "wasm32"))]
                     let handler = thread::spawn(execute_frame_systems_closure);
 
-                    #[cfg(not(feature = "multi-threaded"))]
+                    #[cfg(target_arch = "wasm32")]
                     execute_frame_systems_closure()?;
 
                     // Run the script systems
@@ -338,7 +338,7 @@ impl SystemService {
                     })?;
 
                     // Wait all the threaded systems
-                    #[cfg(feature = "multi-threaded")]
+                    #[cfg(not(target_arch = "wasm32"))]
                     handler.join().unwrap()?;
                 }
 
@@ -351,10 +351,10 @@ impl SystemService {
         // Run the threaded systems
         let resource_container = world.get_resource_container();
 
-        #[cfg(feature = "multi-threaded")]
+        #[cfg(not(target_arch = "wasm32"))]
         let iterator = self.startup_systems.par_iter();
 
-        #[cfg(not(feature = "multi-threaded"))]
+        #[cfg(target_arch = "wasm32")]
         let iterator = self.startup_systems.iter();
 
         iterator
@@ -414,10 +414,10 @@ impl SystemService {
         // Run the threaded systems
         let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
 
-        #[cfg(feature = "multi-threaded")]
+        #[cfg(not(target_arch = "wasm32"))]
         let mut iterator = startup_dispose_callbacks.drain(..).par_bridge();
 
-        #[cfg(not(feature = "multi-threaded"))]
+        #[cfg(target_arch = "wasm32")]
         let mut iterator = startup_dispose_callbacks.drain(..);
 
         iterator.try_for_each(|system| {

@@ -3,7 +3,7 @@ use fruity_game_engine::{
     profile::{profile_new_frame, profile_scope, profile_start},
     settings::Settings,
     world::World,
-    FruityResult,
+    FruityError, FruityResult,
 };
 use fruity_windows::window_service::WindowService;
 use std::ffi::c_void;
@@ -27,6 +27,7 @@ pub fn window_middleware(world: World, settings: Settings) -> FruityResult<()> {
 
     // Build the window
     let event_loop = EventLoopBuilder::<()>::with_user_event().build();
+
     let window = WindowBuilder::new()
         .with_title(window_settings.title)
         .with_inner_size(LogicalSize::new(
@@ -39,6 +40,22 @@ pub fn window_middleware(world: World, settings: Settings) -> FruityResult<()> {
 
     let window_id = window.id();
 
+    // On wasm, append the canvas to the document body
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::WindowExtWebSys;
+        web_sys::window()
+            .and_then(|win| win.document())
+            .and_then(|doc| doc.body())
+            .and_then(|body| {
+                body.append_child(&web_sys::Element::from(window.canvas()))
+                    .ok()
+            })
+            .ok_or(FruityError::GenericFailure(
+                "couldn't append canvas to document body".to_string(),
+            ))?;
+    }
+
     // Initialize windows service
     let window_service = WinitWindowService::new(resource_container.clone(), window);
     resource_container.add::<dyn WindowService>("window_service", Box::new(window_service));
@@ -49,7 +66,7 @@ pub fn window_middleware(world: World, settings: Settings) -> FruityResult<()> {
     // Initialize the resources
     world.load_resources()?;
 
-    // Build and inject the window in the windows service
+    // Get the windows events
     let (on_start_update, on_end_update, on_resize, on_cursor_moved, on_event, on_events_cleared) = {
         let window_service = resource_container.require::<dyn WindowService>();
         let window_service_reader = window_service.read();
