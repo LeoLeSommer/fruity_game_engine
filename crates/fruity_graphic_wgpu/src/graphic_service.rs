@@ -115,7 +115,9 @@ pub struct WgpuGraphicService {
 }
 
 impl WgpuGraphicService {
-    pub async fn new(resource_container: ResourceContainer) -> FruityResult<WgpuGraphicService> {
+    pub async fn new_async(
+        resource_container: ResourceContainer,
+    ) -> FruityResult<WgpuGraphicService> {
         let window_service = resource_container.require::<dyn WindowService>();
 
         let state = {
@@ -169,7 +171,7 @@ impl WgpuGraphicService {
                 });
 
             // Initialize the graphics
-            WgpuGraphicService::initialize(window_service.get_window()).await?
+            WgpuGraphicService::initialize_async(window_service.get_window()).await?
         };
 
         // Dispatch initialized event
@@ -190,7 +192,7 @@ impl WgpuGraphicService {
         })
     }
 
-    pub async fn initialize(window: &Window) -> FruityResult<State> {
+    pub async fn initialize_async(window: &Window) -> FruityResult<State> {
         // #[cfg(target_arch = "wasm32")]
         let backends = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
 

@@ -16,6 +16,7 @@ use napi::{
 use napi::{check_status, NapiValue};
 use napi::{JsError, NapiRaw};
 use napi_sys::{napi_create_promise, napi_deferred, napi_reject_deferred, napi_resolve_deferred};
+use send_wrapper::SendWrapper;
 use std::{ffi::CString, future::Future, marker::PhantomData, ops::Deref, pin::Pin};
 use std::{fmt::Debug, vec};
 use std::{rc::Rc, sync::Arc};
@@ -118,28 +119,19 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
 
             match future {
                 Ok(future) => {
-                    // TODO: Catch errors in this thread
-                    let env = env.clone();
-                    task::spawn_local(async move {
-                        match future.await {
-                            Ok(result) => {
-                                let js_result = script_value_to_js_value(&env, result).unwrap();
-                                unsafe {
-                                    napi_resolve_deferred(env.raw(), deferred, js_result.raw())
-                                };
-                            }
-                            Err(err) => {
-                                let js_error = JsError::from(err.into_napi());
-                                unsafe {
-                                    napi_reject_deferred(
-                                        env.raw(),
-                                        deferred,
-                                        js_error.into_value(env.raw()),
-                                    )
-                                };
-                            }
-                        }
-                    });
+                    let future = SendWrapper::new(future);
+                    let promise = env.execute_tokio_future(
+                        async move {
+                            let response = future.take().await.map_err(|err| err.into_napi())?;
+                            Ok(SendWrapper::new(response))
+                        },
+                        |&mut env, data| {
+                            let response = script_value_to_js_value(&env, data.take())
+                                .map_err(|err| err.into_napi())?;
+
+                            Ok(response)
+                        },
+                    );
                 }
                 Err(_) => {
                     todo!()

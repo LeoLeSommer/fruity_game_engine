@@ -10,10 +10,13 @@ use crate::RwLock;
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 /// A a function that is used to load a resource
-pub type ResourceLoader = fn(&str, Settings, ResourceContainer) -> FruityResult<()>;
+pub type ResourceLoader =
+    fn(&str, Settings, ResourceContainer) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>;
 
 pub(crate) struct InnerResourceContainer {
     resources: HashMap<String, AnyResourceReference>,
@@ -171,7 +174,7 @@ impl ResourceContainer {
     /// * `identifier` - The resource identifier
     /// * `resource_type` - The resource type
     ///
-    pub fn load_resource(
+    pub async fn load_resource_async(
         &self,
         identifier: &str,
         resource_type: &str,
@@ -190,7 +193,7 @@ impl ResourceContainer {
             }?
         };
 
-        resource_loader(identifier, settings, self.clone())
+        resource_loader(identifier, settings, self.clone()).await
     }
 
     /// Load many resources for settings
@@ -198,12 +201,12 @@ impl ResourceContainer {
     /// # Arguments
     /// * `settings` - The settings of resources
     ///
-    pub fn load_resources_settings(&self, settings: Settings) -> FruityResult<()> {
+    pub async fn load_resources_settings_async(&self, settings: Settings) -> FruityResult<()> {
         if let Settings::Object(settings) = settings {
             if let Some(Settings::Array(resources_settings)) = settings.get("resources") {
-                resources_settings.into_iter().try_for_each(|settings| {
-                    Self::load_single_resource_settings(self, settings.clone())
-                })?;
+                for settings in resources_settings.into_iter() {
+                    Self::load_single_resource_settings_async(self, settings.clone()).await?;
+                }
             }
         }
 
@@ -215,7 +218,10 @@ impl ResourceContainer {
     /// # Arguments
     /// * `settings` - The settings of resources
     ///
-    pub fn load_single_resource_settings(&self, settings: Settings) -> FruityResult<()> {
+    pub async fn load_single_resource_settings_async(
+        &self,
+        settings: Settings,
+    ) -> FruityResult<()> {
         // Parse settings
         let fields = if let Settings::Object(fields) = settings {
             fields
@@ -249,12 +255,13 @@ impl ResourceContainer {
         console_log(&format!("resource {} {}", &name, &resource_type));
 
         // Load the resource
-        Self::load_resource(
+        Self::load_resource_async(
             self,
             &name,
             &resource_type,
             Settings::Object(fields.clone()),
         )
+        .await
     }
 }
 

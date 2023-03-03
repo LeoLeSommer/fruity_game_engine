@@ -8,6 +8,8 @@ use crate::{
     FruityError, FruityResult,
 };
 use crate::{export, export_impl, export_struct};
+use std::future::Future;
+use std::pin::Pin;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 /// The resource manager exposed to scripting language
@@ -123,8 +125,16 @@ impl ScriptResourceContainer {
     /// * `settings` - The settings of resources
     ///
     #[export]
-    pub fn load_resources_settings(&self, settings: Settings) -> FruityResult<()> {
-        self.resource_container.load_resources_settings(settings)
+    pub fn load_resources_settings_async(
+        &self,
+        settings: Settings,
+    ) -> Pin<Box<dyn Future<Output = FruityResult<()>>>> {
+        let resource_container = self.resource_container.clone();
+        Box::pin(async move {
+            resource_container
+                .load_resources_settings_async(settings)
+                .await
+        })
     }
 }
 

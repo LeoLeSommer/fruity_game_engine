@@ -2,6 +2,8 @@ export type ScriptValue = any
 
 export type ScriptCallback = (args: ScriptValue[]) => ScriptValue
 
+export type JsIntrospectObject = { [key: string]: any }
+
 export type ResourceReference<T> = T
 
 export type ScriptOrNativeResource = any
@@ -65,19 +67,14 @@ export interface ScriptResourceContainer {
   contains(identifier: string): boolean
   add(identifier: string, resource: JsIntrospectObject)
   remove(identifier: string): void
-  loadResourcesSettings(settings: Settings): void
+  loadResourcesSettingsAsync(settings: Settings): Promise<unknown>
 }
 
 export class World {
 
   constructor(settings: Settings)
   registerModule(module: Module): void
-  setupModules(): void
-  loadResources(): void
   run(): void
-  start(): void
-  frame(): void
-  end(): void
   getResourceContainer(): ScriptResourceContainer
 }
 

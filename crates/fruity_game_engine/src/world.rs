@@ -72,8 +72,8 @@ impl World {
                 end_middleware: Rc::new(move |_| FruityResult::Ok(())),
                 run_middleware: Rc::new(|world, _settings| {
                     Box::pin(async move {
-                        world.setup_modules().await?;
-                        world.load_resources()?;
+                        world.setup_modules_async().await?;
+                        world.load_resources_async().await?;
                         world.start()?;
                         world.frame()?;
                         world.end()?;
@@ -119,7 +119,7 @@ impl World {
     }
 
     /// Load the modules
-    pub async fn setup_modules(&self) -> FruityResult<()> {
+    pub async fn setup_modules_async(&self) -> FruityResult<()> {
         let settings = self.inner.deref().borrow().settings.clone();
         let module_service = self.module_service.deref().borrow();
 
@@ -147,17 +147,29 @@ impl World {
     }
 
     /// Load the resources
-    pub fn load_resources(&self) -> FruityResult<()> {
+    pub async fn load_resources_async(&self) -> FruityResult<()> {
         let settings = self.inner.deref().borrow().settings.clone();
         let module_service = self.module_service.deref().borrow();
 
-        module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
-            if let Some(load_resources) = module.load_resources {
-                load_resources(self.clone(), settings.clone())?;
-            }
+        module_service
+            .traverse_modules_by_dependencies_async(|module: Module| {
+                let settings = settings.clone();
+                async move {
+                    if let Some(load_resources) = module.load_resources {
+                        load_resources(self.clone(), settings.clone())?;
+                    }
 
-            Ok(())
-        }))
+                    if let Some(load_resources_async) = module.load_resources_async {
+                        let world = self.clone();
+                        let settings = settings.clone();
+
+                        load_resources_async(world.clone(), settings.clone()).await?;
+                    }
+
+                    Ok(())
+                }
+            })
+            .await
     }
 
     /// Run the world

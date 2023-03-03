@@ -62,6 +62,8 @@ pub struct FruityExportFn {
     pub args: Vec<FruityExportArg>,
     /// Return type
     pub return_ty: syn::ReturnType,
+    /// Is async
+    pub is_async: bool,
     /// Typescript overwrite, is used by the typescript build script
     /// You can use it like this #[export_func(typescript = "type = any")]
     pub typescript_overwrite: Option<String>,
@@ -78,6 +80,8 @@ pub struct FruityExportConstructor {
     pub args: Vec<FruityExportArg>,
     /// Return type
     pub return_ty: syn::ReturnType,
+    /// Is async
+    pub is_async: bool,
     /// Typescript overwrite, is used by the typescript build script
     /// You can use it like this #[export_func(typescript = "constructor<T>(arg: T)")]
     pub typescript_overwrite: Option<String>,
@@ -118,6 +122,8 @@ pub struct FruityExportClassMethod {
     pub args: Vec<FruityExportArg>,
     /// Return type
     pub return_ty: syn::ReturnType,
+    /// Is async
+    pub is_async: bool,
     /// Typescript overwrite, is used by the typescript build script
     /// You can use it like this #[export_func(typescript = "method<T>(arg: T): number")]
     pub typescript_overwrite: Option<String>,
@@ -316,6 +322,10 @@ pub fn parse_fn_item(item: syn::ItemFn) -> FruityExportFn {
         attrs: parsed_attrs.attrs,
         args,
         return_ty: item.sig.output,
+        is_async: match item.sig.asyncness {
+            Some(_) => true,
+            None => false,
+        },
         typescript_overwrite: parsed_attrs.typescript_overwrite,
     }
 }
@@ -415,6 +425,10 @@ fn parse_trait_method(item: &syn::TraitItemMethod) -> FruityExportClassMethod {
         receiver,
         args,
         return_ty: item.sig.output.clone(),
+        is_async: match item.sig.asyncness {
+            Some(_) => true,
+            None => false,
+        },
         typescript_overwrite: parsed_attrs.typescript_overwrite,
     }
 }
@@ -459,6 +473,7 @@ pub fn parse_impl_item(item: syn::ItemImpl) -> FruityExportClass {
             attrs: method.attrs,
             args: method.args,
             return_ty: method.return_ty,
+            is_async: method.is_async,
             typescript_overwrite: method.typescript_overwrite,
         });
 
@@ -561,6 +576,10 @@ fn parse_impl_method(item: &syn::ImplItemMethod) -> FruityExportClassMethod {
         receiver,
         args,
         return_ty: item.sig.output.clone(),
+        is_async: match item.sig.asyncness {
+            Some(_) => true,
+            None => false,
+        },
         typescript_overwrite: parsed_attrs.typescript_overwrite,
     }
 }

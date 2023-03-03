@@ -26,7 +26,8 @@ pub fn create_fruity_graphic_wgpu_module() -> Module {
             Box::pin(async move {
                 let resource_container = world.get_resource_container();
 
-                let graphic_service = WgpuGraphicService::new(resource_container.clone()).await?;
+                let graphic_service =
+                    WgpuGraphicService::new_async(resource_container.clone()).await?;
                 resource_container
                     .add::<dyn GraphicService>("graphic_service", Box::new(graphic_service));
 

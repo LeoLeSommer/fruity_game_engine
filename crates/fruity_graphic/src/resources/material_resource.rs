@@ -8,6 +8,8 @@ use fruity_game_engine::resource::Resource;
 use fruity_game_engine::settings::Settings;
 use fruity_game_engine::{export_trait, FruityResult};
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 #[export_trait]
 pub trait MaterialResource: Resource {
@@ -71,19 +73,22 @@ pub fn load_material(
     identifier: &str,
     settings: Settings,
     resource_container: ResourceContainer,
-) -> FruityResult<()> {
-    // Get the graphic service state
-    let graphic_service = resource_container.require::<dyn GraphicService>();
-    let graphic_service = graphic_service.read();
+) -> Pin<Box<dyn Future<Output = FruityResult<()>>>> {
+    let identifier = identifier.to_string();
+    Box::pin(async move {
+        // Get the graphic service state
+        let graphic_service = resource_container.require::<dyn GraphicService>();
+        let graphic_service = graphic_service.read();
 
-    // Parse settings
-    let settings = read_material_settings(&settings, resource_container.clone());
+        // Parse settings
+        let settings = read_material_settings(&settings, resource_container.clone());
 
-    // Build the resource
-    let resource = graphic_service.create_material_resource(identifier, settings)?;
-    resource_container.add::<dyn MaterialResource>(identifier, resource);
+        // Build the resource
+        let resource = graphic_service.create_material_resource(&identifier, settings)?;
+        resource_container.add::<dyn MaterialResource>(&identifier, resource);
 
-    Ok(())
+        Ok(())
+    })
 }
 
 pub fn read_material_settings(

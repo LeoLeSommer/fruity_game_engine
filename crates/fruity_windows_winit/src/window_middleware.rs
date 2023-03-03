@@ -70,11 +70,11 @@ pub fn window_middleware(
         console_log("4");
 
         // Setup modules
-        world.setup_modules().await?;
+        world.setup_modules_async().await?;
         console_log("5");
 
         // Initialize the resources
-        world.load_resources()?;
+        world.load_resources_async().await?;
         console_log("6");
 
         // Get the windows events

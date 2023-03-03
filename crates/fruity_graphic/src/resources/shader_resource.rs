@@ -5,9 +5,10 @@ use fruity_game_engine::{
     resource::{resource_container::ResourceContainer, Resource},
     script_value::convert::{TryFromScriptValue, TryIntoScriptValue},
     settings::Settings,
-    FruityError, FruityResult,
+    utils::file::read_file_to_string_async,
+    FruityResult,
 };
-use std::{fs::File, io::Read};
+use std::{future::Future, pin::Pin};
 
 #[export_trait]
 pub trait ShaderResource: Resource {}
@@ -82,30 +83,28 @@ pub fn load_shader(
     identifier: &str,
     settings: Settings,
     resource_container: ResourceContainer,
-) -> FruityResult<()> {
-    // Get the graphic service state
-    let graphic_service = resource_container.require::<dyn GraphicService>();
-    let graphic_service = graphic_service.read();
+) -> Pin<Box<dyn Future<Output = FruityResult<()>>>> {
+    let identifier = identifier.to_string();
+    Box::pin(async move {
+        // Get the graphic service state
+        let graphic_service = resource_container.require::<dyn GraphicService>();
+        let graphic_service = graphic_service.read();
 
-    // Get the resource path
-    let path = settings.get("path", String::default());
+        // Get the resource path
+        let path = settings.get("path", String::default());
 
-    // read the whole file
-    let mut reader = File::open(&path)
-        .map_err(|_| FruityError::GenericFailure(format!("Could not read file {}", &path)))?;
-    let mut buffer = String::new();
-    if let Err(err) = reader.read_to_string(&mut buffer) {
-        return Err(FruityError::GenericFailure(err.to_string()));
-    }
+        // read the whole file
+        let buffer = read_file_to_string_async(&path).await?;
 
-    // Parse settings
-    let settings = read_shader_settings(&settings, resource_container.clone());
+        // Parse settings
+        let settings = read_shader_settings(&settings, resource_container.clone());
 
-    // Build the resource
-    let resource = graphic_service.create_shader_resource(identifier, buffer, settings)?;
-    resource_container.add::<dyn ShaderResource>(identifier, resource);
+        // Build the resource
+        let resource = graphic_service.create_shader_resource(&identifier, buffer, settings)?;
+        resource_container.add::<dyn ShaderResource>(&identifier, resource);
 
-    Ok(())
+        Ok(())
+    })
 }
 
 pub fn read_shader_settings(

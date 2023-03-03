@@ -220,10 +220,10 @@ world.registerModule({
         });
     });
   },
-  loadResources: (world: World, settings: Settings) => {
+  loadResourcesAsync: async (world: World, settings: Settings) => {
     console.log("loadResources");
     const resourceContainer = world.getResourceContainer();
-    resourceContainer.loadResourcesSettings(settings);
+    await resourceContainer.loadResourcesSettingsAsync(settings);
   },
 });
 

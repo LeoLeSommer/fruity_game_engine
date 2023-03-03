@@ -332,6 +332,7 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
                         attrs: constructor.attrs,
                         args: constructor.args,
                         return_ty: constructor.return_ty,
+                        is_async: constructor.is_async,
                         typescript_overwrite: constructor.typescript_overwrite,
                     }, None
                 )
@@ -367,6 +368,7 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
                         attrs: constructor.attrs,
                         args: constructor.args,
                         return_ty: constructor.return_ty,
+                        is_async: constructor.is_async,
                         typescript_overwrite: constructor.typescript_overwrite,
                     }, None
                 )

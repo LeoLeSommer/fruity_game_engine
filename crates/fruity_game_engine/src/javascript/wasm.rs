@@ -5,9 +5,8 @@ use crate::{
     FruityError, FruityResult,
 };
 use convert_case::{Case, Casing};
-use lazy_static::__Deref;
 use std::{cell::RefCell, pin::Pin, rc::Rc, sync::Arc};
-use std::{fmt::Debug, future::Future};
+use std::{fmt::Debug, future::Future, ops::Deref};
 use wasm_bindgen::{JsCast, JsError, JsValue};
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
 
