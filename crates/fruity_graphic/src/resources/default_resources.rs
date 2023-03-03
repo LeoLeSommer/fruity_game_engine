@@ -81,6 +81,7 @@ pub fn load_draw_line_shader(resource_container: ResourceContainer) -> FruityRes
         
         struct RenderSurfaceSizeUniform {
             value: vec2<f32>,
+            padding: vec2<f32>,
         };
         
         struct VertexInput {
@@ -233,6 +234,7 @@ pub fn load_draw_dotted_line_shader(resource_container: ResourceContainer) -> Fr
         
         struct RenderSurfaceSizeUniform {
             value: vec2<f32>,
+            padding: vec2<f32>,
         };
         
         struct VertexInput {
@@ -430,6 +432,7 @@ pub fn load_draw_rect_shader(resource_container: ResourceContainer) -> FruityRes
         
         struct RenderSurfaceSizeUniform {
             value: vec2<f32>,
+            padding: vec2<f32>,
         };
         
         struct ViewportSizeUniform {
@@ -653,6 +656,7 @@ pub fn load_draw_arc_shader(resource_container: ResourceContainer) -> FruityResu
         
         struct RenderSurfaceSizeUniform {
             value: vec2<f32>,
+            padding: vec2<f32>,
         };
         
         struct VertexInput {

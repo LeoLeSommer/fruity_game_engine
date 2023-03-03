@@ -551,7 +551,6 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "napi-sys",
- "parking_lot",
  "puffin",
  "send_wrapper",
  "tokio",

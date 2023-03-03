@@ -121,21 +121,15 @@ impl ResourceContainer {
     /// * `resource` - The resource object
     ///
     pub fn add<T: Resource + ?Sized>(&self, identifier: &str, resource: Box<T>) {
-        console_log(&format!("A0 {:?}", &self.inner.is_locked()));
-        console_log(&format!("A0 {:?}", &self.inner.is_locked_exclusive()));
-
         let mut inner = self.inner.write();
 
-        console_log("A1");
         let shared = AnyResourceReference::from_native(identifier, resource);
         inner
             .resources
             .insert(identifier.to_string(), shared.clone());
-        console_log("A2");
         inner
             .identifier_by_type
             .insert(TypeId::of::<T>(), identifier.to_string());
-        console_log("A3");
     }
 
     /// Remove a resource of the collection
@@ -252,6 +246,7 @@ impl ResourceContainer {
                 ));
             }
         };
+        console_log(&format!("resource {} {}", &name, &resource_type));
 
         // Load the resource
         Self::load_resource(

@@ -9,7 +9,6 @@ use crate::any::FruityAny;
 use crate::script_value::ScriptValue;
 use crate::FruityResult;
 use crate::RwLock;
-use parking_lot::RwLockUpgradableReadGuard;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
@@ -169,14 +168,19 @@ impl<T: IntrospectMethods> IntrospectMethods for RwLock<T> {
     }
 
     fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        let reader = self.upgradable_read();
-        let const_method_names = reader.get_const_method_names()?;
-        let mut_method_names = reader.get_mut_method_names()?;
+        let (const_method_names, mut_method_names) = {
+            let reader = self.read();
+            (
+                reader.get_const_method_names()?,
+                reader.get_mut_method_names()?,
+            )
+        };
 
         if const_method_names.contains(&name.to_string()) {
+            let reader = self.read();
             reader.call_const_method(name, args)
         } else if mut_method_names.contains(&name.to_string()) {
-            let mut writer = RwLockUpgradableReadGuard::<T>::upgrade(reader);
+            let mut writer = self.write();
             writer.call_mut_method(name, args)
         } else {
             unreachable!()

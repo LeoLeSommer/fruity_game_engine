@@ -36,7 +36,7 @@ export type FrameMiddleware = (world: World) => void
 
 export type EndMiddleware = (world: World) => void
 
-export type RunMiddleware = (world: World, settings: Settings, setupModules: (world: World) => void, loadResources: (world: World) => void, start: StartMiddleware, frame: FrameMiddleware, end: EndMiddleware) => void
+export type RunMiddleware = (world: World, settings: Settings) => void
 
 export interface FrameService {
 

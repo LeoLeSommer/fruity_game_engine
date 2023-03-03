@@ -12,7 +12,6 @@ build-std = ["core", "alloc"]
 
 [dependencies]
 puffin = "0.12.1"
-parking_lot = "0.12.1"
 lazy_static = "1.4.0"
 linked-hash-map = "0.5.3"
 convert_case = "0.6.0"

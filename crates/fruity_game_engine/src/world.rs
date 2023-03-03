@@ -14,7 +14,9 @@ use crate::{export_constructor, export_impl, export_struct};
 use fruity_game_engine_macro::typescript;
 use std::cell::RefCell;
 use std::fmt::Debug;
+use std::future::Future;
 use std::ops::Deref;
+use std::pin::Pin;
 use std::rc::Rc;
 
 /// A middleware that occurs when entering into the loop
@@ -30,8 +32,9 @@ pub type FrameMiddleware = Rc<dyn Fn(World) -> FruityResult<()>>;
 pub type EndMiddleware = Rc<dyn Fn(World) -> FruityResult<()>>;
 
 /// A middleware that occurs when the world runs
-#[typescript("type RunMiddleware = (world: World, settings: Settings, setupModules: (world: World) => void, loadResources: (world: World) => void, start: StartMiddleware, frame: FrameMiddleware, end: EndMiddleware) => void")]
-pub type RunMiddleware = Rc<dyn Fn(World, Settings) -> FruityResult<()>>;
+#[typescript("type RunMiddleware = (world: World, settings: Settings) => void")]
+pub type RunMiddleware =
+    Rc<dyn Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>>;
 
 struct InnerWorld {
     resource_container: ResourceContainer,
@@ -64,17 +67,19 @@ impl World {
             inner: Rc::new(RefCell::new(InnerWorld {
                 resource_container: resource_container.clone(),
                 settings,
-                start_middleware: Rc::new(|_| Ok(())),
-                frame_middleware: Rc::new(|_| Ok(())),
-                end_middleware: Rc::new(|_| Ok(())),
+                start_middleware: Rc::new(move |_| FruityResult::Ok(())),
+                frame_middleware: Rc::new(move |_| FruityResult::Ok(())),
+                end_middleware: Rc::new(move |_| FruityResult::Ok(())),
                 run_middleware: Rc::new(|world, _settings| {
-                    world.setup_modules()?;
-                    world.load_resources()?;
-                    world.start()?;
-                    world.frame()?;
-                    world.end()?;
+                    Box::pin(async move {
+                        world.setup_modules().await?;
+                        world.load_resources()?;
+                        world.start()?;
+                        world.frame()?;
+                        world.end()?;
 
-                    FruityResult::Ok(())
+                        FruityResult::Ok(())
+                    })
                 }),
             })),
             module_service: Rc::new(RefCell::new(module_service)),
@@ -84,6 +89,9 @@ impl World {
 
     /// Initialize the world
     pub fn initialize(resource_container: ResourceContainer, _settings: &Settings) {
+        #[cfg(target_arch = "wasm32")]
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
         let frame_service = FrameService::new(resource_container.clone());
         resource_container.add::<FrameService>("frame_service", Box::new(frame_service));
 
@@ -111,34 +119,34 @@ impl World {
     }
 
     /// Load the modules
-    #[export]
-    pub fn setup_modules(&self) -> FruityResult<()> {
+    pub async fn setup_modules(&self) -> FruityResult<()> {
         let settings = self.inner.deref().borrow().settings.clone();
         let module_service = self.module_service.deref().borrow();
 
-        module_service.traverse_modules_by_dependencies(&Box::new(|module: Module| {
-            console_log(&module.name);
-
-            if let Some(setup) = module.setup {
-                setup(self.clone(), settings.clone())?;
-            }
-
-            if let Some(setup_async) = module.setup_async {
-                let world = self.clone();
+        module_service
+            .traverse_modules_by_dependencies_async(|module: Module| {
                 let settings = settings.clone();
+                async move {
+                    console_log(&module.name);
 
-                block_on(Box::pin(async move {
-                    // TODO: Better catch errors
-                    setup_async(world.clone(), settings.clone()).await.unwrap();
-                }));
-            }
+                    if let Some(setup) = module.setup {
+                        setup(self.clone(), settings.clone())?;
+                    }
 
-            Ok(())
-        }))
+                    if let Some(setup_async) = module.setup_async {
+                        let world = self.clone();
+                        let settings = settings.clone();
+
+                        setup_async(world.clone(), settings.clone()).await?;
+                    }
+
+                    Ok(())
+                }
+            })
+            .await
     }
 
     /// Load the resources
-    #[export]
     pub fn load_resources(&self) -> FruityResult<()> {
         let settings = self.inner.deref().borrow().settings.clone();
         let module_service = self.module_service.deref().borrow();
@@ -160,11 +168,16 @@ impl World {
         let settings = self.inner.deref().borrow().settings.clone();
         let run_middleware = self.inner.deref().borrow().run_middleware.clone();
 
-        run_middleware(self.clone(), settings)
+        let world = self.clone();
+        block_on(Box::pin(async move {
+            // TODO: Better catch errors
+            run_middleware(world.clone(), settings).await.unwrap();
+        }));
+
+        Ok(())
     }
 
     /// Run the start middleware
-    #[export]
     pub fn start(&self) -> FruityResult<()> {
         crate::profile::profile_function!();
 
@@ -173,7 +186,6 @@ impl World {
     }
 
     /// Run the frame middleware
-    #[export]
     pub fn frame(&self) -> FruityResult<()> {
         crate::profile::profile_function!();
 
@@ -182,7 +194,6 @@ impl World {
     }
 
     /// Run the end middleware
-    #[export]
     pub fn end(&self) -> FruityResult<()> {
         crate::profile::profile_function!();
 

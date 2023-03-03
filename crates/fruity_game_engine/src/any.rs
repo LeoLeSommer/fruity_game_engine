@@ -6,8 +6,8 @@
 //!
 //! The difference with the classic Any is that this Any needs to implement converter
 
-use parking_lot::Mutex;
-use parking_lot::RwLock;
+use crate::Mutex;
+use crate::RwLock;
 use std::any::Any;
 use std::rc::Rc;
 use std::sync::Arc;

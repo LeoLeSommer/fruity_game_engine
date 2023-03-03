@@ -28,8 +28,13 @@ pub use fruity_game_engine_macro::export_trait;
 pub use fruity_game_engine_macro::typescript;
 pub use fruity_game_engine_macro::typescript_import;
 pub use lazy_static::lazy_static;
-pub use parking_lot::*;
 pub use send_wrapper;
+
+#[cfg(target_arch = "wasm32")]
+pub use sync_web::*;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use sync_native::*;
 
 #[cfg(target_arch = "wasm32")]
 use web_sys::console;
@@ -87,6 +92,12 @@ pub mod world;
 
 /// A service for frame management
 pub mod frame_service;
+
+#[cfg(target_arch = "wasm32")]
+mod sync_web;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod sync_native;
 
 #[cfg(target_arch = "wasm32")]
 /// Log a message into a console
