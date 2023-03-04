@@ -29,7 +29,7 @@ where
 }
 
 impl<T: TryIntoScriptValue + 'static> TryIntoScriptValue
-    for Pin<Box<dyn Future<Output = FruityResult<T>>>>
+    for Pin<Box<dyn Send + Future<Output = FruityResult<T>>>>
 {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
         let future = async move {
@@ -37,12 +37,15 @@ impl<T: TryIntoScriptValue + 'static> TryIntoScriptValue
             result.into_script_value()
         };
 
-        let future = Box::pin(future) as Pin<Box<dyn Future<Output = FruityResult<ScriptValue>>>>;
+        let future =
+            Box::pin(future) as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
         Ok(ScriptValue::Future(future.shared()))
     }
 }
 
-impl<T: TryFromScriptValue> TryFromScriptValue for Pin<Box<dyn Future<Output = FruityResult<T>>>> {
+impl<T: TryFromScriptValue> TryFromScriptValue
+    for Pin<Box<dyn Send + Future<Output = FruityResult<T>>>>
+{
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         if let ScriptValue::Future(future) = value {
             Ok(Box::pin(async move {

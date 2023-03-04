@@ -115,7 +115,8 @@ impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryF
                 ];
 
                 let result = value(args).unwrap();
-                <Pin<Box<dyn Future<Output = FruityResult<R>>>>>::from_script_value(result).unwrap()
+                <Pin<Box<dyn Send + Future<Output = FruityResult<R>>>>>::from_script_value(result)
+                    .unwrap()
             })),
             _ => Err(FruityError::FunctionExpected(format!(
                 "Couldn't convert {:?} to native callback ",

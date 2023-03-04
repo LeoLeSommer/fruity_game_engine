@@ -92,7 +92,7 @@ pub enum ScriptValue {
     Undefined,
 
     /// A future
-    Future(Shared<Pin<Box<dyn Future<Output = FruityResult<ScriptValue>>>>>),
+    Future(Shared<Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>>),
 
     /// A callback
     Callback(Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
@@ -116,8 +116,23 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
     }
 }
 
+/// A trait that can be implemented for a callback storable in a ScriptValue
+pub trait ScriptCallback: Send {
+    /// Duplicate the script object
+    fn duplicate(&self) -> Box<dyn ScriptCallback>;
+}
+
+impl<T> ScriptCallback for T
+where
+    T: Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue> + Send + Clone,
+{
+    fn duplicate(&self) -> Box<dyn ScriptCallback> {
+        Box::new(self.clone())
+    }
+}
+
 /// A trait that can be implemented for an object storable in a ScriptValue
-pub trait ScriptObject: IntrospectFields + IntrospectMethods {
+pub trait ScriptObject: IntrospectFields + IntrospectMethods + Send {
     /// Duplicate the script object
     fn duplicate(&self) -> Box<dyn ScriptObject>;
 }
@@ -136,7 +151,7 @@ impl dyn ScriptObject {
 
 impl<T> ScriptObject for T
 where
-    T: Clone + IntrospectFields + IntrospectMethods,
+    T: Clone + IntrospectFields + IntrospectMethods + Send,
 {
     fn duplicate(&self) -> Box<dyn ScriptObject> {
         Box::new(self.clone())

@@ -359,7 +359,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                     let future = Box::pin(async move {
                         future.await.map_err(|e| FruityError::from_napi(e))
                     })
-                        as Pin<Box<dyn Future<Output = FruityResult<ScriptValue>>>>;
+                        as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
 
                     ScriptValue::Future(future.shared())
                 } else {

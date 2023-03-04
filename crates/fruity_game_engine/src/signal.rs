@@ -41,7 +41,10 @@ pub struct ObserverIdentifier(usize);
 
 #[derive(FruityAny)]
 struct InternSignal<T: 'static> {
-    observers: Vec<(ObserverIdentifier, Arc<dyn Fn(&T) -> FruityResult<()>>)>,
+    observers: Vec<(
+        ObserverIdentifier,
+        Arc<dyn Sync + Send + Fn(&T) -> FruityResult<()>>,
+    )>,
 }
 
 /// An observer pattern
@@ -68,7 +71,7 @@ impl<T> Signal<T> {
 
     /// Add an observer to the signal
     /// An observer is a closure that will be called when the signal will be sent
-    pub fn add_observer<F: Fn(&T) -> FruityResult<()> + 'static>(
+    pub fn add_observer<F: Sync + Send + Fn(&T) -> FruityResult<()> + 'static>(
         &self,
         observer: F,
     ) -> ObserverHandler<T> {
@@ -89,7 +92,7 @@ impl<T> Signal<T> {
     /// Add an observer to the signal that can dispose itself
     /// An observer is a closure that will be called when the signal will be sent
     pub fn add_self_dispose_observer<
-        F: Fn(&T, &ObserverHandler<T>) -> FruityResult<()> + 'static,
+        F: Sync + Send + Fn(&T, &ObserverHandler<T>) -> FruityResult<()> + 'static,
     >(
         &self,
         observer: F,

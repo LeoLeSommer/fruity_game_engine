@@ -26,7 +26,7 @@ pub struct Module {
         Arc<
             dyn Send
                 + Sync
-                + Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>,
+                + Fn(World, Settings) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>,
         >,
     >,
 
@@ -38,7 +38,7 @@ pub struct Module {
         Arc<
             dyn Send
                 + Sync
-                + Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>,
+                + Fn(World, Settings) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>,
         >,
     >,
 
