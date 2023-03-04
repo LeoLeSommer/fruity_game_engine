@@ -11,8 +11,6 @@
 //! - Entities represent any object stored in the ecs, entities are composed of components, in a game engine, a game object for example
 //! - Components are structure where the datas are stored
 
-use std::rc::Rc;
-
 use crate::entity::entity_service::EntityService;
 use crate::extension_component_service::ExtensionComponentService;
 use crate::system_service::SystemService;
@@ -21,6 +19,7 @@ use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::typescript_import;
+use std::sync::Arc;
 
 /// All related with components
 pub mod component;
@@ -42,7 +41,7 @@ pub fn create_fruity_ecs_module() -> Module {
     Module {
         name: "fruity_ecs".to_string(),
         dependencies: vec![],
-        setup: Some(Rc::new(|world, _settings| {
+        setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
             let system_service = SystemService::new(resource_container.clone());

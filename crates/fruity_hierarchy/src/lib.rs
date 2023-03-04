@@ -7,8 +7,6 @@
 //!
 //! The hierarchy is achieved trough a Parent component
 
-use std::rc::Rc;
-
 use crate::components::parent::Parent;
 use crate::systems::delete_cascade::delete_cascade;
 use crate::systems::update_nested_level::update_nested_level;
@@ -16,6 +14,7 @@ use fruity_ecs::system_service::{StartupSystemParams, SystemService};
 use fruity_game_engine::module::Module;
 use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::{export_function, typescript_import};
+use std::sync::Arc;
 
 /// Components of the module
 pub mod components;
@@ -32,7 +31,7 @@ pub fn create_fruity_hierarchy_module() -> Module {
     Module {
         name: "fruity_hierarchy".to_string(),
         dependencies: vec!["fruity_ecs".to_string()],
-        setup: Some(Rc::new(|world, _settings| {
+        setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
             let object_factory_service = resource_container.require::<ObjectFactoryService>();

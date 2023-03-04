@@ -1,42 +1,38 @@
-use super::{ScriptCallback, ScriptValue};
+use super::ScriptValue;
 use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::utils::introspect::ArgumentCaster;
 use crate::FruityError;
 use crate::FruityResult;
 use std::future::Future;
 use std::pin::Pin;
-use std::rc::Rc;
+use std::sync::Arc;
 
-impl ScriptCallback for Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>> {
-    fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        self(args)
-    }
-
-    fn create_thread_safe_callback(
-        &self,
-    ) -> FruityResult<std::sync::Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
-        unimplemented!()
+impl TryIntoScriptValue
+    for Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Callback(self))
     }
 }
 
-impl<R: TryIntoScriptValue> TryIntoScriptValue for &'static (dyn Fn() -> R) {
+impl<R: TryIntoScriptValue> TryIntoScriptValue for &'static (dyn Send + Sync + Fn() -> R) {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Rc::new(Box::new(|_| {
+        Ok(ScriptValue::Callback(Arc::new(Box::new(|_| {
             let result = self();
 
             result.into_script_value()
         })
             as Box<
-                dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>,
+                dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>,
             >)))
     }
 }
 
 impl<T1: TryFromScriptValue, R: TryIntoScriptValue> TryIntoScriptValue
-    for &'static (dyn Fn(T1) -> R)
+    for &'static (dyn Send + Sync + Fn(T1) -> R)
 {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Rc::new(
+        Ok(ScriptValue::Callback(Arc::new(
             Box::new(|args: Vec<ScriptValue>| {
                 let mut caster = ArgumentCaster::new(args);
                 let arg1 = caster.cast_next::<T1>()?;
@@ -44,34 +40,18 @@ impl<T1: TryFromScriptValue, R: TryIntoScriptValue> TryIntoScriptValue
                 let result = self(arg1);
 
                 result.into_script_value()
-            }) as Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+            })
+                as Box<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
         )))
     }
 }
 
-impl<T1: TryFromScriptValue, R: TryIntoScriptValue> ScriptCallback for &'static (dyn Fn(T1) -> R) {
-    fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        let mut caster = ArgumentCaster::new(args);
-        let arg1 = caster.cast_next::<T1>()?;
-
-        let result = self(arg1);
-
-        result.into_script_value()
-    }
-
-    fn create_thread_safe_callback(
-        &self,
-    ) -> FruityResult<std::sync::Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
-        unimplemented!()
-    }
-}
-
-impl<R: TryFromScriptValue> TryFromScriptValue for Rc<dyn Fn() -> FruityResult<R>> {
+impl<R: TryFromScriptValue> TryFromScriptValue for Arc<dyn Send + Sync + Fn() -> FruityResult<R>> {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::Callback(value) => Ok(Rc::new(move || {
+            ScriptValue::Callback(value) => Ok(Arc::new(move || {
                 let args: Vec<ScriptValue> = vec![];
-                let result = value.call(args)?;
+                let result = value(args)?;
 
                 <R>::from_script_value(result)
             })),
@@ -84,13 +64,13 @@ impl<R: TryFromScriptValue> TryFromScriptValue for Rc<dyn Fn() -> FruityResult<R
 }
 
 impl<T1: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
-    for Rc<dyn Fn(T1) -> FruityResult<R>>
+    for Arc<dyn Send + Sync + Fn(T1) -> FruityResult<R>>
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::Callback(value) => Ok(Rc::new(move |arg1| {
+            ScriptValue::Callback(value) => Ok(Arc::new(move |arg1| {
                 let args: Vec<ScriptValue> = vec![arg1.into_script_value()?];
-                let result = value.call(args)?;
+                let result = value(args)?;
 
                 <R>::from_script_value(result)
             })),
@@ -102,32 +82,15 @@ impl<T1: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
     }
 }
 
-impl<T1: TryFromScriptValue + 'static, R: TryIntoScriptValue + 'static> TryIntoScriptValue
-    for Rc<dyn Fn(T1) -> R>
-{
-    fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Rc::new(
-            Box::new(move |args: Vec<ScriptValue>| {
-                let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster.cast_next::<T1>()?;
-
-                let result = self(arg1);
-
-                result.into_script_value()
-            }) as Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
-        )))
-    }
-}
-
 impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
-    for Rc<dyn Fn(T1, T2) -> FruityResult<R>>
+    for Arc<dyn Send + Sync + Fn(T1, T2) -> FruityResult<R>>
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
-            ScriptValue::Callback(value) => Ok(Rc::new(move |arg1, arg2| {
+            ScriptValue::Callback(value) => Ok(Arc::new(move |arg1, arg2| {
                 let args: Vec<ScriptValue> =
                     vec![arg1.into_script_value()?, arg2.into_script_value()?];
-                let result = value.call(args)?;
+                let result = value(args)?;
 
                 <R>::from_script_value(result)
             })),
@@ -139,42 +102,21 @@ impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryF
     }
 }
 
-/*impl<
-        T1: TryFromScriptValue + 'static,
-        T2: TryFromScriptValue + 'static,
-        R: TryIntoScriptValue + 'static,
-    > TryIntoScriptValue
-    for Rc<dyn Fn(T1, T2) -> Pin<Box<dyn Future<Output = FruityResult<R>>>>>
-{
-    fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Rc::new(
-            Box::new(move |args: Vec<ScriptValue>| {
-                let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster.cast_next::<T1>()?;
-                let arg2 = caster.cast_next::<T2>()?;
-
-                let result = self(arg1, arg2);
-
-                result.into_script_value()
-            }) as Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
-        )))
-    }
-}*/
-
 impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
-    for Rc<dyn Fn(T1, T2) -> Pin<Box<dyn Future<Output = FruityResult<R>>>>>
+    for Arc<dyn Send + Sync + Fn(T1, T2) -> Pin<Box<dyn Send + Future<Output = FruityResult<R>>>>>
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         // TODO: Better catch errors
         match value {
-            ScriptValue::Callback(value) => Ok(Rc::new(move |arg1: T1, arg2: T2| {
+            ScriptValue::Callback(value) => Ok(Arc::new(move |arg1: T1, arg2: T2| {
                 let args: Vec<ScriptValue> = vec![
                     arg1.into_script_value().unwrap(),
                     arg2.into_script_value().unwrap(),
                 ];
 
-                let result = value.call(args).unwrap();
-                <Pin<Box<dyn Future<Output = FruityResult<R>>>>>::from_script_value(result).unwrap()
+                let result = value(args).unwrap();
+                <Pin<Box<dyn Send + Future<Output = FruityResult<R>>>>>::from_script_value(result)
+                    .unwrap()
             })),
             _ => Err(FruityError::FunctionExpected(format!(
                 "Couldn't convert {:?} to native callback ",
@@ -188,10 +130,10 @@ impl<
         T1: TryFromScriptValue + 'static,
         T2: TryFromScriptValue + 'static,
         R: TryIntoScriptValue + 'static,
-    > TryIntoScriptValue for Rc<dyn Fn(T1, T2) -> R>
+    > TryIntoScriptValue for Arc<dyn Send + Sync + Fn(T1, T2) -> R>
 {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Rc::new(
+        Ok(ScriptValue::Callback(Arc::new(
             Box::new(move |args: Vec<ScriptValue>| {
                 let mut caster = ArgumentCaster::new(args);
                 let arg1 = caster.cast_next::<T1>()?;
@@ -200,27 +142,8 @@ impl<
                 let result = self(arg1, arg2);
 
                 result.into_script_value()
-            }) as Box<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+            })
+                as Box<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
         )))
-    }
-}
-
-impl<T1: TryFromScriptValue, T2: TryFromScriptValue, R: TryIntoScriptValue> ScriptCallback
-    for &'static (dyn Fn(T1, T2) -> R)
-{
-    fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        let mut caster = ArgumentCaster::new(args);
-        let arg1 = caster.cast_next::<T1>()?;
-        let arg2 = caster.cast_next::<T2>()?;
-
-        let result = self(arg1, arg2);
-
-        result.into_script_value()
-    }
-
-    fn create_thread_safe_callback(
-        &self,
-    ) -> FruityResult<std::sync::Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
-        unimplemented!()
     }
 }

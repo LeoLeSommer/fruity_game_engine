@@ -4,7 +4,6 @@ use crate::introspect::IntrospectMethods;
 use crate::lazy_static;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
-use crate::script_value::ScriptCallback;
 use crate::script_value::ScriptValue;
 use crate::typescript;
 use crate::utils::introspect::ArgumentCaster;
@@ -15,7 +14,6 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::rc::Rc;
 use std::sync::Arc;
 
 struct IdGenerator {
@@ -45,7 +43,7 @@ pub struct ObserverIdentifier(usize);
 struct InternSignal<T: 'static> {
     observers: Vec<(
         ObserverIdentifier,
-        Arc<dyn Fn(&T) -> FruityResult<()> + Sync + Send>,
+        Arc<dyn Send + Sync + Fn(&T) -> FruityResult<()>>,
     )>,
 }
 
@@ -73,7 +71,7 @@ impl<T> Signal<T> {
 
     /// Add an observer to the signal
     /// An observer is a closure that will be called when the signal will be sent
-    pub fn add_observer<F: Fn(&T) -> FruityResult<()> + Send + Sync + 'static>(
+    pub fn add_observer<F: Send + Sync + Fn(&T) -> FruityResult<()> + 'static>(
         &self,
         observer: F,
     ) -> ObserverHandler<T> {
@@ -94,7 +92,7 @@ impl<T> Signal<T> {
     /// Add an observer to the signal that can dispose itself
     /// An observer is a closure that will be called when the signal will be sent
     pub fn add_self_dispose_observer<
-        F: Fn(&T, &ObserverHandler<T>) -> FruityResult<()> + Send + Sync + 'static,
+        F: Send + Sync + Fn(&T, &ObserverHandler<T>) -> FruityResult<()> + 'static,
     >(
         &self,
         observer: F,
@@ -191,13 +189,13 @@ where
         match name {
             "add_observer" => {
                 let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster.cast_next::<Rc<dyn ScriptCallback>>()?;
+                let arg1 = caster
+                    .cast_next::<Arc<dyn Sync + Send + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>>()?;
 
                 // TODO: Restore
-                let callback = arg1.create_thread_safe_callback()?;
                 let handle = self.add_observer(move |arg| {
                     let arg: ScriptValue = arg.clone().into_script_value()?;
-                    callback(vec![arg]);
+                    arg1(vec![arg]);
 
                     Ok(())
                 });

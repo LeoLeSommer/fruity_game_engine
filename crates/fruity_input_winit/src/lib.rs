@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::typescript_import;
@@ -12,6 +10,7 @@ use fruity_input::input_service::LOGO;
 use fruity_input::input_service::SHIFT;
 use fruity_windows::window_service::WindowService;
 use fruity_windows_winit::window_service::WinitWindowService;
+use std::sync::Arc;
 use winit::event::ElementState;
 use winit::event::Event;
 use winit::event::MouseButton;
@@ -29,7 +28,7 @@ pub fn create_fruity_input_winit_module() -> Module {
             "fruity_windows".to_string(),
             "fruity_abstract_input".to_string(),
         ],
-        setup: Some(Rc::new(|world, _settings| {
+        setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
             let window_service = resource_container.require::<dyn WindowService>();

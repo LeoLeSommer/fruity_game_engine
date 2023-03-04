@@ -106,7 +106,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
             .collect::<Vec<_>>();
 
         #[cfg(not(target_arch = "wasm32"))]
-        let mut iterator = entities.into_iter().par_bridge();
+        let iterator = entities.into_iter().par_bridge();
 
         #[cfg(target_arch = "wasm32")]
         let mut iterator = entities.into_iter();

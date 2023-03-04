@@ -6,7 +6,7 @@ use fruity_game_engine::{
     FruityResult,
 };
 use fruity_graphic::graphic_service::GraphicService;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub mod graphic_service;
 pub mod resources;
@@ -22,7 +22,7 @@ pub fn create_fruity_graphic_wgpu_module() -> Module {
     Module {
         name: "fruity_graphic_platform".to_string(),
         dependencies: vec!["fruity_ecs".to_string(), "fruity_windows".to_string()],
-        setup_async: Some(Rc::new(move |world: World, _settings: Settings| {
+        setup_async: Some(Arc::new(move |world: World, _settings: Settings| {
             Box::pin(async move {
                 let resource_container = world.get_resource_container();
 

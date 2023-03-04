@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::components::camera::Camera;
 use crate::components::rotate_2d::Rotate2D;
 use crate::components::scale_2d::Scale2D;
@@ -14,6 +12,7 @@ use fruity_ecs::system_service::{SystemParams, SystemService};
 use fruity_game_engine::module::Module;
 use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::{export_function, typescript_import};
+use std::sync::Arc;
 
 pub mod components;
 pub mod graphic_2d_service;
@@ -32,7 +31,7 @@ pub fn create_fruity_graphic_2d_module() -> Module {
             "fruity_graphic".to_string(),
             "fruity_windows".to_string(),
         ],
-        setup: Some(Rc::new(|world, _settings| {
+        setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
             let graphic_2d_service = Graphic2dService::new(resource_container.clone())?;

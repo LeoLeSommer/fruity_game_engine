@@ -2,7 +2,7 @@ use drag_service::DragService;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
 use input_service::InputService;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub mod drag_service;
 pub mod input_service;
@@ -15,7 +15,7 @@ pub fn create_fruity_input_module() -> Module {
     Module {
         name: "fruity_abstract_input".to_string(),
         dependencies: vec!["fruity_windows".to_string()],
-        setup: Some(Rc::new(|world, settings| {
+        setup: Some(Arc::new(|world, settings| {
             let resource_container = world.get_resource_container();
 
             let mut input_service = InputService::new(resource_container.clone());

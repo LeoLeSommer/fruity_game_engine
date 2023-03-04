@@ -9,7 +9,7 @@ use crate::resources::texture_resource::load_texture;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::{export_function, typescript_import};
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub mod graphic_service;
 pub mod math;
@@ -27,7 +27,7 @@ pub fn create_fruity_graphic_module() -> Module {
             "fruity_windows".to_string(),
             "fruity_graphic_platform".to_string(),
         ],
-        setup: Some(Rc::new(|world, _settings| {
+        setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
             let object_factory_service = resource_container.require::<ObjectFactoryService>();

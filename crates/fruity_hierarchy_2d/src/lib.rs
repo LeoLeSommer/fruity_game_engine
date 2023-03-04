@@ -2,7 +2,7 @@ use crate::systems::transform_2d_cascade::transform_2d_cascade;
 use fruity_ecs::system_service::{SystemParams, SystemService};
 use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub mod systems;
 
@@ -18,7 +18,7 @@ pub fn create_fruity_hierarchy_2d_module() -> Module {
             "fruity_graphic_2d".to_string(),
             "fruity_hierarchy".to_string(),
         ],
-        setup: Some(Rc::new(|world, _settings| {
+        setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
             let system_service = resource_container.require::<SystemService>();

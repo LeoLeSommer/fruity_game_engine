@@ -4,7 +4,7 @@ use crate::world::{RunMiddleware, World};
 use crate::FruityResult;
 use std::future::Future;
 use std::pin::Pin;
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// A service to manage modules loading
 pub mod modules_service;
@@ -19,18 +19,28 @@ pub struct Module {
     pub dependencies: Vec<String>,
 
     /// A function that initialize the module
-    pub setup: Option<Rc<dyn Fn(World, Settings) -> FruityResult<()>>>,
+    pub setup: Option<Arc<dyn Send + Sync + Fn(World, Settings) -> FruityResult<()>>>,
 
     /// An async function that initialize the module
-    pub setup_async:
-        Option<Rc<dyn Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>>>,
+    pub setup_async: Option<
+        Arc<
+            dyn Send
+                + Sync
+                + Fn(World, Settings) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>,
+        >,
+    >,
 
     /// A function that initialize the module resources
-    pub load_resources: Option<Rc<dyn Fn(World, Settings) -> FruityResult<()>>>,
+    pub load_resources: Option<Arc<dyn Send + Sync + Fn(World, Settings) -> FruityResult<()>>>,
 
     /// An async function that initialize the module resources
-    pub load_resources_async:
-        Option<Rc<dyn Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>>>,
+    pub load_resources_async: Option<
+        Arc<
+            dyn Send
+                + Sync
+                + Fn(World, Settings) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>,
+        >,
+    >,
 
     /// A middleware that occurs when the world runs
     pub run_middleware: Option<RunMiddleware>,

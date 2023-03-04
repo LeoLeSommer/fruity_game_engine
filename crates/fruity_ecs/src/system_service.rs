@@ -5,7 +5,6 @@ use fruity_game_engine::profile::profile_scope;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
-use fruity_game_engine::script_value::ScriptCallback;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::send_wrapper::SendWrapper;
 use fruity_game_engine::world::World;
@@ -14,7 +13,6 @@ use fruity_game_engine::Mutex;
 use fruity_game_engine::{export, export_impl, export_struct};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -85,20 +83,20 @@ struct StartupDisposeSystem {
 #[derive(Clone)]
 struct ScriptFrameSystem {
     identifier: String,
-    callback: Rc<dyn ScriptCallback>,
+    callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
     ignore_pause: bool,
 }
 
 #[derive(Clone)]
 struct ScriptStartupSystem {
     identifier: String,
-    callback: Rc<dyn ScriptCallback>,
+    callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
     ignore_pause: bool,
 }
 
 pub(crate) struct ScriptStartupDisposeSystem {
     identifier: String,
-    callback: Rc<dyn ScriptCallback>,
+    callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
 }
 
 #[derive(Clone)]
@@ -236,7 +234,7 @@ impl SystemService {
     pub fn add_script_system(
         &mut self,
         identifier: String,
-        callback: Rc<dyn ScriptCallback>,
+        callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
         params: Option<SystemParams>,
     ) {
         let params = params.unwrap_or_default();
@@ -272,7 +270,7 @@ impl SystemService {
     pub fn add_script_startup_system(
         &mut self,
         identifier: String,
-        callback: Rc<dyn ScriptCallback>,
+        callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
         params: Option<StartupSystemParams>,
     ) {
         let params = params.unwrap_or_default();
@@ -329,7 +327,7 @@ impl SystemService {
                     pool.script_systems.iter().try_for_each(|system| {
                         if !is_paused || system.ignore_pause {
                             profile_scope(&system.identifier);
-                            system.callback.call(vec![script_resource_container
+                            (system.callback)(vec![script_resource_container
                                 .clone()
                                 .into_script_value()?])?;
                         }
@@ -383,7 +381,7 @@ impl SystemService {
             .try_for_each(|system| {
                 profile_scope(&system.identifier);
 
-                let dispose_callback = system.callback.call(vec![script_resource_container
+                let dispose_callback = (system.callback)(vec![script_resource_container
                     .clone()
                     .into_script_value()?])?;
 
@@ -415,7 +413,7 @@ impl SystemService {
         let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
 
         #[cfg(not(target_arch = "wasm32"))]
-        let mut iterator = startup_dispose_callbacks.drain(..).par_bridge();
+        let iterator = startup_dispose_callbacks.drain(..).par_bridge();
 
         #[cfg(target_arch = "wasm32")]
         let mut iterator = startup_dispose_callbacks.drain(..);
@@ -430,7 +428,7 @@ impl SystemService {
             .drain(..)
             .try_for_each(|system| {
                 profile_scope(&system.identifier);
-                system.callback.call(vec![]).map(|_| ())
+                (system.callback)(vec![]).map(|_| ())
             })?;
 
         FruityResult::Ok(())

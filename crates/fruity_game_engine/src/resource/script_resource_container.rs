@@ -1,6 +1,5 @@
 use super::{resource_container::ResourceContainer, resource_reference::AnyResourceReference};
 use crate::settings::Settings;
-use crate::typescript;
 use crate::{
     any::FruityAny,
     javascript::JsIntrospectObject,
@@ -8,16 +7,18 @@ use crate::{
     FruityError, FruityResult,
 };
 use crate::{export, export_impl, export_struct};
+use crate::{typescript, RwLock};
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::sync::Arc;
 
 /// The resource manager exposed to scripting language
 #[derive(FruityAny, Clone, Debug)]
 #[export_struct]
 pub struct ScriptResourceContainer {
     resource_container: ResourceContainer,
-    script_resources: Rc<RefCell<HashMap<String, JsIntrospectObject>>>,
+    script_resources: Arc<RwLock<HashMap<String, JsIntrospectObject>>>,
 }
 
 #[export_impl]
@@ -26,7 +27,7 @@ impl ScriptResourceContainer {
     pub fn new(resource_container: ResourceContainer) -> Self {
         Self {
             resource_container,
-            script_resources: Rc::new(RefCell::new(HashMap::new())),
+            script_resources: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -42,7 +43,7 @@ impl ScriptResourceContainer {
             Some(value) => Some(ScriptOrNativeResource::Native(value)),
             None => self
                 .script_resources
-                .borrow()
+                .read()
                 .get(&identifier)
                 .map(|resource| ScriptOrNativeResource::Script(resource.clone())),
         } {
@@ -63,7 +64,7 @@ impl ScriptResourceContainer {
             Some(value) => Some(ScriptOrNativeResource::Native(value)),
             None => self
                 .script_resources
-                .borrow()
+                .read()
                 .get(&identifier)
                 .map(|resource| ScriptOrNativeResource::Script(resource.clone())),
         }
@@ -78,7 +79,7 @@ impl ScriptResourceContainer {
     #[export]
     pub fn contains(&self, identifier: String) -> bool {
         self.resource_container.contains(&identifier)
-            || self.script_resources.borrow().contains_key(&identifier)
+            || self.script_resources.read().contains_key(&identifier)
     }
 
     /// Add a resource into the collection with an unknown type
@@ -89,9 +90,7 @@ impl ScriptResourceContainer {
     ///
     #[export]
     pub fn add(&self, identifier: String, resource: JsIntrospectObject) {
-        self.script_resources
-            .borrow_mut()
-            .insert(identifier, resource);
+        self.script_resources.write().insert(identifier, resource);
     }
 
     /// Remove a resource of the collection
@@ -105,8 +104,8 @@ impl ScriptResourceContainer {
         match self.resource_container.remove(&identifier) {
             Ok(()) => Ok(()),
             Err(_) => {
-                if self.script_resources.borrow().contains_key(&identifier) {
-                    self.script_resources.borrow_mut().remove(&identifier);
+                if self.script_resources.read().contains_key(&identifier) {
+                    self.script_resources.write().remove(&identifier);
 
                     Ok(())
                 } else {
@@ -128,7 +127,7 @@ impl ScriptResourceContainer {
     pub fn load_resources_settings_async(
         &self,
         settings: Settings,
-    ) -> Pin<Box<dyn Future<Output = FruityResult<()>>>> {
+    ) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>> {
         let resource_container = self.resource_container.clone();
         Box::pin(async move {
             resource_container

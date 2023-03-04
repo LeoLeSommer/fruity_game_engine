@@ -7,6 +7,7 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
+use futures::FutureExt;
 use std::any::type_name;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -14,7 +15,6 @@ use std::future::Future;
 use std::hash::Hash;
 use std::ops::Range;
 use std::pin::Pin;
-use std::rc::Rc;
 
 impl<T> TryIntoScriptValue for FruityResult<T>
 where
@@ -29,7 +29,7 @@ where
 }
 
 impl<T: TryIntoScriptValue + 'static> TryIntoScriptValue
-    for Pin<Box<dyn Future<Output = FruityResult<T>>>>
+    for Pin<Box<dyn Send + Future<Output = FruityResult<T>>>>
 {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
         let future = async move {
@@ -37,88 +37,26 @@ impl<T: TryIntoScriptValue + 'static> TryIntoScriptValue
             result.into_script_value()
         };
 
-        Ok(ScriptValue::Future(Rc::new(Box::pin(future))))
-    }
-}
-
-impl<T: TryFromScriptValue> TryFromScriptValue for Pin<Box<dyn Future<Output = FruityResult<T>>>> {
-    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Future(future) => {
-                let future =
-                    Rc::<Pin<Box<dyn Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
-                        future,
-                    );
-
-                match future {
-                    Ok(future) => {
-                        let future = async {
-                            let result = future.await?;
-                            T::from_script_value(result)
-                        };
-
-                        Ok(Box::pin(future))
-                    }
-                    Err(_) => {
-                        todo!()
-                    }
-                }
-            }
-            value => Err(FruityError::InvalidArg(format!(
-                "Couldn't convert {:?} to future",
-                value
-            ))),
-        }
-    }
-}
-
-impl<T: TryIntoScriptValue + 'static> TryIntoScriptValue
-    for Rc<Pin<Box<dyn Future<Output = FruityResult<T>>>>>
-{
-    fn into_script_value(self) -> FruityResult<ScriptValue> {
-        let future = match Rc::<Pin<Box<dyn Future<Output = FruityResult<T>>>>>::try_unwrap(self) {
-            Ok(future) => future,
-            Err(_) => todo!(),
-        };
-
-        let future = async move {
-            let result = future.await;
-            result.into_script_value()
-        };
-
-        Ok(ScriptValue::Future(Rc::new(Box::pin(future))))
+        let future =
+            Box::pin(future) as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
+        Ok(ScriptValue::Future(future.shared()))
     }
 }
 
 impl<T: TryFromScriptValue> TryFromScriptValue
-    for Rc<Pin<Box<dyn Future<Output = FruityResult<T>>>>>
+    for Pin<Box<dyn Send + Future<Output = FruityResult<T>>>>
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Future(future) => {
-                let future =
-                    Rc::<Pin<Box<dyn Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
-                        future,
-                    );
-
-                match future {
-                    Ok(future) => {
-                        let future = async {
-                            let result = future.await?;
-                            T::from_script_value(result)
-                        };
-
-                        Ok(Rc::new(Box::pin(future)))
-                    }
-                    Err(_) => {
-                        todo!()
-                    }
-                }
-            }
-            value => Err(FruityError::InvalidArg(format!(
+        if let ScriptValue::Future(future) = value {
+            Ok(Box::pin(async move {
+                let result = future.await?;
+                T::from_script_value(result)
+            }))
+        } else {
+            Err(FruityError::InvalidArg(format!(
                 "Couldn't convert {:?} to future",
                 value
-            ))),
+            )))
         }
     }
 }

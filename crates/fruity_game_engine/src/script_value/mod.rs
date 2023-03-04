@@ -13,13 +13,13 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::typescript;
 use crate::FruityError;
 use crate::FruityResult;
+use futures::future::Shared;
 use lazy_static::__Deref;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
-use std::rc::Rc;
 use std::sync::Arc;
 
 /// Traits similar to TryInto and TryFrom for ScriptValue
@@ -92,10 +92,10 @@ pub enum ScriptValue {
     Undefined,
 
     /// A future
-    Future(Rc<Pin<Box<dyn Future<Output = FruityResult<ScriptValue>>>>>),
+    Future(Shared<Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>>),
 
     /// A callback
-    Callback(Rc<dyn ScriptCallback>),
+    Callback(Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
 
     /// An object created by rust
     Object(Box<dyn ScriptObject>),
@@ -117,7 +117,7 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
 }
 
 /// A trait that can be implemented for an object storable in a ScriptValue
-pub trait ScriptObject: IntrospectFields + IntrospectMethods {
+pub trait ScriptObject: IntrospectFields + IntrospectMethods + Send + Sync {
     /// Duplicate the script object
     fn duplicate(&self) -> Box<dyn ScriptObject>;
 }
@@ -136,42 +136,10 @@ impl dyn ScriptObject {
 
 impl<T> ScriptObject for T
 where
-    T: Clone + IntrospectFields + IntrospectMethods,
+    T: Clone + IntrospectFields + IntrospectMethods + Send + Sync,
 {
     fn duplicate(&self) -> Box<dyn ScriptObject> {
         Box::new(self.clone())
-    }
-}
-
-/// A trait that can be implemented for a callback storable in a ScriptValue
-#[typescript("type ScriptCallback = (args: ScriptValue[]) => ScriptValue")]
-pub trait ScriptCallback {
-    /// Call the callback
-    fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
-
-    /// Turn the callback into a thread safe callback than can be called
-    /// in every thread of the application
-    /// It change the callback behavior, you can now call it from every thread but it will
-    /// not be synchronously called and you can't receive the callback return anymore
-    ///
-    /// Note that not every callbacks can be turned into a thread safe callback, in general only the
-    /// callbacks from the scripting language can be turned into a thread safe callback, an error will
-    /// be raised if the callback cannot be turned into a thread safe callback
-    ///
-    fn create_thread_safe_callback(
-        &self,
-    ) -> FruityResult<Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>>;
-}
-
-impl TryFromScriptValue for Rc<dyn ScriptCallback> {
-    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Callback(value) => Ok(value.clone()),
-            _ => Err(FruityError::InvalidArg(format!(
-                "Couldn't convert {:?} to callback",
-                value
-            ))),
-        }
     }
 }
 

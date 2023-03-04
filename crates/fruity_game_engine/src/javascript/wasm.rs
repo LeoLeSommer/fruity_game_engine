@@ -31,7 +31,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
         ScriptValue::Undefined => JsValue::UNDEFINED,
         ScriptValue::Future(future) => {
             let future =
-                Rc::<Pin<Box<dyn Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
+                Rc::<Pin<Box<dyn Send + Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
                     future,
                 );
 
@@ -96,7 +96,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
         }
         ScriptValue::Object(value) => {
             let js_object = js_sys::Object::new();
-            let rust_object: Rc<RefCell<Box<dyn ScriptObject>>> = Rc::from(RefCell::new(value));
+            let rust_object: Arc<RwLock<Box<dyn ScriptObject>>> = Arc::from(RwLock::new(value));
 
             // Store the shared ptr of the native object into the js_object
             // TODO: This is highly unsafe and should be reworked

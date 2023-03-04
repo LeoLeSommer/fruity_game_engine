@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::components::parry_circle_collider::ParryCircleCollider;
 use crate::components::parry_rect_collider::ParryRectCollider;
 use crate::components::rigid_body::RigidBody;
@@ -13,6 +11,7 @@ use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::{export_function, typescript_import};
 use fruity_physic_2d::components::circle_collider::CircleCollider;
 use fruity_physic_2d::components::rect_collider::RectCollider;
+use std::sync::Arc;
 
 pub mod components;
 pub mod systems;
@@ -30,7 +29,7 @@ pub fn create_fruity_physic_parry_2d_module() -> Module {
             "fruity_physic_2d".to_string(),
             "fruity_graphic_2d".to_string(),
         ],
-        setup: Some(Rc::new(|world, _settings| {
+        setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
             let object_factory_service = resource_container.require::<ObjectFactoryService>();

@@ -1,10 +1,9 @@
-use std::rc::Rc;
-
 use crate::components::circle_collider::CircleCollider;
 use crate::components::rect_collider::RectCollider;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::{export_function, typescript_import};
+use std::sync::Arc;
 
 pub mod components;
 
@@ -17,7 +16,7 @@ pub fn create_fruity_physic_2d_module() -> Module {
     Module {
         name: "fruity_physic_2d".to_string(),
         dependencies: vec!["fruity_ecs".to_string(), "fruity_graphic".to_string()],
-        setup: Some(Rc::new(|world, _settings| {
+        setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
             let object_factory_service = resource_container.require::<ObjectFactoryService>();

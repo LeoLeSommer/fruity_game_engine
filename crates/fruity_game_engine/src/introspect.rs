@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// Trait to implement fields introspection to a struct
 pub trait IntrospectFields: Debug + FruityAny {
@@ -95,8 +95,7 @@ impl<T: IntrospectMethods + ?Sized> IntrospectMethods for Box<T> {
     }
 }
 
-//#[typegen = "type Rc<T> = T"]
-impl<T: IntrospectFields + ?Sized> IntrospectFields for Rc<T> {
+impl<T: IntrospectFields + ?Sized> IntrospectFields for Arc<T> {
     fn get_class_name(&self) -> FruityResult<String> {
         self.deref().get_class_name()
     }
@@ -114,7 +113,7 @@ impl<T: IntrospectFields + ?Sized> IntrospectFields for Rc<T> {
     }
 }
 
-impl<T: IntrospectMethods + ?Sized> IntrospectMethods for Rc<T> {
+impl<T: IntrospectMethods + ?Sized> IntrospectMethods for Arc<T> {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         self.deref().get_const_method_names()
     }

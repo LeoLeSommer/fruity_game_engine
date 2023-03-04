@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 /// A a function that is used to load a resource
 pub type ResourceLoader =
-    fn(&str, Settings, ResourceContainer) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>;
+    fn(&str, Settings, ResourceContainer) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>;
 
 pub(crate) struct InnerResourceContainer {
     resources: HashMap<String, AnyResourceReference>,

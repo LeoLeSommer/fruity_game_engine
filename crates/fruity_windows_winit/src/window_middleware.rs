@@ -4,7 +4,7 @@ use fruity_game_engine::{
     profile::{profile_new_frame, profile_scope, profile_start},
     settings::Settings,
     world::World,
-    FruityError, FruityResult,
+    FruityResult,
 };
 use fruity_windows::window_service::WindowService;
 use std::{ffi::c_void, future::Future, pin::Pin};
@@ -20,7 +20,7 @@ use crate::{fps_counter::FPSCounter, window_service::WinitWindowService};
 pub fn window_middleware(
     world: World,
     settings: Settings,
-) -> Pin<Box<dyn Future<Output = FruityResult<()>>>> {
+) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>> {
     Box::pin(async move {
         let resource_container = world.get_resource_container();
         console_log("1");

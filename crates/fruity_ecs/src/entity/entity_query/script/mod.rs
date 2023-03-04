@@ -9,7 +9,6 @@ use crate::entity::entity_query::script::params::WithOptional;
 use crate::entity::entity_query::EntityId;
 use crate::entity::entity_reference::EntityReference;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::script_value::ScriptCallback;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::signal::Signal;
@@ -19,7 +18,6 @@ use fruity_game_engine::RwLock;
 use fruity_game_engine::{export, export_impl, export_struct};
 use itertools::Itertools;
 use std::fmt::Debug;
-use std::rc::Rc;
 use std::sync::Arc;
 
 pub(crate) mod params;
@@ -104,7 +102,7 @@ impl ScriptQuery {
     #[export]
     pub fn for_each(
         &self,
-        callback: Rc<dyn Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+        callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
     ) -> FruityResult<()> {
         let archetypes = self.archetypes.read();
         let archetype_filter = self.archetype_filter();
@@ -139,7 +137,7 @@ impl ScriptQuery {
     #[export]
     pub fn on_created(
         &self,
-        callback: Rc<dyn ScriptCallback>,
+        callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
     ) -> FruityResult<ObserverHandler<EntityReference>> {
         // let on_entity_deleted = self.on_entity_deleted.clone();
         let archetype_filter = self.archetype_filter();
@@ -149,7 +147,6 @@ impl ScriptQuery {
             .map(|param| param.duplicate())
             .collect::<Vec<_>>();
 
-        let callback = callback.create_thread_safe_callback()?;
         Ok(self.on_entity_created.add_observer(move |entity| {
             if archetype_filter(&entity.archetype) {
                 /*let entity_id = {
