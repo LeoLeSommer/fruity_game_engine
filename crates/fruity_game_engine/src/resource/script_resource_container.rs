@@ -127,7 +127,7 @@ impl ScriptResourceContainer {
     pub fn load_resources_settings_async(
         &self,
         settings: Settings,
-    ) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>> {
+    ) -> Pin<Box<dyn Future<Output = FruityResult<()>>>> {
         let resource_container = self.resource_container.clone();
         Box::pin(async move {
             resource_container

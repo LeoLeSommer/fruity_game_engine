@@ -103,7 +103,7 @@ impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryF
 }
 
 impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
-    for Arc<dyn Send + Sync + Fn(T1, T2) -> Pin<Box<dyn Send + Future<Output = FruityResult<R>>>>>
+    for Arc<dyn Send + Sync + Fn(T1, T2) -> Pin<Box<dyn Future<Output = FruityResult<R>>>>>
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         // TODO: Better catch errors
@@ -115,8 +115,7 @@ impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryF
                 ];
 
                 let result = value(args).unwrap();
-                <Pin<Box<dyn Send + Future<Output = FruityResult<R>>>>>::from_script_value(result)
-                    .unwrap()
+                <Pin<Box<dyn Future<Output = FruityResult<R>>>>>::from_script_value(result).unwrap()
             })),
             _ => Err(FruityError::FunctionExpected(format!(
                 "Couldn't convert {:?} to native callback ",

@@ -33,9 +33,8 @@ pub type EndMiddleware = Arc<dyn Send + Sync + Fn(World) -> FruityResult<()>>;
 
 /// A middleware that occurs when the world runs
 #[typescript("type RunMiddleware = (world: World, settings: Settings) => void")]
-pub type RunMiddleware = Arc<
-    dyn Send + Sync + Fn(World, Settings) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>,
->;
+pub type RunMiddleware =
+    Arc<dyn Send + Sync + Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>>;
 
 struct InnerWorld {
     resource_container: ResourceContainer,

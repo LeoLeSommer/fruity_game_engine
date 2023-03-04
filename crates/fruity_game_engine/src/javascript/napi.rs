@@ -109,7 +109,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             .map_err(|e| FruityError::from_napi(e))?
             .into_unknown(),
         ScriptValue::Future(future) => {
-            let mut deferred: napi_deferred = std::ptr::null_mut();
+            /*let mut deferred: napi_deferred = std::ptr::null_mut();
             let mut promise: napi_value = std::ptr::null_mut();
 
             check_status!(unsafe {
@@ -120,7 +120,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             let env = env.clone();
             let promise = env
                 .spawn_future(async move { future.await.map_err(|err| err.into_napi()) })
-                .map_err(|e| FruityError::from_napi(e))?;
+                .map_err(|e| FruityError::from_napi(e))?;*/
 
             /*let promise = env
             .execute_tokio_future::<ScriptValue, ScriptValue, _, _>(
@@ -129,8 +129,10 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             )
             .map_err(|e| FruityError::from_napi(e))?;*/
 
-            unsafe { JsUnknown::from_napi_value(env.raw(), promise.raw()) }
-                .map_err(|e| FruityError::from_napi(e))?
+            todo!()
+
+            /*unsafe { JsUnknown::from_napi_value(env.raw(), promise.raw()) }
+            .map_err(|e| FruityError::from_napi(e))?*/
         }
         ScriptValue::Callback(callback) => env
             .create_function_from_closure("unknown", move |ctx| {
@@ -357,18 +359,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                     let future = Box::pin(async move {
                         future.await.map_err(|e| FruityError::from_napi(e))
                     })
-                        as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
-
-                    // Encapsulate the js promise into a rust future
-                    /*let promise = SendWrapper::new(promise);
-                    let future = async move {
-                        let result = promise
-                            .take()
-                            .await
-                            .map_err(|e| FruityError::from_napi(e))?;
-
-                        js_value_to_script_value(&env, result)
-                    };*/
+                        as Pin<Box<dyn Future<Output = FruityResult<ScriptValue>>>>;
 
                     ScriptValue::Future(future.shared())
                 } else {
