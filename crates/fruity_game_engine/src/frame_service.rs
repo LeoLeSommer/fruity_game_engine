@@ -50,7 +50,7 @@ impl FrameService {
         self.last_frame_instant = now;
     }
 
-    /// Get the time before the previous frame
+    /// Get the time before the previous frame as seconds
     #[export]
     pub fn get_delta(&self) -> f64 {
         self.delta

@@ -110,3 +110,22 @@ pub fn console_log(message: &str) {
 pub fn console_log(message: &str) {
     println!("{}", message);
 }
+
+#[cfg(target_arch = "wasm32")]
+/// Log a message into a console
+pub fn console_err(message: &str) {
+    console::error_1(&message.into());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Log a message into a console
+pub fn console_err(message: &str) {
+    eprintln!("{}", message);
+}
+
+#[cfg(target_arch = "wasm32")]
+#[macro_export]
+/// Profiling is disabled in wasm32
+macro_rules! profile_function {
+    () => {};
+}

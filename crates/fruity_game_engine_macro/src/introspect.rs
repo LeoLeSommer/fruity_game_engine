@@ -63,6 +63,7 @@ pub fn intern_export_struct(item: ItemStruct) -> TokenStream2 {
                 },
                 FruityExportClassFieldName::Unnamed(name) => {
                     let name_as_string = name.to_string();
+                    let name = syn::Index::from(*name);
                     let ty = field.ty.clone();
         
                     quote! {
@@ -107,6 +108,7 @@ pub fn intern_export_struct(item: ItemStruct) -> TokenStream2 {
                 },
                 FruityExportClassFieldName::Unnamed(name) => {
                     let name_as_string = name.to_string();
+                    let name = syn::Index::from(*name);
                     let ty = field.ty.clone();
         
                     quote! {
@@ -483,6 +485,7 @@ pub fn intern_derive_object_factory(input: TokenStream) -> TokenStream {
                                 quote! { #name }
                             },
                             FruityExportClassFieldName::Unnamed(name) => {
+                                let name = syn::Index::from(name);
                                 quote! { #name }
                             },
                         };

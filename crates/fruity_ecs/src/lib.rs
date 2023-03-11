@@ -33,7 +33,7 @@ pub mod system_service;
 /// A service to store components extensions
 pub mod extension_component_service;
 
-#[typescript_import({Signal, ScriptCallback, ObserverHandler, Module} from "fruity_game_engine")]
+#[typescript_import({Signal, ObserverHandler, Module, ScriptValue} from "fruity_game_engine")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]

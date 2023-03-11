@@ -73,7 +73,7 @@ pub fn load_material(
     identifier: &str,
     settings: Settings,
     resource_container: ResourceContainer,
-) -> Pin<Box<dyn Future<Output = FruityResult<()>>>> {
+) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>> {
     let identifier = identifier.to_string();
     Box::pin(async move {
         // Get the graphic service state

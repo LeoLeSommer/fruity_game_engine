@@ -23,35 +23,40 @@ pub async fn read_file_to_string_async(file_path: &str) -> FruityResult<String> 
 
 /// Asynchronously reads a file from the given path and returns its contents as a String
 #[cfg(target_arch = "wasm32")]
-pub async fn read_file_to_string_async(file_path: &str) -> FruityResult<String> {
+pub fn read_file_to_string_async(
+    file_path: &str,
+) -> impl futures::Future<Output = FruityResult<String>> + '_ {
+    use send_wrapper::SendWrapper;
     use wasm_bindgen::JsCast;
     use wasm_bindgen_futures::JsFuture;
     use web_sys::Response;
 
-    // Uses `web_sys` to fetch a file's contents from a URL
-    // This will only work if the code is compiled with WebAssembly (Wasm)
-    // Specifically, this checks if the code is being run in a browser environment that supports Wasm
-    let response: Response = JsFuture::from(
-        web_sys::window()
+    SendWrapper::new(async move {
+        // Uses `web_sys` to fetch a file's contents from a URL
+        // This will only work if the code is compiled with WebAssembly (Wasm)
+        // Specifically, this checks if the code is being run in a browser environment that supports Wasm
+        let response: Response = JsFuture::from(
+            web_sys::window()
+                .ok_or(FruityError::GenericFailure(
+                    "couldn't find global var windows".to_string(),
+                ))?
+                .fetch_with_str(&file_path),
+        )
+        .await
+        .map_err(|error| FruityError::from(error))?
+        .dyn_into()
+        .map_err(|error| FruityError::from(error))?;
+
+        // Returns the response contents as a string
+        let text = JsFuture::from(response.text().map_err(|error| FruityError::from(error))?)
+            .await?
+            .as_string()
             .ok_or(FruityError::GenericFailure(
-                "couldn't find global var windows".to_string(),
-            ))?
-            .fetch_with_str(&file_path),
-    )
-    .await
-    .map_err(|error| FruityError::from(error))?
-    .dyn_into()
-    .map_err(|error| FruityError::from(error))?;
+                "Couldn't get a string from js".to_string(),
+            ))?;
 
-    // Returns the response contents as a string
-    let text = JsFuture::from(response.text().map_err(|error| FruityError::from(error))?)
-        .await?
-        .as_string()
-        .ok_or(FruityError::GenericFailure(
-            "Couldn't get a string from js".to_string(),
-        ))?;
-
-    Ok(text)
+        Ok(text)
+    })
 }
 
 /// Asynchronously reads a file from the given path and returns its contents as a vec of bytes
@@ -77,34 +82,43 @@ pub async fn read_file_to_bytes_async(file_path: &str) -> FruityResult<Vec<u8>> 
 
 /// Asynchronously reads a file from the given path and returns its contents as a vec of bytes
 #[cfg(target_arch = "wasm32")]
-pub async fn read_file_to_bytes_async(file_path: &str) -> FruityResult<Vec<u8>> {
-    use wasm_bindgen::JsCast;
+pub fn read_file_to_bytes_async(
+    file_path: &str,
+) -> impl futures::Future<Output = FruityResult<Vec<u8>>> + '_ {
+    use send_wrapper::SendWrapper;
+    use wasm_bindgen::{JsCast, JsValue};
     use wasm_bindgen_futures::JsFuture;
     use web_sys::Response;
 
-    // Uses `web_sys` to fetch a file's contents from a URL
-    // This will only work if the code is compiled with WebAssembly (Wasm)
-    // Specifically, this checks if the code is being run in a browser environment that supports Wasm
-    let response = JsFuture::from(
-        web_sys::window()
-            .ok_or(FruityError::GenericFailure(
-                "couldn't find global var windows".to_string(),
-            ))?
-            .fetch_with_str(&file_path),
-    )
-    .await?
-    .dyn_into::<Response>()
-    .map_err(|error| FruityError::from(error))?;
+    SendWrapper::new(async move {
+        // Uses `web_sys` to fetch a file's contents from a URL
+        // This will only work if the code is compiled with WebAssembly (Wasm)
+        // Specifically, this checks if the code is being run in a browser environment that supports Wasm
+        let response = JsFuture::from(
+            web_sys::window()
+                .ok_or(FruityError::GenericFailure(
+                    "couldn't find global var windows".to_string(),
+                ))?
+                .fetch_with_str(&file_path),
+        )
+        .await?
+        .dyn_into::<Response>()
+        .map_err(|error| FruityError::from(error))?;
 
-    // Returns the response contents as a vec of bytes
-    let buffer = JsFuture::from(
-        response
-            .array_buffer()
-            .map_err(|error| FruityError::from(error))?,
-    )
-    .await?
-    .dyn_into::<js_sys::Uint8Array>()
-    .map_err(|error| FruityError::from(error))?;
+        // Returns the response contents as a vec of bytes
+        let buffer = {
+            let array_buffer_promise: JsFuture = response
+                .array_buffer()
+                .map_err(|error| FruityError::from(error))?
+                .into();
 
-    Ok(buffer.to_vec())
+            let array_buffer: JsValue = array_buffer_promise
+                .await
+                .map_err(|error| FruityError::from(error))?;
+
+            js_sys::Uint8Array::new(&array_buffer)
+        };
+
+        Ok(buffer.to_vec())
+    })
 }

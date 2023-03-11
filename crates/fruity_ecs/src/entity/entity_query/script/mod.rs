@@ -42,7 +42,7 @@ pub trait ScriptQueryParam: FruityAny + Send + Sync {
     componentIdentifier: string
   ): ScriptQuery<[...Args, T | null]>;
   forEach(callback: (args: Args) => void);
-  onCreated(callback: ScriptCallback): ObserverHandler;
+  onCreated(callback: (args: Args) => undefined | (() => void)): ObserverHandler;
 }")]
 pub struct ScriptQuery {
     pub(crate) archetypes: Arc<RwLock<Vec<ArchetypeArcRwLock>>>,
@@ -162,7 +162,7 @@ impl ScriptQuery {
 
                 serialized_params.try_for_each(|params| {
                     // TODO: Try to find a way to get back the result from thread safe function
-                    callback(params);
+                    callback(params)?;
                     /*let dispose_callback = callback(params);
 
                     if let Some(dispose_callback) = dispose_callback {

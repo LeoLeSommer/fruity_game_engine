@@ -177,7 +177,7 @@ pub struct FruityExportExternImport {
 /// An item exposed to the javascript API
 #[derive(Clone)]
 pub enum FruityExport {
-    /// Typescript extern imports, defined using the function macro typescript_import!({Signal, ScriptCallback, ObserverHandler, Module} from "fruity_game_engine");
+    /// Typescript extern imports, defined using the function macro typescript_import!({...} from "...");
     ExternImports(FruityExportExternImport),
     /// A raw typescript definition stored into a string
     Raw(String),

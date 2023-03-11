@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use crate::export;
 use crate::module::Module;
 use crate::FruityResult;
@@ -26,19 +24,14 @@ impl ModulesService {
     }
 
     /// Traverse the stored modules, order taking care of dependencies with a async
-    pub async fn traverse_modules_by_dependencies_async<Fut>(
-        &self,
-        callback: impl Fn(Module) -> Fut,
-    ) -> FruityResult<()>
-    where
-        Fut: Future<Output = FruityResult<()>>,
-    {
+    pub fn get_modules_ordered_by_dependencies(&self) -> FruityResult<Vec<Module>> {
         let mut processed_module_identifiers = Vec::<String>::new();
         let mut remaining_modules = self
             .modules
             .iter()
             .map(|module| module.clone())
             .collect::<Vec<_>>();
+        let mut ordered_modules = Vec::<Module>::new();
 
         while remaining_modules.len() > 0 {
             let (with_all_dependencies_loaded, others): (Vec<_>, Vec<_>) =
@@ -61,12 +54,12 @@ impl ModulesService {
             );
 
             for module in with_all_dependencies_loaded.into_iter() {
-                callback(module).await?;
+                ordered_modules.push(module);
             }
 
             remaining_modules = others;
         }
 
-        Ok(())
+        Ok(ordered_modules)
     }
 }

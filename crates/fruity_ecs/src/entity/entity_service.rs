@@ -17,6 +17,7 @@ use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::signal::Signal;
+use fruity_game_engine::typescript;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
@@ -29,6 +30,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 /// A save for the entities stored in an [’EntityService’]
+#[typescript("type EntityServiceSnapshot = SerializedEntity[]")]
 pub type EntityServiceSnapshot = Vec<SerializedEntity>;
 
 /// A storage for every entities, use [’Archetypes’] to store entities of different types

@@ -83,13 +83,9 @@ pub fn load_shader(
     identifier: &str,
     settings: Settings,
     resource_container: ResourceContainer,
-) -> Pin<Box<dyn Future<Output = FruityResult<()>>>> {
+) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>> {
     let identifier = identifier.to_string();
     Box::pin(async move {
-        // Get the graphic service state
-        let graphic_service = resource_container.require::<dyn GraphicService>();
-        let graphic_service = graphic_service.read();
-
         // Get the resource path
         let path = settings.get("path", String::default());
 
@@ -98,6 +94,10 @@ pub fn load_shader(
 
         // Parse settings
         let settings = read_shader_settings(&settings, resource_container.clone());
+
+        // Get the graphic service state
+        let graphic_service = resource_container.require::<dyn GraphicService>();
+        let graphic_service = graphic_service.read();
 
         // Build the resource
         let resource = graphic_service.create_shader_resource(&identifier, buffer, settings)?;

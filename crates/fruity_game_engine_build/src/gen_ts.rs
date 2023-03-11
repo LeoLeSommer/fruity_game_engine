@@ -57,6 +57,7 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
                     .variants
                     .into_iter()
                     .map(|variant| format!("\"{}\"", &variant.to_string().to_case(Case::Camel),))
+                    .filter(|ty| ty.as_str() != "")
                     .collect::<Vec<_>>()
                     .join(" | ");
 
@@ -165,26 +166,39 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
 }
 
 fn generate_args_str(args: &Vec<FruityExportArg>, self_ident: &str) -> String {
-    args.into_iter()
+    let mut has_next_optional = true;
+
+    let mut reversed_args = args.clone();
+    reversed_args.reverse();
+
+    let reversed_args = reversed_args
+        .into_iter()
         .map(|arg| {
             let is_optional = is_rust_type_optional(&arg.ty);
 
-            if is_optional {
+            let result = if is_optional && has_next_optional {
                 format!(
                     "{}?: {}",
                     &arg.name.to_string().to_case(Case::Camel),
                     rust_type_to_ts_type(&arg.ty, true, self_ident)
                 )
             } else {
+                has_next_optional = false;
                 format!(
                     "{}: {}",
                     &arg.name.to_string().to_case(Case::Camel),
                     rust_type_to_ts_type(&arg.ty, true, self_ident)
                 )
-            }
+            };
+
+            result
         })
-        .collect::<Vec<_>>()
-        .join(", ")
+        .collect::<Vec<_>>();
+
+    let mut args = reversed_args;
+    args.reverse();
+
+    args.join(", ")
 }
 
 fn generate_fields_str(fields: &Vec<FruityExportClassField>, self_ident: &str) -> String {
@@ -281,6 +295,7 @@ fn rust_type_to_ts_type(ty: &syn::Type, arg_or_return_type: bool, self_ident: &s
                 )),
                 syn::TypeParamBound::Lifetime(_) => None,
             })
+            .filter(|ty| ty.as_str() != "")
             .collect::<Vec<_>>()
             .join(" | "),
         syn::Type::Tuple(tuple) => {
@@ -358,6 +373,8 @@ fn format_type_generics(
                 unreachable!()
             }
         }
+        "Send" => "".to_string(),
+        "Sync" => "".to_string(),
         "Pin" => {
             if let syn::PathArguments::AngleBracketed(ab) = ab {
                 if let syn::GenericArgument::Type(ty) = ab.args.first().unwrap() {

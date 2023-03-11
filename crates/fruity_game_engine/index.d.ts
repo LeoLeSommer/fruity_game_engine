@@ -1,7 +1,5 @@
 export type ScriptValue = any
 
-export type ScriptCallback = (args: ScriptValue[]) => ScriptValue
-
 export type JsIntrospectObject = { [key: string]: any }
 
 export type ResourceReference<T> = T

@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin};
+use std::future::Future;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::runtime::Builder;
@@ -6,15 +6,34 @@ use tokio::runtime::Builder;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
 
+use crate::FruityResult;
+
 /// Wait synchronously for the end of a future
-pub fn block_on(future: Pin<Box<dyn Future<Output = ()>>>) {
+pub fn block_on<F, R>(future: F) -> FruityResult<R>
+where
+    F: Future<Output = FruityResult<R>> + 'static,
+    R: Default,
+{
     #[cfg(not(target_arch = "wasm32"))]
-    Builder::new_multi_thread()
+    let result = Builder::new_multi_thread()
         .enable_all()
         .build()
         .unwrap()
         .block_on(future);
 
     #[cfg(target_arch = "wasm32")]
-    spawn_local(future);
+    let result = {
+        spawn_local(async move {
+            use crate::console_err;
+
+            match future.await {
+                Ok(_) => (),
+                Err(err) => console_err(&err.to_string()),
+            }
+        });
+
+        Ok(R::default())
+    };
+
+    result
 }

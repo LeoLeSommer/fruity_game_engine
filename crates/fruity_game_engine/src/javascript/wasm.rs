@@ -1,12 +1,14 @@
 use crate::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
-    script_value::{ScriptCallback, ScriptObject, ScriptValue},
-    FruityError, FruityResult,
+    script_value::{ScriptObject, ScriptValue},
+    FruityError, FruityResult, RwLock,
 };
 use convert_case::{Case, Casing};
-use std::{cell::RefCell, pin::Pin, rc::Rc, sync::Arc};
+use futures::FutureExt;
+use send_wrapper::SendWrapper;
 use std::{fmt::Debug, future::Future, ops::Deref};
+use std::{pin::Pin, rc::Rc, sync::Arc};
 use wasm_bindgen::{JsCast, JsError, JsValue};
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
 
@@ -30,28 +32,14 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
         ScriptValue::Null => JsValue::NULL,
         ScriptValue::Undefined => JsValue::UNDEFINED,
         ScriptValue::Future(future) => {
-            let future =
-                Rc::<Pin<Box<dyn Send + Future<Output = Result<ScriptValue, FruityError>>>>>::try_unwrap(
-                    future,
-                );
-
-            let future = match future {
-                Ok(future) => {
-                    let future = async {
-                        match future
-                            .await
-                            .map_err(|err| JsValue::from(JsError::from(err)))
-                        {
-                            Ok(result) => script_value_to_js_value(result)
-                                .map_err(|err| JsValue::from(JsError::from(err))),
-                            Err(err) => Err(err),
-                        }
-                    };
-
-                    future
-                }
-                Err(_) => {
-                    todo!()
+            let future = async {
+                match future
+                    .await
+                    .map_err(|err| JsValue::from(JsError::from(err)))
+                {
+                    Ok(result) => script_value_to_js_value(result)
+                        .map_err(|err| JsValue::from(JsError::from(err))),
+                    Err(err) => Err(err),
                 }
             };
 
@@ -85,7 +73,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                         .try_collect::<Vec<_>>()
                         .map_err(|err| JsError::from(err))?;
 
-                    let result = value.call(args).map_err(|err| JsError::from(err))?;
+                    let result = value(args).map_err(|err| JsError::from(err))?;
 
                     script_value_to_js_value(result).map_err(|err| err.into())
                 },
@@ -100,7 +88,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
 
             // Store the shared ptr of the native object into the js_object
             // TODO: This is highly unsafe and should be reworked
-            let ref_ptr_value = Rc::into_raw(rust_object.clone()) as *const () as u32;
+            let ref_ptr_value = Arc::into_raw(rust_object.clone()) as *const () as u32;
             let ref_ptr_js_value = JsValue::from_f64(ref_ptr_value.into());
 
             js_sys::Reflect::set(&js_object, &"__rust_reference".into(), &ref_ptr_js_value)
@@ -108,7 +96,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
 
             // Define const method accessors
             rust_object
-                .borrow()
+                .read()
                 .get_field_names()?
                 .into_iter()
                 .try_for_each(|field_name| {
@@ -120,7 +108,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                     let getter = wasm_bindgen::closure::Closure::wrap(Box::new(
                         move || -> Result<JsValue, JsError> {
                             let result = rust_object_2
-                                .borrow()
+                                .read()
                                 .get_field_value(&field_name_2)
                                 .map_err(|err| JsError::from(err))?;
 
@@ -138,7 +126,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                                 js_value_to_script_value(arg).map_err(|err| JsError::from(err))?;
 
                             rust_object_2
-                                .borrow_mut()
+                                .write()
                                 .set_field_value(&field_name_2, arg)
                                 .map_err(|err| JsError::from(err))?;
 
@@ -165,7 +153,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
 
             // Define const method accessors
             rust_object
-                .borrow()
+                .read()
                 .get_const_method_names()?
                 .into_iter()
                 .try_for_each(|method_name| {
@@ -190,7 +178,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                                 .map_err(|err| JsError::from(err))?;
 
                             let result = rust_object_2
-                                .borrow()
+                                .read()
                                 .call_const_method(&method_name_2, args)
                                 .map_err(|err| JsError::from(err))?;
 
@@ -211,7 +199,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
 
             // Define mut method accessors
             rust_object
-                .borrow()
+                .read()
                 .get_mut_method_names()?
                 .into_iter()
                 .try_for_each(|method_name| {
@@ -236,7 +224,7 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
                                 .map_err(|err| JsError::from(err))?;
 
                             let result = rust_object_2
-                                .borrow_mut()
+                                .write()
                                 .call_mut_method(&method_name_2, args)
                                 .map_err(|err| JsError::from(err))?;
 
@@ -274,9 +262,34 @@ pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
         ScriptValue::String(value)
     } else if value.is_function() {
         let js_function: js_sys::Function = value.into();
-        ScriptValue::Callback(Rc::new(JsFunctionCallback {
-            reference: Rc::new(js_function),
-        }))
+        let js_function = SendWrapper::new(js_function);
+        let closure = move |args: Vec<ScriptValue>| {
+            // Convert all the others args as a JsUnknown
+            let args = args
+                .into_iter()
+                .map(|elem| script_value_to_js_value(elem))
+                .try_collect::<Vec<_>>()?;
+
+            let js_array = js_sys::Array::new();
+            args.into_iter()
+                .try_for_each(|elem| {
+                    js_array.push(&elem);
+                    FruityResult::Ok(())
+                })
+                .map_err(|err| JsError::from(err))?;
+
+            // Call the function
+            let result = js_function
+                .deref()
+                .apply(&JsValue::undefined(), &js_array)
+                .map_err(|err| FruityError::from(err))?;
+
+            // Return the result
+            let result = js_value_to_script_value(result)?;
+            Ok(result)
+        };
+
+        ScriptValue::Callback(Arc::new(closure))
     } else if js_sys::Array::is_array(&value) {
         let js_array: js_sys::Array = value.into();
         ScriptValue::Array(
@@ -285,24 +298,41 @@ pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
                 .map(|elem| js_value_to_script_value(elem))
                 .try_collect::<Vec<_>>()?,
         )
+    } else if is_promise(&value)? {
+        // First case, the object is a promise
+        let promise = js_sys::Promise::from(value);
+        let future = JsFuture::from(promise);
+        let future = SendWrapper::new(future);
+        let future = Box::pin(async move {
+            match future.await.map(|result| js_value_to_script_value(result)) {
+                Ok(result) => result,
+                Err(err) => Err(FruityError::from(err)),
+            }
+        }) as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
+
+        ScriptValue::Future(future.shared())
+    } else if value.is_bigint() {
+        // Second case, the object is a big int
+        todo!()
     } else if value.is_object() {
         // Try to get the wrapped native value
         match js_sys::Reflect::get(&value, &"__rust_reference".into()) {
             Ok(ref_ptr_js_value) => {
                 if !ref_ptr_js_value.is_undefined() && !ref_ptr_js_value.is_null() {
+                    // Third case, the object is a native object
                     // Get the shared ptr of the native object from the js_object
                     // TODO: This is highly unsafe and should be reworked
                     let ref_ptr_value = ref_ptr_js_value.as_f64().unwrap();
                     let ref_ptr_value = unsafe {
-                        Rc::from_raw(
+                        Arc::from_raw(
                             ref_ptr_value as u32 as *const ()
-                                as *const RefCell<Box<dyn ScriptObject>>,
+                                as *const RwLock<Box<dyn ScriptObject>>,
                         )
                     };
-                    let native_object = ref_ptr_value.borrow().duplicate();
+                    let native_object = ref_ptr_value.read().duplicate();
                     ScriptValue::Object(native_object)
                 } else {
-                    // Second case, the object is a js object
+                    // Fourth case, the object is a js object
                     let js_object: js_sys::Object = value.into();
                     ScriptValue::Object(Box::new(JsIntrospectObject {
                         reference: Rc::new(js_object),
@@ -310,28 +340,13 @@ pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
                 }
             }
             Err(_) => {
-                // Second case, the object is a js object
+                // Fourth case, the object is a js object
                 let js_object: js_sys::Object = value.into();
                 ScriptValue::Object(Box::new(JsIntrospectObject {
                     reference: Rc::new(js_object),
                 }))
             }
         }
-    } else if is_promise(&value)? {
-        // Third case, the object is a promise
-        let promise = js_sys::Promise::from(value);
-        let future = JsFuture::from(promise);
-        let future = async move {
-            match future.await.map(|result| js_value_to_script_value(result)) {
-                Ok(result) => result,
-                Err(err) => Err(FruityError::from(err)),
-            }
-        };
-
-        ScriptValue::Future(Rc::new(Box::pin(future)))
-    } else if value.is_bigint() {
-        // Fourth case, the object is a big int
-        todo!()
     } else {
         ScriptValue::Undefined
     })
@@ -348,50 +363,17 @@ fn is_promise(value: &JsValue) -> FruityResult<bool> {
     })
 }
 
-struct JsFunctionCallback {
-    reference: Rc<js_sys::Function>,
-}
-
-impl ScriptCallback for JsFunctionCallback {
-    fn call(&self, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        // Convert all the others args as a JsUnknown
-        let args = args
-            .into_iter()
-            .map(|elem| script_value_to_js_value(elem))
-            .try_collect::<Vec<_>>()?;
-
-        let js_array = js_sys::Array::new();
-        args.into_iter()
-            .try_for_each(|elem| {
-                js_array.push(&elem);
-                FruityResult::Ok(())
-            })
-            .map_err(|err| JsError::from(err))?;
-
-        // Call the function
-        let result = self
-            .reference
-            .deref()
-            .apply(&JsValue::undefined(), &js_array)
-            .map_err(|err| FruityError::from(err))?;
-
-        // Return the result
-        let result = js_value_to_script_value(result)?;
-        Ok(result)
-    }
-
-    fn create_thread_safe_callback(
-        &self,
-    ) -> FruityResult<Arc<dyn Fn(Vec<ScriptValue>) + Send + Sync>> {
-        todo!()
-    }
-}
-
 /// A structure to store a javascript object that can be stored in a ScriptValue
 #[derive(FruityAny, Clone)]
 pub struct JsIntrospectObject {
     reference: Rc<js_sys::Object>,
 }
+
+// Safe cause wasm is mono-threaded
+unsafe impl Send for JsIntrospectObject {}
+
+// Safe cause wasm is mono-threaded
+unsafe impl Sync for JsIntrospectObject {}
 
 impl Debug for JsIntrospectObject {
     fn fmt(&self, _: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
@@ -422,6 +404,7 @@ impl IntrospectFields for JsIntrospectObject {
                 let key: js_sys::JsString = key.into();
                 key.as_string()
             })
+            .map(|name| name.to_case(Case::Snake))
             .collect())
     }
 

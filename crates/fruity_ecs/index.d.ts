@@ -1,13 +1,15 @@
 import {
   Signal,
-  ScriptCallback,
   ObserverHandler,
   Module,
+  ScriptValue,
 } from "fruity_game_engine"
 
 export type AnyComponent = { [key: string]: any }
 
 export type EntityId = number
+
+export type EntityServiceSnapshot = SerializedEntity[]
 
 export interface EntityProperties {
   entityId: EntityId
@@ -51,7 +53,7 @@ export interface ScriptQuery<Args extends any[] = []> {
     componentIdentifier: string
   ): ScriptQuery<[...Args, T | null]>;
   forEach(callback: (args: Args) => void);
-  onCreated(callback: ScriptCallback): ObserverHandler;
+  onCreated(callback: (args: Args) => undefined | (() => void)): ObserverHandler;
 }
 export interface SerializedAnyComponent {
   className: string
@@ -76,8 +78,8 @@ export interface SystemParams {
 
 export interface SystemService {
 
-  addSystem(identifier: string, callback: ScriptCallback, params?: SystemParams | null | undefined)
-  addStartupSystem(identifier: string, callback: ScriptCallback, params?: StartupSystemParams | null | undefined)
+  addSystem(identifier: string, callback: ((arg0: ScriptValue[]) => ScriptValue), params?: SystemParams | null | undefined)
+  addStartupSystem(identifier: string, callback: ((arg0: ScriptValue[]) => ScriptValue), params?: StartupSystemParams | null | undefined)
   isPaused(): boolean
   setPaused(paused: boolean): void
 }

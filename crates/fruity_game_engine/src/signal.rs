@@ -195,7 +195,7 @@ where
                 // TODO: Restore
                 let handle = self.add_observer(move |arg| {
                     let arg: ScriptValue = arg.clone().into_script_value()?;
-                    arg1(vec![arg]);
+                    arg1(vec![arg])?;
 
                     Ok(())
                 });

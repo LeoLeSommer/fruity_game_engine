@@ -5,14 +5,20 @@ use crate::frame_service::FrameService;
 use crate::module::Module;
 use crate::object_factory_service::ObjectFactoryService;
 use crate::resource::script_resource_container::ScriptResourceContainer;
+use crate::script_value::convert::TryFromScriptValue;
+use crate::script_value::convert::TryIntoScriptValue;
+use crate::script_value::ScriptValue;
 use crate::settings::Settings;
 use crate::utils::asynchronous::block_on;
+use crate::utils::introspect::ArgumentCaster;
+use crate::FruityError;
 use crate::FruityResult;
 use crate::ModulesService;
 use crate::ResourceContainer;
 use crate::RwLock;
 use crate::{export_constructor, export_impl, export_struct};
 use fruity_game_engine_macro::typescript;
+use send_wrapper::SendWrapper;
 use std::fmt::Debug;
 use std::future::Future;
 use std::ops::Deref;
@@ -33,9 +39,57 @@ pub type EndMiddleware = Arc<dyn Send + Sync + Fn(World) -> FruityResult<()>>;
 
 /// A middleware that occurs when the world runs
 #[typescript("type RunMiddleware = (world: World, settings: Settings) => void")]
-pub type RunMiddleware = Arc<
-    dyn Send + Sync + Fn(World, Settings) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>,
->;
+pub type RunMiddleware =
+    Arc<dyn Send + Sync + Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>>;
+
+impl TryFromScriptValue for RunMiddleware {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        // TODO: Better catch errors
+        match value {
+            ScriptValue::Callback(value) => Ok(Arc::new(move |arg1: World, arg2: Settings| {
+                let args: Vec<ScriptValue> = vec![
+                    arg1.into_script_value().unwrap(),
+                    arg2.into_script_value().unwrap(),
+                ];
+
+                let result = value(args).unwrap();
+                let sendable_result =
+                    <Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>>::from_script_value(
+                        result,
+                    )
+                    .unwrap();
+
+                let result = Box::pin(async move { sendable_result.await })
+                    as Pin<Box<dyn Future<Output = FruityResult<()>>>>;
+
+                result
+            })),
+            _ => Err(FruityError::FunctionExpected(format!(
+                "Couldn't convert {:?} to native callback ",
+                value
+            ))),
+        }
+    }
+}
+
+impl TryIntoScriptValue for RunMiddleware {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Callback(Arc::new(Box::new(
+            move |args: Vec<ScriptValue>| {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 = caster.cast_next::<World>()?;
+                let arg2 = caster.cast_next::<Settings>()?;
+
+                let future_result = self(arg1, arg2);
+                let wrapped_future = SendWrapper::new(async move { future_result.await });
+                let sendable_result = Box::pin(wrapped_future)
+                    as Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>;
+
+                sendable_result.into_script_value()
+            },
+        ))))
+    }
+}
 
 struct InnerWorld {
     resource_container: ResourceContainer,
@@ -72,9 +126,7 @@ impl World {
                 frame_middleware: Arc::new(move |_| FruityResult::Ok(())),
                 end_middleware: Arc::new(move |_| FruityResult::Ok(())),
                 run_middleware: Arc::new(|world, _settings| {
-                    todo!()
-
-                    /*Box::pin(async move {
+                    Box::pin(async move {
                         world.setup_modules_async().await?;
                         world.load_resources_async().await?;
                         world.start()?;
@@ -82,7 +134,7 @@ impl World {
                         world.end()?;
 
                         FruityResult::Ok(())
-                    })*/
+                    })
                 }),
             })),
             module_service: Arc::new(RwLock::new(module_service)),
@@ -121,29 +173,25 @@ impl World {
     /// Load the modules
     pub async fn setup_modules_async(&self) -> FruityResult<()> {
         let settings = self.inner.deref().read().settings.clone();
-        let module_service = self.module_service.deref().read();
+        let ordered_modules = {
+            let module_service = self.module_service.deref().read();
+            module_service.get_modules_ordered_by_dependencies()?
+        };
 
-        module_service
-            .traverse_modules_by_dependencies_async(|module: Module| {
+        for module in ordered_modules.into_iter() {
+            console_log(&module.name);
+
+            if let Some(setup) = module.setup {
+                setup(self.clone(), settings.clone())?;
+            }
+
+            if let Some(setup_async) = module.setup_async {
+                let world = self.clone();
                 let settings = settings.clone();
-                async move {
-                    console_log(&module.name);
 
-                    if let Some(setup) = module.setup {
-                        setup(self.clone(), settings.clone())?;
-                    }
-
-                    if let Some(setup_async) = module.setup_async {
-                        let world = self.clone();
-                        let settings = settings.clone();
-
-                        setup_async(world.clone(), settings.clone()).await?;
-                    }
-
-                    Ok(())
-                }
-            })
-            .await?;
+                setup_async(world.clone(), settings.clone()).await?;
+            }
+        }
 
         Ok(())
     }
@@ -151,27 +199,25 @@ impl World {
     /// Load the resources
     pub async fn load_resources_async(&self) -> FruityResult<()> {
         let settings = self.inner.deref().read().settings.clone();
-        let module_service = self.module_service.deref().read();
+        let ordered_modules = {
+            let module_service = self.module_service.deref().read();
+            module_service.get_modules_ordered_by_dependencies()?
+        };
 
-        module_service
-            .traverse_modules_by_dependencies_async(|module: Module| {
+        for module in ordered_modules.into_iter() {
+            if let Some(load_resources) = module.load_resources {
+                load_resources(self.clone(), settings.clone())?;
+            }
+
+            if let Some(load_resources_async) = module.load_resources_async {
+                let world = self.clone();
                 let settings = settings.clone();
-                async move {
-                    if let Some(load_resources) = module.load_resources {
-                        load_resources(self.clone(), settings.clone())?;
-                    }
 
-                    if let Some(load_resources_async) = module.load_resources_async {
-                        let world = self.clone();
-                        let settings = settings.clone();
+                load_resources_async(world.clone(), settings.clone()).await?;
+            }
+        }
 
-                        load_resources_async(world.clone(), settings.clone()).await?;
-                    }
-
-                    Ok(())
-                }
-            })
-            .await
+        Ok(())
     }
 
     /// Run the world
@@ -183,10 +229,10 @@ impl World {
         let run_middleware = self.inner.deref().read().run_middleware.clone();
 
         let world = self.clone();
-        block_on(Box::pin(async move {
+        block_on(async move {
             // TODO: Better catch errors
-            run_middleware(world.clone(), settings).await.unwrap();
-        }));
+            run_middleware(world.clone(), settings).await
+        })?;
 
         Ok(())
     }

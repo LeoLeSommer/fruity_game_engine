@@ -76,7 +76,8 @@ world.registerModule({
     "fruity_physic_parry_2d",
     "fruity_windows",
   ],
-  setup: (world: World) => {
+  setup: (world: World, settings: Settings) => {
+    console.log("setup");
     const resourceContainer = world.getResourceContainer();
     const inputService =
       resourceContainer.require<InputService>("input_service");
@@ -138,7 +139,8 @@ world.registerModule({
       };
     });*/
 
-    /*systemService.addStartupSystem("test startup 3", () => {
+    systemService.addStartupSystem("test startup 3", () => {
+      console.log("Test start");
       let createdEntityId: number | null = null;
       const materialResource = resourceContainer.get<MaterialResource>(
         "./src/assets/material.material"
@@ -146,6 +148,7 @@ world.registerModule({
 
       let handle1 = inputService.onPressed.addObserver((input) => {
         if (input === "Action 1") {
+          console.log("Create");
           createdEntityId = entityService.create("New Entity", true, [
             new Transform2D(),
             new Sprite(materialResource, null, 30),
@@ -157,15 +160,17 @@ world.registerModule({
 
       let handle2 = inputService.onReleased.addObserver((input) => {
         if (input === "Action 1" && createdEntityId) {
+          console.log("Remove");
           entityService.remove(createdEntityId);
         }
       });
 
       return () => {
+        console.log("Test enc");
         handle1.dispose();
         handle2.dispose();
       };
-    });*/
+    });
 
     systemService.addSystem("test 1", () => {
       entityService
@@ -222,10 +227,28 @@ world.registerModule({
   },
   loadResourcesAsync: async (world: World, settings: Settings) => {
     console.log("loadResources");
-    const resourceContainer = world.getResourceContainer();
-    await resourceContainer.loadResourcesSettingsAsync(settings);
+    /*const resourceContainer = world.getResourceContainer();
+    const promise = resourceContainer
+      .loadResourcesSettingsAsync(settings)
+      .then(() => console.log("then"))
+      .catch(() => console.log("catch"))
+      .finally(() => console.log("finally"));
+    console.log(promise);
+
+    const doMainStuff = () => {
+      console.log(promise);
+      setTimeout(doMainStuff, 10 * 1000);
+    };
+
+    doMainStuff();
+
+    console.log("run promise");
+    const res = await promise;*/
+    console.log("loadResources end");
   },
 });
+
+console.log(settings);
 
 // Run the world
 world.run();

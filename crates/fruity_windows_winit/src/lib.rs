@@ -2,7 +2,6 @@ use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
 use std::sync::Arc;
 
-pub mod fps_counter;
 pub mod window_middleware;
 pub mod window_service;
 

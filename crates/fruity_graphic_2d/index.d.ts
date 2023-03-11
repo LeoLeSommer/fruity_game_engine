@@ -45,7 +45,7 @@ export class Sprite {
   material?: ResourceReference<MaterialResource> | null | undefined
   texture?: ResourceReference<TextureResource> | null | undefined
   zIndex: number
-  constructor(material?: ResourceReference<MaterialResource> | null | undefined, texture?: ResourceReference<TextureResource> | null | undefined, zIndex: number)
+  constructor(material: ResourceReference<MaterialResource> | null | undefined, texture: ResourceReference<TextureResource> | null | undefined, zIndex: number)
 }
 
 export class Transform2D {

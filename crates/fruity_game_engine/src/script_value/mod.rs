@@ -116,23 +116,8 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
     }
 }
 
-/// A trait that can be implemented for a callback storable in a ScriptValue
-pub trait ScriptCallback: Send {
-    /// Duplicate the script object
-    fn duplicate(&self) -> Box<dyn ScriptCallback>;
-}
-
-impl<T> ScriptCallback for T
-where
-    T: Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue> + Send + Clone,
-{
-    fn duplicate(&self) -> Box<dyn ScriptCallback> {
-        Box::new(self.clone())
-    }
-}
-
 /// A trait that can be implemented for an object storable in a ScriptValue
-pub trait ScriptObject: IntrospectFields + IntrospectMethods + Send {
+pub trait ScriptObject: IntrospectFields + IntrospectMethods + Send + Sync {
     /// Duplicate the script object
     fn duplicate(&self) -> Box<dyn ScriptObject>;
 }
@@ -151,7 +136,7 @@ impl dyn ScriptObject {
 
 impl<T> ScriptObject for T
 where
-    T: Clone + IntrospectFields + IntrospectMethods + Send,
+    T: Clone + IntrospectFields + IntrospectMethods + Send + Sync,
 {
     fn duplicate(&self) -> Box<dyn ScriptObject> {
         Box::new(self.clone())
