@@ -15,7 +15,7 @@ where
     R: Default,
 {
     #[cfg(not(target_arch = "wasm32"))]
-    let result = Builder::new_multi_thread()
+    let result = Builder::new_current_thread()
         .enable_all()
         .build()
         .unwrap()

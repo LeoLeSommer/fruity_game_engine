@@ -4,21 +4,13 @@ use crate::export;
 use crate::frame_service::FrameService;
 use crate::module::Module;
 use crate::object_factory_service::ObjectFactoryService;
-use crate::resource::script_resource_container::ScriptResourceContainer;
-use crate::script_value::convert::TryFromScriptValue;
-use crate::script_value::convert::TryIntoScriptValue;
-use crate::script_value::ScriptValue;
 use crate::settings::Settings;
-use crate::utils::asynchronous::block_on;
-use crate::utils::introspect::ArgumentCaster;
-use crate::FruityError;
 use crate::FruityResult;
 use crate::ModulesService;
 use crate::ResourceContainer;
 use crate::RwLock;
 use crate::{export_constructor, export_impl, export_struct};
 use fruity_game_engine_macro::typescript;
-use send_wrapper::SendWrapper;
 use std::fmt::Debug;
 use std::future::Future;
 use std::ops::Deref;
@@ -37,59 +29,25 @@ pub type FrameMiddleware = Arc<dyn Send + Sync + Fn(World) -> FruityResult<()>>;
 #[typescript("type EndMiddleware = (world: World) => void")]
 pub type EndMiddleware = Arc<dyn Send + Sync + Fn(World) -> FruityResult<()>>;
 
+/// The next argument of SetupWorldMiddleware
+#[typescript("type SetupWorldMiddlewareNext = (world: World, settings: Settings) => void")]
+pub type SetupWorldMiddlewareNext = Arc<dyn Send + Sync + Fn(World, Settings) -> FruityResult<()>>;
+
+/// The next argument of RunWorldMiddleware
+#[typescript("type RunWorldMiddlewareNext = (world: World, settings: Settings) => void")]
+pub type RunWorldMiddlewareNext = Arc<dyn Send + Sync + Fn(World, Settings) -> FruityResult<()>>;
+
 /// A middleware that occurs when the world runs
-#[typescript("type RunMiddleware = (world: World, settings: Settings) => void")]
-pub type RunMiddleware =
-    Arc<dyn Send + Sync + Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>>;
+#[typescript("type SetupWorldMiddleware = (world: World, settings: Settings, next: SetupWorldMiddlewareNext) => void")]
+pub type SetupWorldMiddleware =
+    Arc<dyn Send + Sync + Fn(World, Settings, SetupWorldMiddlewareNext) -> FruityResult<()>>;
 
-impl TryFromScriptValue for RunMiddleware {
-    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        // TODO: Better catch errors
-        match value {
-            ScriptValue::Callback(value) => Ok(Arc::new(move |arg1: World, arg2: Settings| {
-                let args: Vec<ScriptValue> = vec![
-                    arg1.into_script_value().unwrap(),
-                    arg2.into_script_value().unwrap(),
-                ];
-
-                let result = value(args).unwrap();
-                let sendable_result =
-                    <Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>>::from_script_value(
-                        result,
-                    )
-                    .unwrap();
-
-                let result = Box::pin(async move { sendable_result.await })
-                    as Pin<Box<dyn Future<Output = FruityResult<()>>>>;
-
-                result
-            })),
-            _ => Err(FruityError::FunctionExpected(format!(
-                "Couldn't convert {:?} to native callback ",
-                value
-            ))),
-        }
-    }
-}
-
-impl TryIntoScriptValue for RunMiddleware {
-    fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Callback(Arc::new(Box::new(
-            move |args: Vec<ScriptValue>| {
-                let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster.cast_next::<World>()?;
-                let arg2 = caster.cast_next::<Settings>()?;
-
-                let future_result = self(arg1, arg2);
-                let wrapped_future = SendWrapper::new(async move { future_result.await });
-                let sendable_result = Box::pin(wrapped_future)
-                    as Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>;
-
-                sendable_result.into_script_value()
-            },
-        ))))
-    }
-}
+/// A middleware that occurs when the world runs
+#[typescript(
+    "type RunWorldMiddleware = (world: World, settings: Settings, next: RunWorldMiddlewareNext) => void"
+)]
+pub type RunWorldMiddleware =
+    Arc<dyn Send + Sync + Fn(World, Settings, RunWorldMiddlewareNext) -> FruityResult<()>>;
 
 struct InnerWorld {
     resource_container: ResourceContainer,
@@ -97,7 +55,8 @@ struct InnerWorld {
     start_middleware: StartMiddleware,
     frame_middleware: FrameMiddleware,
     end_middleware: EndMiddleware,
-    run_middleware: RunMiddleware,
+    setup_world: Arc<dyn Send + Sync + Fn(World, Settings) -> FruityResult<()>>,
+    run_world: Arc<dyn Send + Sync + Fn(World, Settings) -> FruityResult<()>>,
 }
 
 /// The main container of the ECS
@@ -106,7 +65,6 @@ struct InnerWorld {
 pub struct World {
     inner: Arc<RwLock<InnerWorld>>,
     module_service: Arc<RwLock<ModulesService>>,
-    script_resource_container: ScriptResourceContainer,
 }
 
 #[export_impl]
@@ -125,20 +83,16 @@ impl World {
                 start_middleware: Arc::new(move |_| FruityResult::Ok(())),
                 frame_middleware: Arc::new(move |_| FruityResult::Ok(())),
                 end_middleware: Arc::new(move |_| FruityResult::Ok(())),
-                run_middleware: Arc::new(|world, _settings| {
-                    Box::pin(async move {
-                        world.setup_modules_async().await?;
-                        world.load_resources_async().await?;
-                        world.start()?;
-                        world.frame()?;
-                        world.end()?;
+                setup_world: Arc::new(|_world, _settings| FruityResult::Ok(())),
+                run_world: Arc::new(|world, _settings| {
+                    world.start()?;
+                    world.frame()?;
+                    world.end()?;
 
-                        FruityResult::Ok(())
-                    })
+                    FruityResult::Ok(())
                 }),
             })),
             module_service: Arc::new(RwLock::new(module_service)),
-            script_resource_container: ScriptResourceContainer::new(resource_container),
         }
     }
 
@@ -160,64 +114,126 @@ impl World {
     /// Register a module
     #[export]
     pub fn register_module(&self, module: Module) -> FruityResult<()> {
-        if let Some(run_middleware) = module.run_middleware.clone() {
-            let mut this = self.inner.deref().write();
-            this.run_middleware = run_middleware;
-        }
+        self.module_service
+            .deref()
+            .write()
+            .register_module(module.clone());
 
-        self.module_service.deref().write().register_module(module);
+        let ordered_modules = {
+            let module_service = self.module_service.deref().read();
+            module_service.get_modules_ordered_by_dependencies()
+        };
+
+        if let Ok(ordered_modules) = ordered_modules {
+            // Rebuild setup_world_middleware taking care of dependency arborescence if needed
+            if let Some(_) = module.setup_world_middleware.clone() {
+                {
+                    let mut this = self.inner.deref().write();
+                    this.setup_world = Arc::new(|_world, _settings| FruityResult::Ok(()));
+                }
+
+                for module in ordered_modules.clone().into_iter() {
+                    if let Some(setup_world_middleware) = module.setup_world_middleware.clone() {
+                        let mut this = self.inner.deref().write();
+                        let previous_setup_world = this.setup_world.clone();
+
+                        this.setup_world = Arc::new(move |world, settings| {
+                            setup_world_middleware(world, settings, previous_setup_world.clone())
+                        });
+                    }
+                }
+            }
+
+            // Rebuild run_world_middleware arborescence if needed
+            if let Some(_) = module.run_world_middleware.clone() {
+                {
+                    let mut this = self.inner.deref().write();
+                    this.run_world = Arc::new(|_world, _settings| FruityResult::Ok(()));
+                }
+
+                for module in ordered_modules.into_iter() {
+                    if let Some(run_world_middleware) = module.run_world_middleware.clone() {
+                        let mut this = self.inner.deref().write();
+                        let previous_run_world = this.run_world.clone();
+
+                        this.run_world = Arc::new(move |world, settings| {
+                            run_world_middleware(world, settings, previous_run_world.clone())
+                        });
+                    }
+                }
+            }
+        }
 
         Ok(())
     }
 
     /// Load the modules
-    pub async fn setup_modules_async(&self) -> FruityResult<()> {
-        let settings = self.inner.deref().read().settings.clone();
-        let ordered_modules = {
-            let module_service = self.module_service.deref().read();
-            module_service.get_modules_ordered_by_dependencies()?
-        };
+    #[export]
+    pub fn setup_modules_async(&self) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>> {
+        let world = self.clone();
+        Box::pin(async move {
+            let settings = world.inner.deref().read().settings.clone();
+            let ordered_modules = {
+                let module_service = world.module_service.deref().read();
+                module_service.get_modules_ordered_by_dependencies()?
+            };
 
-        for module in ordered_modules.into_iter() {
-            console_log(&module.name);
+            for module in ordered_modules.into_iter() {
+                console_log(&module.name);
 
-            if let Some(setup) = module.setup {
-                setup(self.clone(), settings.clone())?;
+                if let Some(setup) = module.setup {
+                    setup(world.clone(), settings.clone())?;
+                }
+
+                if let Some(setup_async) = module.setup_async {
+                    let world = world.clone();
+                    let settings = settings.clone();
+
+                    setup_async(world.clone(), settings.clone()).await?;
+                }
             }
 
-            if let Some(setup_async) = module.setup_async {
-                let world = self.clone();
-                let settings = settings.clone();
-
-                setup_async(world.clone(), settings.clone()).await?;
-            }
-        }
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Load the resources
-    pub async fn load_resources_async(&self) -> FruityResult<()> {
+    #[export]
+    pub fn load_resources_async(&self) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>> {
+        let world = self.clone();
+        Box::pin(async move {
+            let settings = world.inner.deref().read().settings.clone();
+            let ordered_modules = {
+                let module_service = world.module_service.deref().read();
+                module_service.get_modules_ordered_by_dependencies()?
+            };
+
+            for module in ordered_modules.into_iter() {
+                if let Some(load_resources) = module.load_resources {
+                    load_resources(world.clone(), settings.clone())?;
+                }
+
+                if let Some(load_resources_async) = module.load_resources_async {
+                    let world = world.clone();
+                    let settings = settings.clone();
+
+                    load_resources_async(world.clone(), settings.clone()).await?;
+                }
+            }
+
+            Ok(())
+        })
+    }
+
+    /// Run the world
+    #[export]
+    pub fn setup(&self) -> FruityResult<()> {
+        crate::profile::profile_function!();
+
         let settings = self.inner.deref().read().settings.clone();
-        let ordered_modules = {
-            let module_service = self.module_service.deref().read();
-            module_service.get_modules_ordered_by_dependencies()?
-        };
+        let setup = self.inner.deref().read().setup_world.clone();
 
-        for module in ordered_modules.into_iter() {
-            if let Some(load_resources) = module.load_resources {
-                load_resources(self.clone(), settings.clone())?;
-            }
-
-            if let Some(load_resources_async) = module.load_resources_async {
-                let world = self.clone();
-                let settings = settings.clone();
-
-                load_resources_async(world.clone(), settings.clone()).await?;
-            }
-        }
-
-        Ok(())
+        setup(self.clone(), settings)
     }
 
     /// Run the world
@@ -226,15 +242,9 @@ impl World {
         crate::profile::profile_function!();
 
         let settings = self.inner.deref().read().settings.clone();
-        let run_middleware = self.inner.deref().read().run_middleware.clone();
+        let run = self.inner.deref().read().run_world.clone();
 
-        let world = self.clone();
-        block_on(async move {
-            // TODO: Better catch errors
-            run_middleware(world.clone(), settings).await
-        })?;
-
-        Ok(())
+        run(self.clone(), settings)
     }
 
     /// Run the start middleware
@@ -295,15 +305,10 @@ impl World {
     }
 
     /// Get resource container
+    #[export]
     pub fn get_resource_container(&self) -> ResourceContainer {
         let this = self.inner.deref().read();
         this.resource_container.clone()
-    }
-
-    /// Get resource container
-    #[export(name = "get_resource_container")]
-    pub fn get_script_resource_container(&self) -> ScriptResourceContainer {
-        self.script_resource_container.clone()
     }
 }
 

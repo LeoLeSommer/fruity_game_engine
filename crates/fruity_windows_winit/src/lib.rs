@@ -2,8 +2,8 @@ use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
 use std::sync::Arc;
 
-pub mod window_middleware;
 pub mod window_service;
+pub mod world_fn;
 
 #[typescript_import({Signal, Module} from "fruity_game_engine")]
 
@@ -13,7 +13,8 @@ pub fn create_fruity_windows_winit_module() -> Module {
     Module {
         name: "fruity_windows".to_string(),
         dependencies: vec!["fruity_abstract_windows".to_string()],
-        run_middleware: Some(Arc::new(window_middleware::window_middleware)),
+        setup_world_middleware: Some(Arc::new(world_fn::setup_world_middleware)),
+        run_world_middleware: Some(Arc::new(world_fn::run_world_middleware)),
         ..Default::default()
     }
 }

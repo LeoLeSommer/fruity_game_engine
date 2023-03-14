@@ -1,6 +1,11 @@
+use fruity_game_engine_macro::export;
+use fruity_game_engine_macro::export_impl;
+use fruity_game_engine_macro::export_struct;
+
 use super::resource_reference::AnyResourceReference;
 use crate::any::FruityAny;
 use crate::console_log;
+use crate::javascript::JsIntrospectObject;
 use crate::resource::resource_reference::ResourceReference;
 use crate::resource::Resource;
 use crate::settings::Settings;
@@ -26,10 +31,12 @@ pub(crate) struct InnerResourceContainer {
 
 /// The resource manager
 #[derive(FruityAny, Clone)]
+#[export_struct]
 pub struct ResourceContainer {
     pub(crate) inner: Arc<RwLock<InnerResourceContainer>>,
 }
 
+#[export_impl]
 impl ResourceContainer {
     /// Returns a ResourceContainer
     pub fn new() -> ResourceContainer {
@@ -44,9 +51,6 @@ impl ResourceContainer {
 
     /// Get a required resource by it's identifier
     /// Panic if the resource is not known
-    ///
-    /// # Arguments
-    /// * `identifier` - The resource identifier
     ///
     /// # Generic Arguments
     /// * `T` - The resource type
@@ -70,6 +74,17 @@ impl ResourceContainer {
                 panic!("Failed to get a required resource")
             }
         }
+    }
+
+    /// Get a required resource by it's identifier
+    /// Panic if the resource is not known
+    ///
+    /// # Generic Arguments
+    /// * `T` - The resource type
+    ///
+    #[export(name = "require", typescript = "require<T>(identifier: string): T")]
+    pub fn require_untyped(&self, identifier: String) -> AnyResourceReference {
+        self.get_untyped(identifier).unwrap()
     }
 
     /// Get a resource by it's identifier
@@ -98,12 +113,13 @@ impl ResourceContainer {
     /// # Arguments
     /// * `identifier` - The resource identifier
     ///
-    pub fn get_untyped(&self, identifier: &str) -> Option<AnyResourceReference> {
+    #[export(name = "get", typescript = "get<T>(identifier: string): T | null")]
+    pub fn get_untyped(&self, identifier: String) -> Option<AnyResourceReference> {
         let inner = self.inner.read();
 
         inner
             .resources
-            .get(identifier)
+            .get(&identifier)
             .map(|resource| resource.clone())
     }
 
@@ -115,6 +131,16 @@ impl ResourceContainer {
     pub fn contains(&self, identifier: &str) -> bool {
         let inner = self.inner.read();
         inner.resources.contains_key(identifier)
+    }
+
+    /// Check if a resource identifier has already been registered
+    ///
+    /// # Arguments
+    /// * `identifier` - The resource identifier
+    ///
+    #[export(name = "contains")]
+    pub fn contains_from_string(&self, identifier: String) -> bool {
+        self.contains(&identifier)
     }
 
     /// Add a resource into the collection
@@ -135,6 +161,17 @@ impl ResourceContainer {
             .insert(TypeId::of::<T>(), identifier.to_string());
     }
 
+    /// Add a resource into the collection
+    ///
+    /// # Arguments
+    /// * `identifier` - The resource identifier
+    /// * `resource` - The resource object
+    ///
+    #[export(name = "add")]
+    pub fn add_js_resource(&self, identifier: String, resource: JsIntrospectObject) {
+        self.add(&identifier, Box::new(resource));
+    }
+
     /// Remove a resource of the collection
     ///
     /// # Arguments
@@ -153,6 +190,16 @@ impl ResourceContainer {
                 identifier
             )))
         }
+    }
+
+    /// Remove a resource of the collection
+    ///
+    /// # Arguments
+    /// * `identifier` - The resource identifier
+    ///
+    #[export(name = "remove")]
+    pub fn remove_from_string(&self, identifier: String) -> FruityResult<()> {
+        self.remove(&identifier)
     }
 
     /// Add a resource loader that will be used to load resources
@@ -176,14 +223,14 @@ impl ResourceContainer {
     ///
     pub async fn load_resource_async(
         &self,
-        identifier: &str,
-        resource_type: &str,
+        identifier: String,
+        resource_type: String,
         settings: Settings,
     ) -> FruityResult<()> {
         let resource_loader = {
             let inner_reader = self.inner.read();
 
-            if let Some(resource_loader) = inner_reader.resource_loaders.get(resource_type) {
+            if let Some(resource_loader) = inner_reader.resource_loaders.get(&resource_type) {
                 Ok(resource_loader.clone())
             } else {
                 Err(FruityError::GenericFailure(format!(
@@ -193,7 +240,7 @@ impl ResourceContainer {
             }?
         };
 
-        resource_loader(identifier, settings, self.clone()).await
+        resource_loader(&identifier, settings, self.clone()).await
     }
 
     /// Load many resources for settings
@@ -201,16 +248,27 @@ impl ResourceContainer {
     /// # Arguments
     /// * `settings` - The settings of resources
     ///
-    pub async fn load_resources_settings_async(&self, settings: Settings) -> FruityResult<()> {
-        if let Settings::Object(settings) = settings {
-            if let Some(Settings::Array(resources_settings)) = settings.get("resources") {
-                for settings in resources_settings.into_iter() {
-                    Self::load_single_resource_settings_async(self, settings.clone()).await?;
+    #[export]
+    pub fn load_resources_settings_async(
+        &self,
+        settings: Settings,
+    ) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>> {
+        let resource_container = self.clone();
+        Box::pin(async move {
+            if let Settings::Object(settings) = settings {
+                if let Some(Settings::Array(resources_settings)) = settings.get("resources") {
+                    for settings in resources_settings.into_iter() {
+                        Self::load_single_resource_settings_async(
+                            &resource_container,
+                            settings.clone(),
+                        )
+                        .await?;
+                    }
                 }
             }
-        }
 
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Load resources for settings
@@ -255,13 +313,7 @@ impl ResourceContainer {
         console_log(&format!("resource {} {}", &name, &resource_type));
 
         // Load the resource
-        Self::load_resource_async(
-            self,
-            &name,
-            &resource_type,
-            Settings::Object(fields.clone()),
-        )
-        .await
+        Self::load_resource_async(self, name, resource_type, Settings::Object(fields.clone())).await
     }
 }
 

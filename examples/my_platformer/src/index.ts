@@ -77,7 +77,7 @@ world.registerModule({
     "fruity_windows",
   ],
   setup: (world: World, settings: Settings) => {
-    console.log("setup");
+    console.log("setup", world);
     const resourceContainer = world.getResourceContainer();
     const inputService =
       resourceContainer.require<InputService>("input_service");
@@ -98,7 +98,7 @@ world.registerModule({
       }
     );
 
-    systemService.addStartupSystem(
+    /*systemService.addStartupSystem(
       "test startup 0",
       () => {
         console.log("Je commence tout");
@@ -118,7 +118,7 @@ world.registerModule({
       return () => {
         console.log("Je finis");
       };
-    });
+    });*/
 
     /*systemService.addStartupSystem("test startup 2", () => {
       let handle = entityService
@@ -139,7 +139,7 @@ world.registerModule({
       };
     });*/
 
-    systemService.addStartupSystem("test startup 3", () => {
+    /*systemService.addStartupSystem("test startup 3", () => {
       console.log("Test start");
       let createdEntityId: number | null = null;
       const materialResource = resourceContainer.get<MaterialResource>(
@@ -170,7 +170,7 @@ world.registerModule({
         handle1.dispose();
         handle2.dispose();
       };
-    });
+    });*/
 
     systemService.addSystem("test 1", () => {
       entityService
@@ -225,7 +225,7 @@ world.registerModule({
         });
     });
   },
-  loadResourcesAsync: async (world: World, settings: Settings) => {
+  loadResourcesAsync: async function test2(world: World, settings: Settings) {
     console.log("loadResources");
     /*const resourceContainer = world.getResourceContainer();
     const promise = resourceContainer
@@ -249,6 +249,15 @@ world.registerModule({
 });
 
 console.log(settings);
+
+// Initialize the world
+world.setup();
+
+// Setup the world modules
+await world.setupModulesAsync();
+
+// Load the resources from the world modules
+await world.loadResourcesAsync();
 
 // Run the world
 world.run();

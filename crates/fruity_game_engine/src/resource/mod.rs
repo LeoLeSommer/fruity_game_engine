@@ -13,12 +13,6 @@ pub mod resource_reference;
 /// The resource manager
 pub mod resource_container;
 
-/// The resource manager for script resources
-/// These resources are not Send + Sync, so this container is intended to be stored
-/// directly into the world, and provide also access to the Send + Sync resources by
-/// referencing the classic ResourceContainer
-pub mod script_resource_container;
-
 /// A trait that should be implemented by every resources
 pub trait Resource: FruityAny + IntrospectFields + IntrospectMethods + Debug + Send + Sync {
     /// Get a box containing a resource as a boxed resource

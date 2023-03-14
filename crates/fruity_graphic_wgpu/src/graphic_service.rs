@@ -39,7 +39,6 @@ use std::fmt::Debug;
 use std::iter;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
-use winit::window::Window;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -70,7 +69,6 @@ pub struct DrawIndexedIndirectArgs {
 
 #[derive(Debug)]
 pub struct State {
-    pub surface: wgpu::Surface,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
@@ -102,7 +100,9 @@ struct RenderInstance {
 #[derive(Debug, FruityAny, Resource)]
 #[export_struct]
 pub struct WgpuGraphicService {
-    state: State,
+    state: Option<State>,
+    instance: Arc<wgpu::Instance>,
+    surface: Arc<wgpu::Surface>,
     window_service: ResourceReference<dyn WindowService>,
     current_output: Option<wgpu::SurfaceTexture>,
     render_instances: RwLock<BTreeMap<RenderInstanceIdentifier, RenderInstance>>,
@@ -110,54 +110,15 @@ pub struct WgpuGraphicService {
     current_encoder: Option<RwLock<wgpu::CommandEncoder>>,
     viewport_offset: RwLock<(u32, u32)>,
     viewport_size: RwLock<(u32, u32)>,
-    pub on_before_draw_end: Signal<()>,
-    pub on_after_draw_end: Signal<()>,
 }
 
 impl WgpuGraphicService {
-    pub async fn new_async(
-        resource_container: ResourceContainer,
-    ) -> FruityResult<WgpuGraphicService> {
-        let window_service = resource_container.require::<dyn WindowService>();
-
-        let state = {
+    pub fn new(resource_container: ResourceContainer) -> FruityResult<WgpuGraphicService> {
+        // Subscribe to windows observer to proceed the graphics when it's neededs
+        // TODO: Put this in middlewares
+        {
+            let window_service = resource_container.require::<dyn WindowService>();
             let window_service = window_service.read();
-            let window_service = window_service.downcast_ref::<WinitWindowService>();
-
-            // Subscribe to windows observer to proceed the graphics when it's neededs
-            let resource_container_2 = resource_container.clone();
-            window_service.on_start_update().add_observer(move |_| {
-                profile_scope("start_draw");
-                let graphic_service = resource_container_2.require::<dyn GraphicService>();
-                let mut graphic_service = graphic_service.write();
-                let graphic_service = graphic_service.downcast_mut::<WgpuGraphicService>();
-                graphic_service.start_draw()
-            });
-
-            let resource_container_2 = resource_container.clone();
-            window_service.on_end_update().add_observer(move |_| {
-                profile_scope("end_draw");
-                let graphic_service = resource_container_2.require::<dyn GraphicService>();
-                // Send the event that we will end to draw
-                {
-                    let graphic_service = graphic_service.read();
-                    graphic_service.on_before_draw_end().notify(())?;
-                }
-
-                // End the drawing
-                {
-                    let mut graphic_service = graphic_service.write();
-                    graphic_service.end_draw();
-                }
-
-                // Send the event that we finish to draw
-                {
-                    let graphic_service = graphic_service.read();
-                    graphic_service.on_after_draw_end().notify(())?;
-                }
-
-                Ok(())
-            });
 
             let resource_container_2 = resource_container.clone();
             window_service
@@ -169,17 +130,40 @@ impl WgpuGraphicService {
 
                     Ok(())
                 });
+        }
 
-            // Initialize the graphics
-            WgpuGraphicService::initialize_async(window_service.get_window()).await?
+        // Initialize the surface
+        let (instance, surface) = {
+            let backends = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
+
+            let dx12_shader_compiler =
+                wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
+
+            // The instance is a handle to our GPU
+            // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
+            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                backends,
+                dx12_shader_compiler,
+            });
+
+            let window_service = resource_container.require::<dyn WindowService>();
+            let window_service_reader = window_service.read();
+            let window_service_reader = window_service_reader.downcast_ref::<WinitWindowService>();
+            let surface = unsafe { instance.create_surface(window_service_reader.get_window()) }
+                .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
+
+            (instance, surface)
         };
 
         // Dispatch initialized event
         let on_initialized = Signal::new();
         on_initialized.notify(())?;
 
+        let window_service = resource_container.require::<dyn WindowService>();
         Ok(WgpuGraphicService {
-            state,
+            state: None,
+            instance: Arc::new(instance),
+            surface: Arc::new(surface),
             window_service,
             current_output: None,
             render_instances: RwLock::new(BTreeMap::new()),
@@ -187,27 +171,22 @@ impl WgpuGraphicService {
             current_encoder: None,
             viewport_offset: Default::default(),
             viewport_size: Default::default(),
-            on_before_draw_end: Signal::new(),
-            on_after_draw_end: Signal::new(),
         })
     }
 
-    pub async fn initialize_async(window: &Window) -> FruityResult<State> {
-        // #[cfg(target_arch = "wasm32")]
+    pub async fn initialize_async(
+        resource_container: ResourceContainer,
+        instance: &wgpu::Instance,
+        surface: &wgpu::Surface,
+    ) -> FruityResult<State> {
+        let size = {
+            let window_service = resource_container.require::<dyn WindowService>();
+            let window_service_reader = window_service.read();
+            let window_service_reader = window_service_reader.downcast_ref::<WinitWindowService>();
+            window_service_reader.get_window().inner_size()
+        };
+
         let backends = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
-
-        let dx12_shader_compiler = wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
-
-        // The instance is a handle to our GPU
-        // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends,
-            dx12_shader_compiler,
-        });
-
-        let surface = unsafe { instance.create_surface(window) }
-            .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
-
         let adapter =
             wgpu::util::initialize_adapter_from_env_or_default(&instance, backends, Some(&surface))
                 .await
@@ -233,8 +212,6 @@ impl WgpuGraphicService {
             .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
 
         // Base configuration for the surface
-        let size = window.inner_size();
-
         let surface_caps = surface.get_capabilities(&adapter);
         let surface_format = surface_caps
             .formats
@@ -278,7 +255,6 @@ impl WgpuGraphicService {
 
         // Update state
         Ok(State {
-            surface,
             device,
             queue,
             config,
@@ -422,12 +398,14 @@ impl WgpuGraphicService {
     }
 
     fn update_camera(&self, view_proj: Matrix4) {
+        let state = self.state.as_ref().unwrap();
+
         // Update camera viewproj bind group
-        let mut camera_transform = self.state.camera_transform.write();
+        let mut camera_transform = state.camera_transform.write();
         *camera_transform = view_proj.clone();
         let camera_uniform = CameraUniform(view_proj.into());
-        self.state.queue.write_buffer(
-            &self.state.camera_buffer,
+        state.queue.write_buffer(
+            &state.camera_buffer,
             0,
             bytemuck::cast_slice(&[camera_uniform]),
         );
@@ -437,43 +415,63 @@ impl WgpuGraphicService {
         let screen_top_right = view_proj * Vector2D::new(1.0, 1.0);
         let viewport_size = (screen_bottom_left - screen_top_right).abs();
         let viewport_size_uniform = ViewportSizeUniform([viewport_size.x, viewport_size.y]);
-        self.state.queue.write_buffer(
-            &self.state.viewport_size_buffer,
+        state.queue.write_buffer(
+            &state.viewport_size_buffer,
             0,
             bytemuck::cast_slice(&[viewport_size_uniform]),
         );
     }
 
+    pub(crate) fn set_state(&mut self, state: State) {
+        self.state = Some(state);
+    }
+
     pub fn get_device(&self) -> &wgpu::Device {
-        &self.state.device
+        &self.state.as_ref().unwrap().device
     }
 
     pub fn get_queue(&self) -> &wgpu::Queue {
-        &self.state.queue
+        &self.state.as_ref().unwrap().queue
     }
 
     pub fn get_surface(&self) -> &wgpu::Surface {
-        &self.state.surface
+        &self.surface
+    }
+
+    pub fn get_surface_arc(&self) -> Arc<wgpu::Surface> {
+        self.surface.clone()
+    }
+
+    pub fn get_instance_arc(&self) -> Arc<wgpu::Instance> {
+        self.instance.clone()
     }
 
     pub fn get_config(&self) -> &wgpu::SurfaceConfiguration {
-        &self.state.config
+        &self.state.as_ref().unwrap().config
     }
 
     pub fn get_rendering_view(&self) -> &wgpu::TextureView {
-        &self.state.rendering_view
+        &self.state.as_ref().unwrap().rendering_view
     }
 
     pub fn get_camera_bind_group(&self) -> Arc<wgpu::BindGroup> {
-        self.state.camera_bind_group.clone()
+        self.state.as_ref().unwrap().camera_bind_group.clone()
     }
 
     pub fn get_viewport_size_bind_group(&self) -> Arc<wgpu::BindGroup> {
-        self.state.viewport_size_bind_group.clone()
+        self.state
+            .as_ref()
+            .unwrap()
+            .viewport_size_bind_group
+            .clone()
     }
 
     pub fn get_render_surface_size_bind_group(&self) -> Arc<wgpu::BindGroup> {
-        self.state.render_surface_size_bind_group.clone()
+        self.state
+            .as_ref()
+            .unwrap()
+            .render_surface_size_bind_group
+            .clone()
     }
 
     pub fn get_encoder(&self) -> Option<&RwLock<wgpu::CommandEncoder>> {
@@ -726,9 +724,12 @@ impl WgpuGraphicService {
 impl GraphicService for WgpuGraphicService {
     #[export]
     fn start_draw(&mut self) -> FruityResult<()> {
+        profile_scope("start_draw");
+
+        let mut state = self.state.as_mut().unwrap();
+
         // Get the texture view where the scene will be rendered
         let output = self
-            .state
             .surface
             .get_current_texture()
             .map_err(|err| FruityError::GenericFailure(err.to_string()))?;
@@ -738,10 +739,9 @@ impl GraphicService for WgpuGraphicService {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         self.current_output = Some(output);
-        self.state.rendering_view = rendering_view;
+        state.rendering_view = rendering_view;
 
-        let encoder = self
-            .state
+        let encoder = state
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
@@ -755,6 +755,8 @@ impl GraphicService for WgpuGraphicService {
 
     #[export]
     fn end_draw(&mut self) {
+        profile_scope("end_draw");
+
         let encoder = if let Some(encoder) = self.current_encoder.take() {
             encoder.into_inner()
         } else {
@@ -786,6 +788,8 @@ impl GraphicService for WgpuGraphicService {
     ) {
         profile_function!();
 
+        let state = self.state.as_ref().unwrap();
+
         self.update_camera(view_proj);
 
         let mut encoder = if let Some(encoder) = self.current_encoder.as_ref() {
@@ -807,13 +811,13 @@ impl GraphicService for WgpuGraphicService {
 
                 (value, texture.get_size())
             })
-            .unwrap_or_else(|| (&self.state.rendering_view, self.get_viewport_size()));
+            .unwrap_or_else(|| (&state.rendering_view, self.get_viewport_size()));
 
         // Update viewport size bind group
         let render_surface_size_uniform =
             RenderSurfaceSizeUniform([render_surface_size.0 as f32, render_surface_size.1 as f32]);
-        self.state.queue.write_buffer(
-            &self.state.render_surface_size_buffer,
+        state.queue.write_buffer(
+            &state.render_surface_size_buffer,
             0,
             bytemuck::cast_slice(&[render_surface_size_uniform]),
         );
@@ -849,26 +853,19 @@ impl GraphicService for WgpuGraphicService {
 
     #[export]
     fn get_camera_transform(&self) -> Matrix4 {
-        let camera_transform = self.state.camera_transform.read();
+        let state = self.state.as_ref().unwrap();
+        let camera_transform = state.camera_transform.read();
         camera_transform.clone()
     }
 
     #[export]
     fn resize(&mut self, width: u32, height: u32) {
-        self.state.config.width = width;
-        self.state.config.height = height;
+        let mut state = self.state.as_mut().unwrap();
 
-        self.state
-            .surface
-            .configure(&self.state.device, &self.state.config);
-    }
+        state.config.width = width;
+        state.config.height = height;
 
-    fn on_before_draw_end(&self) -> &Signal<()> {
-        &self.on_before_draw_end
-    }
-
-    fn on_after_draw_end(&self) -> &Signal<()> {
-        &self.on_after_draw_end
+        self.surface.configure(&state.device, &state.config);
     }
 
     fn draw_mesh(

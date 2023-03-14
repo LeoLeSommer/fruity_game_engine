@@ -13,7 +13,6 @@ use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use fruity_game_engine::script_value::ScriptValue;
-use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::{export, export_trait};
 use fruity_game_engine::{typescript, FruityResult};
@@ -244,6 +243,4 @@ pub trait GraphicService: Resource {
         identifier: &str,
         params: MaterialResourceSettings,
     ) -> FruityResult<Box<dyn MaterialResource>>;
-    fn on_before_draw_end(&self) -> &Signal<()>;
-    fn on_after_draw_end(&self) -> &Signal<()>;
 }

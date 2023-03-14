@@ -1,6 +1,6 @@
 use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::settings::Settings;
-use crate::world::{RunMiddleware, World};
+use crate::world::{RunWorldMiddleware, SetupWorldMiddleware, World};
 use crate::FruityResult;
 use std::future::Future;
 use std::pin::Pin;
@@ -26,7 +26,7 @@ pub struct Module {
         Arc<
             dyn Send
                 + Sync
-                + Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>,
+                + Fn(World, Settings) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>,
         >,
     >,
 
@@ -38,10 +38,13 @@ pub struct Module {
         Arc<
             dyn Send
                 + Sync
-                + Fn(World, Settings) -> Pin<Box<dyn Future<Output = FruityResult<()>>>>,
+                + Fn(World, Settings) -> Pin<Box<dyn Send + Future<Output = FruityResult<()>>>>,
         >,
     >,
 
+    /// A middleware that occurs when the world setups
+    pub setup_world_middleware: Option<SetupWorldMiddleware>,
+
     /// A middleware that occurs when the world runs
-    pub run_middleware: Option<RunMiddleware>,
+    pub run_world_middleware: Option<RunWorldMiddleware>,
 }

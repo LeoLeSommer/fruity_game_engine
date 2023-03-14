@@ -6,17 +6,16 @@ use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
     script_value::{ScriptObject, ScriptValue},
-    send_wrapper::SendWrapper,
     FruityResult,
 };
 
 /// Provide a component that contains a script value
 #[derive(FruityAny, Debug)]
-pub struct ScriptComponent(SendWrapper<Box<dyn ScriptObject>>);
+pub struct ScriptComponent(Box<dyn ScriptObject>);
 
 impl From<Box<dyn ScriptObject>> for ScriptComponent {
     fn from(value: Box<dyn ScriptObject>) -> Self {
-        ScriptComponent(SendWrapper::new(value))
+        ScriptComponent(value)
     }
 }
 
@@ -63,6 +62,6 @@ impl Component for ScriptComponent {
     }
 
     fn duplicate(&self) -> Box<dyn Component> {
-        Box::new(ScriptComponent(SendWrapper::new(self.0.duplicate())))
+        Box::new(ScriptComponent(self.0.duplicate()))
     }
 }

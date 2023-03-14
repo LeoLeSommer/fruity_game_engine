@@ -36,7 +36,13 @@ export type FrameMiddleware = (world: World) => void
 
 export type EndMiddleware = (world: World) => void
 
-export type RunMiddleware = (world: World, settings: Settings) => void
+export type SetupWorldMiddlewareNext = (world: World, settings: Settings) => void
+
+export type RunWorldMiddlewareNext = (world: World, settings: Settings) => void
+
+export type SetupWorldMiddleware = (world: World, settings: Settings, next: SetupWorldMiddlewareNext) => void
+
+export type RunWorldMiddleware = (world: World, settings: Settings, next: RunWorldMiddlewareNext) => void
 
 export interface FrameService {
 
@@ -50,7 +56,8 @@ export interface Module {
   setupAsync?: ((arg0: World, arg1: Settings) => Promise<unknown>) | null | undefined
   loadResources?: ((arg0: World, arg1: Settings) => void) | null | undefined
   loadResourcesAsync?: ((arg0: World, arg1: Settings) => Promise<unknown>) | null | undefined
-  runMiddleware?: RunMiddleware | null | undefined
+  setupWorldMiddleware?: SetupWorldMiddleware | null | undefined
+  runWorldMiddleware?: RunWorldMiddleware | null | undefined
 }
 
 export interface ObjectFactoryService {
@@ -72,6 +79,9 @@ export class World {
 
   constructor(settings: Settings)
   registerModule(module: Module): void
+  setupModulesAsync(): Promise<unknown>
+  loadResourcesAsync(): Promise<unknown>
+  setup(): void
   run(): void
   getResourceContainer(): ScriptResourceContainer
 }

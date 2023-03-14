@@ -1,12 +1,14 @@
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::Resource;
+use fruity_game_engine::send_wrapper::SendWrapper;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::{export, export_impl, export_struct, FruityResult};
 use fruity_windows::window_service::WindowService;
 use std::fmt::Debug;
 use winit::dpi::LogicalSize;
 use winit::event::Event;
+use winit::event_loop::EventLoop;
 use winit::window::Window;
 
 #[cfg(target_arch = "wasm32")]
@@ -19,6 +21,7 @@ unsafe impl Send for WinitWindowService {}
 #[export_struct]
 pub struct WinitWindowService {
     window: Window,
+    event_loop: Option<SendWrapper<EventLoop<()>>>,
     pub cursor_position: (u32, u32),
     pub on_enter_loop: Signal<()>,
     pub on_start_update: Signal<()>,
@@ -37,9 +40,14 @@ impl Debug for WinitWindowService {
 
 #[export_impl]
 impl WinitWindowService {
-    pub fn new(_resource_container: ResourceContainer, window: Window) -> WinitWindowService {
+    pub fn new(
+        _resource_container: ResourceContainer,
+        window: Window,
+        event_loop: EventLoop<()>,
+    ) -> WinitWindowService {
         WinitWindowService {
             window,
+            event_loop: Some(SendWrapper::new(event_loop)),
             cursor_position: Default::default(),
             on_enter_loop: Signal::new(),
             on_start_update: Signal::new(),
@@ -53,6 +61,10 @@ impl WinitWindowService {
 
     pub fn get_window(&self) -> &Window {
         &self.window
+    }
+
+    pub fn take_event_loop(&mut self) -> EventLoop<()> {
+        self.event_loop.take().unwrap().take()
     }
 
     pub fn on_event(&self) -> &Signal<Event<'static, ()>> {

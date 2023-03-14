@@ -190,12 +190,11 @@ where
             "add_observer" => {
                 let mut caster = ArgumentCaster::new(args);
                 let arg1 = caster
-                    .cast_next::<Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>>()?;
+                    .cast_next::<Arc<dyn Send + Sync + Fn(T) -> FruityResult<ScriptValue>>>()?;
 
                 // TODO: Restore
                 let handle = self.add_observer(move |arg| {
-                    let arg: ScriptValue = arg.clone().into_script_value()?;
-                    arg1(vec![arg])?;
+                    arg1(arg.clone())?;
 
                     Ok(())
                 });

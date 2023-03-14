@@ -12,6 +12,7 @@ pub mod graphic_service;
 pub mod resources;
 pub mod utils;
 pub mod wgpu_bridge;
+pub mod world_fn;
 
 #[typescript_import({Signal, ResourceReference, Module} from "fruity_game_engine")]
 #[typescript_import({Matrix4, Color, TextureResource, Vector2D, ShaderResource, MeshResourceSettings, ShaderResourceSettings} from "fruity_graphic")]
@@ -26,14 +27,53 @@ pub fn create_fruity_graphic_wgpu_module() -> Module {
             Box::pin(async move {
                 let resource_container = world.get_resource_container();
 
-                let graphic_service =
-                    WgpuGraphicService::new_async(resource_container.clone()).await?;
-                resource_container
-                    .add::<dyn GraphicService>("graphic_service", Box::new(graphic_service));
+                let graphic_service = resource_container.require::<dyn GraphicService>();
+                world.add_run_frame_middleware(move |next, world| {
+                    {
+                        let mut graphic_service = graphic_service.write();
+                        graphic_service.start_draw()?;
+                    }
+
+                    next(world.clone())?;
+
+                    {
+                        let mut graphic_service = graphic_service.write();
+                        graphic_service.end_draw();
+                    }
+
+                    FruityResult::Ok(())
+                });
+
+                let graphic_service = resource_container.require::<dyn GraphicService>();
+                let (instance, surface) = {
+                    let graphic_service_reader = graphic_service.read();
+                    let graphic_service =
+                        graphic_service_reader.downcast_ref::<WgpuGraphicService>();
+
+                    (
+                        graphic_service.get_instance_arc(),
+                        graphic_service.get_surface_arc(),
+                    )
+                };
+
+                let state = WgpuGraphicService::initialize_async(
+                    resource_container.clone(),
+                    &instance,
+                    &surface,
+                )
+                .await?;
+
+                {
+                    let mut graphic_service_writer = graphic_service.write();
+                    let graphic_service =
+                        graphic_service_writer.downcast_mut::<WgpuGraphicService>();
+                    graphic_service.set_state(state);
+                };
 
                 FruityResult::Ok(())
             })
         })),
+        setup_world_middleware: Some(Arc::new(world_fn::setup_world_middleware)),
         ..Default::default()
     }
 }

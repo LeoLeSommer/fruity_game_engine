@@ -4,9 +4,6 @@ use fruity_game_engine::inject::Inject;
 use fruity_game_engine::profile::profile_scope;
 use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
-use fruity_game_engine::script_value::convert::TryIntoScriptValue;
-use fruity_game_engine::script_value::ScriptValue;
-use fruity_game_engine::send_wrapper::SendWrapper;
 use fruity_game_engine::world::World;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
@@ -80,24 +77,24 @@ struct StartupDisposeSystem {
     callback: Box<dyn FnOnce() -> FruityResult<()> + Send + Sync + 'static>,
 }
 
-#[derive(Clone)]
+/*#[derive(Clone)]
 struct ScriptFrameSystem {
     identifier: String,
-    callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+    callback: Arc<dyn Send + Sync + Fn(ResourceContainer) -> FruityResult<ScriptValue>>,
     ignore_pause: bool,
 }
 
 #[derive(Clone)]
 struct ScriptStartupSystem {
     identifier: String,
-    callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+    callback: Arc<dyn Send + Sync + Fn(ResourceContainer) -> FruityResult<ScriptValue>>,
     ignore_pause: bool,
 }
 
 pub(crate) struct ScriptStartupDisposeSystem {
     identifier: String,
-    callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
-}
+    callback: Arc<dyn Send + Sync + Fn(ResourceContainer) -> FruityResult<ScriptValue>>,
+}*/
 
 #[derive(Clone)]
 struct FrameSystem {
@@ -113,7 +110,7 @@ pub struct FrameSystemPool {
     systems: Vec<FrameSystem>,
 
     /// Script systems of the pool
-    script_systems: SendWrapper<Vec<ScriptFrameSystem>>,
+    // script_systems: SendWrapper<Vec<ScriptFrameSystem>>,
 
     /// Is the pool enabled
     enabled: bool,
@@ -140,8 +137,6 @@ pub struct SystemService {
     startup_systems: Vec<StartupSystem>,
     startup_dispose_callbacks: Mutex<Vec<StartupDisposeSystem>>,
     startup_pause_dispose_callbacks: Mutex<Vec<StartupDisposeSystem>>,
-    script_startup_systems: SendWrapper<Vec<ScriptStartupSystem>>,
-    script_startup_dispose_callbacks: SendWrapper<Vec<ScriptStartupDisposeSystem>>,
     resource_container: ResourceContainer,
 }
 
@@ -161,8 +156,8 @@ impl SystemService {
             startup_systems: Vec::new(),
             startup_dispose_callbacks: Mutex::new(Vec::new()),
             startup_pause_dispose_callbacks: Mutex::new(Vec::new()),
-            script_startup_systems: SendWrapper::new(Vec::new()),
-            script_startup_dispose_callbacks: SendWrapper::new(Vec::new()),
+            /*script_startup_systems: SendWrapper::new(Vec::new()),
+            script_startup_dispose_callbacks: SendWrapper::new(Vec::new()),*/
             resource_container,
         }
     }
@@ -179,10 +174,26 @@ impl SystemService {
         callback: T,
         params: Option<SystemParams>,
     ) {
+        self.add_system_from_arc(identifier.to_string(), callback.inject().into(), params);
+    }
+
+    /// Add a system to the collection
+    ///
+    /// # Arguments
+    /// * `system` - A function that will compute the world
+    /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
+    ///
+    #[export(name = "add_system")]
+    pub fn add_system_from_arc(
+        &mut self,
+        identifier: String,
+        callback: Arc<dyn Send + Sync + Fn(ResourceContainer) -> FruityResult<()>>,
+        params: Option<SystemParams>,
+    ) {
         let params = params.unwrap_or_default();
         let system = FrameSystem {
             identifier: identifier.to_string(),
-            callback: callback.inject().into(),
+            callback,
             ignore_pause: params.ignore_pause,
         };
 
@@ -195,7 +206,6 @@ impl SystemService {
                 params.pool_index,
                 FrameSystemPool {
                     systems,
-                    script_systems: SendWrapper::new(vec![]),
                     enabled: true,
                 },
             );
@@ -214,50 +224,7 @@ impl SystemService {
         callback: T,
         params: Option<StartupSystemParams>,
     ) {
-        let params = params.unwrap_or_default();
-        let system = StartupSystem {
-            identifier: identifier.to_string(),
-            callback: callback.inject().into(),
-            ignore_pause: params.ignore_pause,
-        };
-
-        self.startup_systems.push(system);
-    }
-
-    /// Add a system to the collection
-    ///
-    /// # Arguments
-    /// * `system` - A function that will compute the world
-    /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
-    ///
-    #[export(name = "add_system")]
-    pub fn add_script_system(
-        &mut self,
-        identifier: String,
-        callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
-        params: Option<SystemParams>,
-    ) {
-        let params = params.unwrap_or_default();
-        let system = ScriptFrameSystem {
-            identifier: identifier.to_string(),
-            callback: callback,
-            ignore_pause: params.ignore_pause,
-        };
-
-        if let Some(pool) = self.system_pools.get_mut(&params.pool_index) {
-            pool.script_systems.push(system)
-        } else {
-            // If the pool not exists, we create it
-            let script_systems = vec![system];
-            self.system_pools.insert(
-                params.pool_index,
-                FrameSystemPool {
-                    systems: vec![],
-                    script_systems: SendWrapper::new(script_systems),
-                    enabled: true,
-                },
-            );
-        };
+        self.add_startup_system_from_arc(identifier.to_string(), callback.inject().into(), params);
     }
 
     /// Add a startup system
@@ -267,20 +234,28 @@ impl SystemService {
     /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
     ///
     #[export(name = "add_startup_system")]
-    pub fn add_script_startup_system(
+    pub fn add_startup_system_from_arc(
         &mut self,
         identifier: String,
-        callback: Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+        callback: Arc<
+            dyn Send
+                + Sync
+                + Fn(
+                    ResourceContainer,
+                ) -> FruityResult<
+                    Option<Box<dyn FnOnce() -> FruityResult<()> + Send + Sync + 'static>>,
+                >,
+        >,
         params: Option<StartupSystemParams>,
     ) {
         let params = params.unwrap_or_default();
-        let system = ScriptStartupSystem {
+        let system = StartupSystem {
             identifier: identifier.to_string(),
-            callback: callback,
+            callback,
             ignore_pause: params.ignore_pause,
         };
 
-        self.script_startup_systems.push(system);
+        self.startup_systems.push(system);
     }
 
     /// Iter over all the systems pools
@@ -322,19 +297,6 @@ impl SystemService {
                     #[cfg(target_arch = "wasm32")]
                     execute_frame_systems_closure()?;
 
-                    // Run the script systems
-                    let script_resource_container = world.get_script_resource_container();
-                    pool.script_systems.iter().try_for_each(|system| {
-                        if !is_paused || system.ignore_pause {
-                            profile_scope(&system.identifier);
-                            (system.callback)(vec![script_resource_container
-                                .clone()
-                                .into_script_value()?])?;
-                        }
-
-                        FruityResult::Ok(())
-                    })?;
-
                     // Wait all the threaded systems
                     #[cfg(not(target_arch = "wasm32"))]
                     handler.join().unwrap()?;
@@ -373,29 +335,6 @@ impl SystemService {
                 FruityResult::Ok(())
             })?;
 
-        // Run the script systems
-        let script_resource_container = world.get_script_resource_container();
-        self.script_startup_systems
-            .iter()
-            .filter(|system| system.ignore_pause)
-            .try_for_each(|system| {
-                profile_scope(&system.identifier);
-
-                let dispose_callback = (system.callback)(vec![script_resource_container
-                    .clone()
-                    .into_script_value()?])?;
-
-                if let ScriptValue::Callback(dispose_callback) = dispose_callback {
-                    self.script_startup_dispose_callbacks
-                        .push(ScriptStartupDisposeSystem {
-                            identifier: system.identifier.clone(),
-                            callback: dispose_callback,
-                        });
-                }
-
-                FruityResult::Ok(())
-            })?;
-
         if !self.is_paused() {
             self.run_unpause_start()?;
         }
@@ -422,14 +361,6 @@ impl SystemService {
             profile_scope(&system.identifier);
             (system.callback)()
         })?;
-
-        // Run the script systems
-        self.script_startup_dispose_callbacks
-            .drain(..)
-            .try_for_each(|system| {
-                profile_scope(&system.identifier);
-                (system.callback)(vec![]).map(|_| ())
-            })?;
 
         FruityResult::Ok(())
     }

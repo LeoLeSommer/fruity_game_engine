@@ -1,5 +1,6 @@
 use crate::{
     introspect::{IntrospectFields, IntrospectMethods},
+    resource::Resource,
     script_value::convert::TryIntoScriptValue,
     script_value::ScriptObject,
     script_value::ScriptValue,
@@ -7,15 +8,15 @@ use crate::{
 };
 use convert_case::{Case, Casing};
 use fruity_game_engine_macro::FruityAny;
-use futures::{executor::block_on, future::Shared, FutureExt, TryFutureExt};
+use futures::{executor::block_on, future::Shared, FutureExt};
 use napi::{
-    bindgen_prelude::{AsyncTask, CallbackInfo, FromNapiValue, Promise, ToNapiValue},
+    bindgen_prelude::{CallbackInfo, FromNapiValue, Promise, ToNapiValue},
     sys::{napi_env, napi_value},
     threadsafe_function::{
         ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
     },
-    AsyncWorkPromise, Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown,
-    PropertyAttributes, Ref, Task, ValueType,
+    Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, PropertyAttributes, Ref,
+    Task, ValueType,
 };
 use napi::{check_status, NapiValue};
 use napi::{JsError, NapiRaw};
@@ -381,11 +382,11 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                         .map_err(|e| FruityError::from_napi(e))?;
 
                     // Convert promise to future
-                    let future =
-                        Box::pin(
-                            async move { promise.await.map_err(|e| FruityError::from_napi(e)) },
-                        )
-                            as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
+                    let future = Box::pin(async move {
+                        let res = promise.await.map_err(|e| FruityError::from_napi(e));
+                        res
+                    })
+                        as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
 
                     ScriptValue::Future(future.shared())
                 } else {
@@ -405,26 +406,18 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
             }
             ValueType::Function => {
                 let js_func = JsFunction::try_from(value).map_err(|e| FruityError::from_napi(e))?;
+                let test = js_func.name().unwrap();
+                let test2 = js_func.is_promise().unwrap();
                 let js_func = JsSharedRef::new(env, js_func)?;
-                /*let thread_safe_func: ThreadsafeFunction<
-                    Vec<ScriptValue>,
-                    ErrorStrategy::CalleeHandled,
-                > = js_func
-                    .create_threadsafe_function(
-                        0,
-                        |ctx: ThreadSafeCallContext<Vec<ScriptValue>>| {
-                            // Convert all the others args as a JsUnknown
-                            let args = ctx
-                                .value
-                                .into_iter()
-                                .map(|elem| script_value_to_js_value(&ctx.env, elem))
-                                .try_collect::<Vec<_>>()
-                                .map_err(|e| e.into_napi())?;
 
-                            Ok(args)
-                        },
-                    )
-                    .map_err(|e| FruityError::from_napi(e))?;*/
+                let thread_safe_func: ThreadsafeFunction<Vec<ScriptValue>, ErrorStrategy::Fatal> =
+                    js_func
+                        .inner()
+                        .create_threadsafe_function(
+                            0,
+                            |ctx: ThreadSafeCallContext<Vec<ScriptValue>>| Ok(ctx.value),
+                        )
+                        .map_err(|e| FruityError::from_napi(e))?;
 
                 let js_send_wrapper = SendWrapper::new((env.clone(), js_func));
                 ScriptValue::Callback(Arc::new(move |args| {
@@ -451,25 +444,26 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                         let result = js_value_to_script_value(&env, result)?;
                         Ok(result)
                     } else {
-                        /*let (sender, receiver) = channel::<ScriptValue>();
-                        ThreadsafeFunction::<Vec<ScriptValue>>::call_with_return_value(
-                            &thread_safe_func,
-                            Ok(args),
-                            ThreadsafeFunctionCallMode::Blocking,
-                            |result: ScriptValue| {
-                                // TODO: Find a way to get env
-                                let result = js_value_to_script_value(&env, value)
-                                    .map_err(|err| err.into_napi())?;
-                                sender.send(result);
+                        /*let result: ScriptValue = Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .unwrap()
+                            .block_on(thread_safe_func.call_async(args))
+                            .map_err(|e| FruityError::from_napi(e))?;
 
+                        Ok(result)*/
+
+                        let (sender, receiver) = channel::<ScriptValue>();
+                        thread_safe_func.call_with_return_value(
+                            args,
+                            ThreadsafeFunctionCallMode::NonBlocking,
+                            move |result: ScriptValue| {
+                                sender.send(result).map_err(|_| FruityError::GenericFailure("Failed to send a value in a javascript function to an other thread".to_string()).into_napi())?;
                                 Ok(())
                             },
                         );
-
                         let result = receiver.recv().map_err(|_| FruityError::GenericFailure("Failed to receive a value in a javascript function from an other thread".to_string()))?;
-                        Ok(result)*/
-
-                        todo!()
+                        Ok(result)
                     };
 
                     result
@@ -554,7 +548,7 @@ where
 }
 
 /// A structure to store a javascript object that can be stored in a ScriptValue
-#[derive(FruityAny, Clone)]
+#[derive(FruityAny, Clone, Resource)]
 pub struct JsIntrospectObject {
     reference: SendWrapper<JsSharedRef<JsObject>>,
 }
@@ -929,9 +923,18 @@ impl FromNapiValue for ScriptValue {
     ) -> napi::Result<Self> {
         let env = Env::from_raw(env_raw);
         let napi_value = JsUnknown::from_raw(env_raw, napi_value)?;
-        let script_value =
-            js_value_to_script_value(&env, napi_value).map_err(|err| err.into_napi())?;
 
-        Ok(script_value)
+        // TODO: Find a cleaner way to do this
+        // No type means that napi value is just nothing, should be undefined but for an obscure reason
+        // it happen when thread-safe functions returns nothing
+        let has_value = napi_value.get_type().is_ok();
+        if has_value {
+            let script_value =
+                js_value_to_script_value(&env, napi_value).map_err(|err| err.into_napi())?;
+
+            Ok(script_value)
+        } else {
+            Ok(ScriptValue::Undefined)
+        }
     }
 }

@@ -18,8 +18,8 @@ napi-build = "2.0.1"
 wasm-bindgen = "0.2.83"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-napi = { version = "2.10.16", default-features = false, features = ["napi4"] }
-napi-derive = { version = "2.10.1", features = ["compat-mode", "strict"] }
+napi = { version = "2.11.2", default-features = false, features = ["napi4"] }
+napi-derive = { version = "2.11.1", features = ["compat-mode", "strict"] }
 
 # [profile.release]
 # lto = true

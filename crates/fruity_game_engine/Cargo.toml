@@ -32,7 +32,7 @@ fruity_game_engine_macro = { path = "../fruity_game_engine_macro", features = ["
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.12", features = ["rt", "time", "rt-multi-thread"] }
-napi = { version = "2.10.16", default-features = false, features = ["napi4", "napi5", "napi6", "tokio_rt", "compat-mode", "async"] }
-napi-derive = "2.10.1"
-napi-sys = "2.2.2"
+napi = { version = "2.11.2", default-features = false, features = ["napi4", "napi5", "napi6", "tokio_rt", "compat-mode", "async"] }
+napi-derive = "2.11.1"
+napi-sys = "2.2.3"
 puffin = "0.12.1"
