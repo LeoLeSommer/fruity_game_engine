@@ -111,39 +111,6 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             .map_err(|e| FruityError::from_napi(e))?
             .into_unknown(),
         ScriptValue::Future(future) => {
-            /*let promise = env
-            .execute_tokio_future::<ScriptValue, ScriptValue, _, _>(
-                async move { future.await.map_err(|err| err.into_napi()) },
-                |_env: &mut Env, result: ScriptValue| Ok(result),
-            )
-            .map_err(|e| FruityError::from_napi(e))?;*/
-
-            /*let js_promise = unsafe {
-                Promise::<ScriptValue>::from_napi_value(env.raw(), js_promise_object.raw())
-            }
-            .map_err(|e| FruityError::from_napi(e))?;*/
-
-            /*let js_promise_object = env
-                .spawn_future(async move { future.await.map_err(|err| err.into_napi()) })
-                .map_err(|e| FruityError::from_napi(e))?;
-
-            js_promise_object.into_unknown()*/
-
-            /*let task = FutureTask(future);
-            let promise: AsyncWorkPromise =
-                env.spawn(task).map_err(|e| FruityError::from_napi(e))?;
-            let js_promise_object = promise.promise_object();
-            js_promise_object.into_unknown()*/
-
-            /*let task = FutureTask(future);
-            let js_task = AsyncTask::new(task);
-
-            let js_task_raw = unsafe { AsyncTask::to_napi_value(env.raw(), js_task) }
-                .map_err(|e| FruityError::from_napi(e))?;
-
-            unsafe { JsUnknown::from_napi_value(env.raw(), js_task_raw) }
-                .map_err(|e| FruityError::from_napi(e))?*/
-
             let (js_deferred, js_promise) = env
                 .create_deferred()
                 .map_err(|e| FruityError::from_napi(e))?;
@@ -191,7 +158,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
                     let field_names = value
                         .get_field_names()?
                         .into_iter()
-                        .map(|field_name| CString::new(field_name).unwrap())
+                        .map(|field_name| CString::new(field_name.to_case(Case::Camel)).unwrap())
                         .collect::<Vec<_>>();
 
                     let properties = field_names
@@ -406,8 +373,6 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
             }
             ValueType::Function => {
                 let js_func = JsFunction::try_from(value).map_err(|e| FruityError::from_napi(e))?;
-                let test = js_func.name().unwrap();
-                let test2 = js_func.is_promise().unwrap();
                 let js_func = JsSharedRef::new(env, js_func)?;
 
                 let thread_safe_func: ThreadsafeFunction<Vec<ScriptValue>, ErrorStrategy::Fatal> =
@@ -444,25 +409,13 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                         let result = js_value_to_script_value(&env, result)?;
                         Ok(result)
                     } else {
-                        /*let result: ScriptValue = Builder::new_current_thread()
+                        let result: ScriptValue = Builder::new_current_thread()
                             .enable_all()
                             .build()
                             .unwrap()
                             .block_on(thread_safe_func.call_async(args))
                             .map_err(|e| FruityError::from_napi(e))?;
 
-                        Ok(result)*/
-
-                        let (sender, receiver) = channel::<ScriptValue>();
-                        thread_safe_func.call_with_return_value(
-                            args,
-                            ThreadsafeFunctionCallMode::NonBlocking,
-                            move |result: ScriptValue| {
-                                sender.send(result).map_err(|_| FruityError::GenericFailure("Failed to send a value in a javascript function to an other thread".to_string()).into_napi())?;
-                                Ok(())
-                            },
-                        );
-                        let result = receiver.recv().map_err(|_| FruityError::GenericFailure("Failed to receive a value in a javascript function from an other thread".to_string()))?;
                         Ok(result)
                     };
 
@@ -725,7 +678,7 @@ unsafe extern "C" fn generic_getter(
 
         // Execute the getter
         let result = wrapped
-            .get_field_value(&field_name)
+            .get_field_value(&field_name.to_case(Case::Snake))
             .map_err(|e| e.into_napi())?;
 
         // Returns the result
@@ -779,7 +732,7 @@ unsafe extern "C" fn generic_setter(
         let arg = JsUnknown::from_raw(raw_env, callback_info.get_arg(0))?;
         let arg = js_value_to_script_value(&env, arg).map_err(|e| e.into_napi())?;
         wrapped
-            .set_field_value(&field_name, arg)
+            .set_field_value(&field_name.to_case(Case::Snake), arg)
             .map_err(|e| e.into_napi())?;
 
         // Returns the result

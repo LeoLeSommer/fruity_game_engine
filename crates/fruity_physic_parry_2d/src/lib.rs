@@ -51,8 +51,8 @@ pub fn create_fruity_physic_parry_2d_module() -> Module {
                 "update_rect_collider",
                 &update_rect_collider as &'static (dyn Fn(_) -> _ + Send + Sync),
                 Some(SystemParams {
-                    ignore_pause: true,
-                    pool_index: 72,
+                    ignore_pause: Some(true),
+                    pool_index: Some(72),
                     ..Default::default()
                 }),
             );
@@ -61,8 +61,8 @@ pub fn create_fruity_physic_parry_2d_module() -> Module {
                 "update_circle_collider",
                 &update_circle_collider as &'static (dyn Fn(_) -> _ + Send + Sync),
                 Some(SystemParams {
-                    ignore_pause: true,
-                    pool_index: 72,
+                    ignore_pause: Some(true),
+                    pool_index: Some(72),
                     ..Default::default()
                 }),
             );
@@ -71,8 +71,8 @@ pub fn create_fruity_physic_parry_2d_module() -> Module {
                 "update_rigid_body",
                 &update_rigid_body as &'static (dyn Fn(_) -> _ + Send + Sync),
                 Some(SystemParams {
-                    ignore_pause: true,
-                    pool_index: 73,
+                    ignore_pause: Some(true),
+                    pool_index: Some(73),
                     ..Default::default()
                 }),
             );

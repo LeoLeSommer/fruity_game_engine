@@ -6,9 +6,6 @@ use fruity_game_engine::{
 };
 use fruity_graphic::graphic_service::GraphicService;
 
-#[cfg(target_arch = "wasm32")]
-use winit::platform::web::EventLoopExtWebSys;
-
 pub fn setup_world_middleware(
     world: World,
     settings: Settings,

@@ -5,6 +5,7 @@ use crate::{
     FruityError, FruityResult, RwLock,
 };
 use convert_case::{Case, Casing};
+use fruity_game_engine_macro::Resource;
 use futures::FutureExt;
 use send_wrapper::SendWrapper;
 use std::{fmt::Debug, future::Future, ops::Deref};
@@ -364,7 +365,7 @@ fn is_promise(value: &JsValue) -> FruityResult<bool> {
 }
 
 /// A structure to store a javascript object that can be stored in a ScriptValue
-#[derive(FruityAny, Clone)]
+#[derive(FruityAny, Clone, Resource)]
 pub struct JsIntrospectObject {
     reference: Rc<js_sys::Object>,
 }
@@ -441,15 +442,13 @@ impl IntrospectMethods for JsIntrospectObject {
         let prototype = js_sys::Object::get_prototype_of(&self.reference);
         let keys = js_sys::Object::get_own_property_names(prototype.unchecked_ref());
 
-        let test = keys
+        Ok(keys
             .iter()
             .filter_map(|key| {
                 let key: js_sys::JsString = key.into();
                 key.as_string()
             })
-            .collect();
-
-        Ok(test)
+            .collect())
     }
 
     fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {

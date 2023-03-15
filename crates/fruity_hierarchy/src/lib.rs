@@ -45,12 +45,18 @@ pub fn create_fruity_hierarchy_module() -> Module {
             system_service.add_startup_system(
                 "delete_cascade",
                 &delete_cascade as &'static (dyn Fn(_, _) -> _ + Send + Sync),
-                Some(StartupSystemParams { ignore_pause: true }),
+                Some(StartupSystemParams {
+                    ignore_pause: Some(true),
+                    ..Default::default()
+                }),
             );
             system_service.add_startup_system(
                 "update_nested_level",
                 &update_nested_level as &'static (dyn Fn(_, _) -> _ + Send + Sync),
-                Some(StartupSystemParams { ignore_pause: true }),
+                Some(StartupSystemParams {
+                    ignore_pause: Some(true),
+                    ..Default::default()
+                }),
             );
 
             Ok(())

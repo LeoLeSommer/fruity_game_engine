@@ -4,8 +4,6 @@ export type JsIntrospectObject = { [key: string]: any }
 
 export type ResourceReference<T> = T
 
-export type ScriptOrNativeResource = any
-
 export interface Signal<T> {
   notify(event: T);
   addObserver(callback: (value: T) => void);
@@ -52,12 +50,12 @@ export interface FrameService {
 export interface Module {
   name: string
   dependencies: string[]
-  setup?: ((arg0: World, arg1: Settings) => void) | null | undefined
-  setupAsync?: ((arg0: World, arg1: Settings) => Promise<unknown>) | null | undefined
-  loadResources?: ((arg0: World, arg1: Settings) => void) | null | undefined
-  loadResourcesAsync?: ((arg0: World, arg1: Settings) => Promise<unknown>) | null | undefined
-  setupWorldMiddleware?: SetupWorldMiddleware | null | undefined
-  runWorldMiddleware?: RunWorldMiddleware | null | undefined
+  setup?: ((arg0: World, arg1: Settings) => void) | null | undefined | void
+  setupAsync?: ((arg0: World, arg1: Settings) => Promise<unknown>) | null | undefined | void
+  loadResources?: ((arg0: World, arg1: Settings) => void) | null | undefined | void
+  loadResourcesAsync?: ((arg0: World, arg1: Settings) => Promise<unknown>) | null | undefined | void
+  setupWorldMiddleware?: SetupWorldMiddleware | null | undefined | void
+  runWorldMiddleware?: RunWorldMiddleware | null | undefined | void
 }
 
 export interface ObjectFactoryService {
@@ -65,7 +63,7 @@ export interface ObjectFactoryService {
   instantiate(objectType: string, fields: {[key: string]: ScriptValue}): ScriptValue | null
 }
 
-export interface ScriptResourceContainer {
+export interface ResourceContainer {
 
   require<T>(identifier: string): T
   get<T>(identifier: string): T | null
@@ -83,6 +81,6 @@ export class World {
   loadResourcesAsync(): Promise<unknown>
   setup(): void
   run(): void
-  getResourceContainer(): ScriptResourceContainer
+  getResourceContainer(): ResourceContainer
 }
 

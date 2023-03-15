@@ -77,7 +77,7 @@ world.registerModule({
     "fruity_windows",
   ],
   setup: (world: World, settings: Settings) => {
-    console.log("setup", world);
+    console.log("setup");
     const resourceContainer = world.getResourceContainer();
     const inputService =
       resourceContainer.require<InputService>("input_service");
@@ -98,7 +98,7 @@ world.registerModule({
       }
     );
 
-    /*systemService.addStartupSystem(
+    systemService.addStartupSystem(
       "test startup 0",
       () => {
         console.log("Je commence tout");
@@ -118,7 +118,7 @@ world.registerModule({
       return () => {
         console.log("Je finis");
       };
-    });*/
+    });
 
     /*systemService.addStartupSystem("test startup 2", () => {
       let handle = entityService
@@ -139,8 +139,7 @@ world.registerModule({
       };
     });*/
 
-    /*systemService.addStartupSystem("test startup 3", () => {
-      console.log("Test start");
+    systemService.addStartupSystem("test startup 3", () => {
       let createdEntityId: number | null = null;
       const materialResource = resourceContainer.get<MaterialResource>(
         "./src/assets/material.material"
@@ -166,11 +165,10 @@ world.registerModule({
       });
 
       return () => {
-        console.log("Test enc");
         handle1.dispose();
         handle2.dispose();
       };
-    });*/
+    });
 
     systemService.addSystem("test 1", () => {
       entityService
@@ -225,30 +223,15 @@ world.registerModule({
         });
     });
   },
-  loadResourcesAsync: async function test2(world: World, settings: Settings) {
+  loadResourcesAsync: async (world: World, settings: Settings) => {
     console.log("loadResources");
-    /*const resourceContainer = world.getResourceContainer();
-    const promise = resourceContainer
-      .loadResourcesSettingsAsync(settings)
-      .then(() => console.log("then"))
-      .catch(() => console.log("catch"))
-      .finally(() => console.log("finally"));
-    console.log(promise);
 
-    const doMainStuff = () => {
-      console.log(promise);
-      setTimeout(doMainStuff, 10 * 1000);
-    };
+    const resourceContainer = world.getResourceContainer();
+    await resourceContainer.loadResourcesSettingsAsync(settings);
 
-    doMainStuff();
-
-    console.log("run promise");
-    const res = await promise;*/
     console.log("loadResources end");
   },
 });
-
-console.log(settings);
 
 // Initialize the world
 world.setup();

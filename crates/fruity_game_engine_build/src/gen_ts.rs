@@ -489,7 +489,7 @@ fn format_type_generics(
                     let type_string = rust_type_to_ts_type(ty, arg_or_return_type, self_ident);
 
                     if arg_or_return_type {
-                        format!("{type_string} | null | undefined")
+                        format!("{type_string} | null | undefined | void")
                     } else {
                         format!("{type_string} | null")
                     }
@@ -532,7 +532,7 @@ fn format_type_generics(
 
                 let return_ty = match &parenthesized.output {
                     syn::ReturnType::Default => "void".to_string(),
-                    syn::ReturnType::Type(_, ty) => rust_type_to_ts_type(&ty, false, self_ident),
+                    syn::ReturnType::Type(_, ty) => rust_type_to_ts_type(&ty, true, self_ident),
                 };
 
                 format!("(({}) => {})", args, return_ty)

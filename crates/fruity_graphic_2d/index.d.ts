@@ -15,7 +15,7 @@ import {
 export class Camera {
   near: number
   far: number
-  target?: ResourceReference<TextureResource> | null | undefined
+  target?: ResourceReference<TextureResource> | null | undefined | void
   backgroundColor: Color
   constructor()
 }
@@ -42,10 +42,10 @@ export class Scale2D {
 }
 
 export class Sprite {
-  material?: ResourceReference<MaterialResource> | null | undefined
-  texture?: ResourceReference<TextureResource> | null | undefined
+  material?: ResourceReference<MaterialResource> | null | undefined | void
+  texture?: ResourceReference<TextureResource> | null | undefined | void
   zIndex: number
-  constructor(material: ResourceReference<MaterialResource> | null | undefined, texture: ResourceReference<TextureResource> | null | undefined, zIndex: number)
+  constructor(material: ResourceReference<MaterialResource> | null | undefined | void, texture: ResourceReference<TextureResource> | null | undefined | void, zIndex: number)
 }
 
 export class Transform2D {

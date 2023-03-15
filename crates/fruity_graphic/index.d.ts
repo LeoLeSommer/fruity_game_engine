@@ -30,7 +30,7 @@ export interface GraphicService {
 
   startDraw(): void
   endDraw()
-  renderScene(viewProj: Matrix4, backgroundColor: Color, target?: ResourceReference<TextureResource> | null | undefined)
+  renderScene(viewProj: Matrix4, backgroundColor: Color, target?: ResourceReference<TextureResource> | null | undefined | void)
   getCameraTransform(): Matrix4
   resize(width: number, height: number)
   worldPositionToViewportPosition(pos: Vector2D): [number, number]

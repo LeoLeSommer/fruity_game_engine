@@ -55,8 +55,9 @@ pub fn create_fruity_graphic_2d_module() -> Module {
                 "update_transform_2d",
                 &update_transform_2d as &'static (dyn Fn(_) -> _ + Send + Sync),
                 Some(SystemParams {
-                    pool_index: 95,
-                    ignore_pause: true,
+                    pool_index: Some(95),
+                    ignore_pause: Some(true),
+                    ..Default::default()
                 }),
             );
 
@@ -64,8 +65,9 @@ pub fn create_fruity_graphic_2d_module() -> Module {
                 "draw_sprite",
                 &draw_sprite as &'static (dyn Fn(_, _) -> _ + Send + Sync),
                 Some(SystemParams {
-                    pool_index: 98,
-                    ignore_pause: true,
+                    pool_index: Some(98),
+                    ignore_pause: Some(true),
+                    ..Default::default()
                 }),
             );
 
@@ -73,8 +75,9 @@ pub fn create_fruity_graphic_2d_module() -> Module {
                 "draw_camera",
                 &draw_camera as &'static (dyn Fn(_, _) -> _ + Send + Sync),
                 Some(SystemParams {
-                    pool_index: 99,
-                    ignore_pause: true,
+                    pool_index: Some(99),
+                    ignore_pause: Some(true),
+                    ..Default::default()
                 }),
             );
 

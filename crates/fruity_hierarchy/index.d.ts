@@ -8,7 +8,7 @@ import {
 } from "fruity_ecs"
 
 export class Parent {
-  parentId: SignalProperty<EntityId | null | undefined>
+  parentId: SignalProperty<EntityId | null | undefined | void>
   nestedLevel: number
   constructor()
 }

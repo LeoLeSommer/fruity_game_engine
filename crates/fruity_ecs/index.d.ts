@@ -68,18 +68,20 @@ export interface SerializedEntity {
 }
 
 export interface StartupSystemParams {
-  ignorePause: boolean
+  ignorePause?: boolean | null | undefined | void
+  executeInMainThread?: boolean | null | undefined | void
 }
 
 export interface SystemParams {
-  poolIndex: number
-  ignorePause: boolean
+  poolIndex?: number | null | undefined | void
+  ignorePause?: boolean | null | undefined | void
+  executeInMainThread?: boolean | null | undefined | void
 }
 
 export interface SystemService {
 
-  addSystem(identifier: string, callback: ((arg0: ScriptValue[]) => ScriptValue), params?: SystemParams | null | undefined)
-  addStartupSystem(identifier: string, callback: ((arg0: ScriptValue[]) => ScriptValue), params?: StartupSystemParams | null | undefined)
+  addSystem(identifier: string, callback: ((arg0: ResourceContainer) => void), params?: SystemParams | null | undefined | void)
+  addStartupSystem(identifier: string, callback: ((arg0: ResourceContainer) => (() => void) | null | undefined | void), params?: StartupSystemParams | null | undefined | void)
   isPaused(): boolean
   setPaused(paused: boolean): void
 }

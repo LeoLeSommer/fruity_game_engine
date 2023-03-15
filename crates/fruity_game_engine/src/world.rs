@@ -1,5 +1,4 @@
 use crate::any::FruityAny;
-use crate::console_log;
 use crate::export;
 use crate::frame_service::FrameService;
 use crate::module::Module;
@@ -179,8 +178,6 @@ impl World {
             };
 
             for module in ordered_modules.into_iter() {
-                console_log(&module.name);
-
                 if let Some(setup) = module.setup {
                     setup(world.clone(), settings.clone())?;
                 }

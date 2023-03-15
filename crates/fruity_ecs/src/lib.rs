@@ -1,5 +1,6 @@
 #![warn(missing_docs)]
 #![feature(iterator_try_collect)]
+#![feature(drain_filter)]
 
 //! ECS
 //!

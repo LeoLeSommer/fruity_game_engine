@@ -28,8 +28,9 @@ pub fn create_fruity_hierarchy_2d_module() -> Module {
                 "transform_2d_cascade",
                 &transform_2d_cascade as &'static (dyn Fn(_, _) -> _ + Send + Sync),
                 Some(SystemParams {
-                    pool_index: 96,
-                    ignore_pause: true,
+                    pool_index: Some(96),
+                    ignore_pause: Some(true),
+                    ..Default::default()
                 }),
             );
 

@@ -4,7 +4,6 @@ use fruity_game_engine_macro::export_struct;
 
 use super::resource_reference::AnyResourceReference;
 use crate::any::FruityAny;
-use crate::console_log;
 use crate::javascript::JsIntrospectObject;
 use crate::resource::resource_reference::ResourceReference;
 use crate::resource::Resource;
@@ -82,7 +81,7 @@ impl ResourceContainer {
     /// # Generic Arguments
     /// * `T` - The resource type
     ///
-    #[export(name = "require", typescript = "require<T>(identifier: string): T")]
+    #[export(name = "require" typescript = "require<T>(identifier: string): T")]
     pub fn require_untyped(&self, identifier: String) -> AnyResourceReference {
         self.get_untyped(identifier).unwrap()
     }
@@ -113,7 +112,7 @@ impl ResourceContainer {
     /// # Arguments
     /// * `identifier` - The resource identifier
     ///
-    #[export(name = "get", typescript = "get<T>(identifier: string): T | null")]
+    #[export(name = "get" typescript = "get<T>(identifier: string): T | null")]
     pub fn get_untyped(&self, identifier: String) -> Option<AnyResourceReference> {
         let inner = self.inner.read();
 
@@ -310,7 +309,6 @@ impl ResourceContainer {
                 ));
             }
         };
-        console_log(&format!("resource {} {}", &name, &resource_type));
 
         // Load the resource
         Self::load_resource_async(self, name, resource_type, Settings::Object(fields.clone())).await
