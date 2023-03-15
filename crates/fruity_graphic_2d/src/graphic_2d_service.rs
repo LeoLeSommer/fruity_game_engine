@@ -86,7 +86,7 @@ impl Graphic2dService {
 
         let mesh = self
             .resource_container
-            .get::<dyn MeshResource>("Meshes/Squad")
+            .get::<dyn MeshResource>("Meshes/Quad")
             .unwrap();
 
         graphic_service.draw_mesh(identifier, mesh.clone(), material, params, z_index)

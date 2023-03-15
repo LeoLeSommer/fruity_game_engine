@@ -5,8 +5,6 @@ use crate::component::component_guard::ComponentWriteGuard;
 use crate::component::component_guard::InternalReadGuard;
 use crate::component::component_guard::TypedComponentReadGuard;
 use crate::component::component_guard::TypedComponentWriteGuard;
-use crate::entity::entity_guard::EntityReadGuard;
-use crate::entity::entity_guard::EntityWriteGuard;
 use crate::entity::entity_reference::EntityReference;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::IntrospectFields;
@@ -84,16 +82,6 @@ impl ComponentReference {
         } else {
             None
         }
-    }
-
-    /// Get a read access to the entity
-    pub fn read_entity(&self) -> EntityReadGuard<'_> {
-        self.entity_reference.read()
-    }
-
-    /// Get a write access to the entity
-    pub fn write_entity(&self) -> EntityWriteGuard<'_> {
-        self.entity_reference.write()
     }
 }
 

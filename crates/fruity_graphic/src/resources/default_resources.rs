@@ -19,7 +19,7 @@ use fruity_game_engine::FruityResult;
 use maplit::hashmap;
 
 pub fn load_default_resources(resource_container: ResourceContainer) -> FruityResult<()> {
-    load_squad_mesh(resource_container.clone())?;
+    load_quad_mesh(resource_container.clone())?;
     load_draw_line_shader(resource_container.clone())?;
     load_draw_line_material(resource_container.clone())?;
     load_draw_dotted_line_shader(resource_container.clone())?;
@@ -32,12 +32,12 @@ pub fn load_default_resources(resource_container: ResourceContainer) -> FruityRe
     Ok(())
 }
 
-pub fn load_squad_mesh(resource_container: ResourceContainer) -> FruityResult<()> {
+pub fn load_quad_mesh(resource_container: ResourceContainer) -> FruityResult<()> {
     let graphic_service = resource_container.require::<dyn GraphicService>();
     let graphic_service = graphic_service.read();
 
     let resource = graphic_service.create_mesh_resource(
-        "Meshes/Squad",
+        "Meshes/Quad",
         MeshResourceSettings {
             vertices: vec![
                 Vertex {
@@ -65,7 +65,7 @@ pub fn load_squad_mesh(resource_container: ResourceContainer) -> FruityResult<()
         },
     )?;
 
-    resource_container.add("Meshes/Squad", resource);
+    resource_container.add("Meshes/Quad", resource);
 
     Ok(())
 }
