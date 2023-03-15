@@ -1,6 +1,5 @@
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::send_wrapper::SendWrapper;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::{export, export_impl, export_struct, FruityResult};
@@ -17,7 +16,7 @@ unsafe impl Sync for WinitWindowService {}
 #[cfg(target_arch = "wasm32")]
 unsafe impl Send for WinitWindowService {}
 
-#[derive(FruityAny, Resource)]
+#[derive(FruityAny)]
 #[export_struct]
 pub struct WinitWindowService {
     window: Window,

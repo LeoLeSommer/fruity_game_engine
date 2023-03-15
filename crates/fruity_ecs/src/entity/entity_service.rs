@@ -14,7 +14,6 @@ use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::typescript;
@@ -34,7 +33,7 @@ use std::sync::Arc;
 pub type EntityServiceSnapshot = Vec<SerializedEntity>;
 
 /// A storage for every entities, use [’Archetypes’] to store entities of different types
-#[derive(FruityAny, Resource)]
+#[derive(FruityAny)]
 #[export_struct]
 pub struct EntityService {
     id_incrementer: Mutex<u64>,

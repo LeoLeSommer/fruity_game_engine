@@ -7,7 +7,6 @@ use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::resources::material_resource::MaterialResource;
@@ -55,7 +54,7 @@ pub enum InstanceField {
     },
 }
 
-#[derive(Debug, FruityAny, Resource)]
+#[derive(Debug, FruityAny)]
 #[export_struct]
 pub struct WgpuMaterialResource {
     pub(crate) params: MaterialResourceSettings,

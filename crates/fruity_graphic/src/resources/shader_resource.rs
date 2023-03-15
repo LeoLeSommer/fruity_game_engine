@@ -2,7 +2,8 @@ use crate::graphic_service::GraphicService;
 use fruity_game_engine::{
     any::FruityAny,
     export_enum, export_trait,
-    resource::{resource_container::ResourceContainer, Resource},
+    introspect::{IntrospectFields, IntrospectMethods},
+    resource::resource_container::ResourceContainer,
     script_value::convert::{TryFromScriptValue, TryIntoScriptValue},
     settings::Settings,
     utils::file::read_file_to_string_async,
@@ -11,7 +12,7 @@ use fruity_game_engine::{
 use std::{future::Future, pin::Pin};
 
 #[export_trait]
-pub trait ShaderResource: Resource {}
+pub trait ShaderResource: IntrospectFields + IntrospectMethods + Send + Sync {}
 
 #[derive(Debug, Default, TryFromScriptValue, TryIntoScriptValue, Clone, FruityAny)]
 pub struct ShaderResourceSettings {

@@ -1,12 +1,11 @@
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::{export, export_impl, export_struct, FruityResult};
 use fruity_graphic::resources::texture_resource::TextureResource;
 use image::GenericImageView;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
-#[derive(Debug, FruityAny, Resource)]
+#[derive(Debug, FruityAny)]
 #[export_struct]
 pub struct WgpuTextureResource {
     pub(crate) view: wgpu::TextureView,

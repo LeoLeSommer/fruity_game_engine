@@ -19,7 +19,6 @@ impl From<Box<dyn ScriptObject>> for ScriptComponent {
     }
 }
 
-//#[typegen = "type ScriptComponent = unknown"]
 impl IntrospectFields for ScriptComponent {
     fn get_class_name(&self) -> FruityResult<String> {
         self.0.get_class_name()

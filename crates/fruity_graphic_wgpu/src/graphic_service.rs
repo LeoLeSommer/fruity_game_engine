@@ -12,7 +12,6 @@ use fruity_game_engine::profile::profile_function;
 use fruity_game_engine::profile::profile_scope;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
@@ -97,7 +96,7 @@ struct RenderInstance {
     material: ResourceReference<dyn MaterialResource>,
 }
 
-#[derive(Debug, FruityAny, Resource)]
+#[derive(Debug, FruityAny)]
 #[export_struct]
 pub struct WgpuGraphicService {
     state: Option<State>,

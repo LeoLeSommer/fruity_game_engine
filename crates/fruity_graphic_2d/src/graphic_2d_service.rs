@@ -5,7 +5,6 @@ use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::graphic_service::GraphicService;
@@ -20,7 +19,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ops::Range;
 
-#[derive(Debug, FruityAny, Resource)]
+#[derive(Debug, FruityAny)]
 #[export_struct]
 pub struct Graphic2dService {
     graphic_service: ResourceReference<dyn GraphicService>,

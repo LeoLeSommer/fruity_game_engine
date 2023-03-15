@@ -1,6 +1,5 @@
 use crate::any::FruityAny;
 use crate::resource::resource_container::ResourceContainer;
-use crate::resource::Resource;
 use crate::{export_impl, export_struct};
 pub use fruity_game_engine_macro::export;
 use std::fmt::Debug;
@@ -24,7 +23,7 @@ fn now_in_seconds() -> f64 {
 
 /// A service for frame management
 // #[cfg(target_arch = "wasm32")]
-#[derive(FruityAny, Resource, Debug)]
+#[derive(FruityAny, Debug)]
 #[export_struct]
 pub struct FrameService {
     last_frame_instant: f64,

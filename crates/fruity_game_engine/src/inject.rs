@@ -1,8 +1,9 @@
+use crate::introspect::IntrospectFields;
+use crate::introspect::IntrospectMethods;
 use crate::resource::resource_container::ResourceContainer;
 use crate::resource::resource_reference::ResourceReadGuard;
 use crate::resource::resource_reference::ResourceReference;
 use crate::resource::resource_reference::ResourceWriteGuard;
-use crate::resource::Resource;
 
 /// A reference over a resource
 pub type Ref<T> = ResourceReference<T>;
@@ -26,20 +27,20 @@ impl Injectable for ResourceContainer {
     }
 }
 
-impl<T: Resource + ?Sized> Injectable for Ref<T> {
+impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Injectable for Ref<T> {
     fn from_resource_container(resource_container: &ResourceContainer) -> Self {
         resource_container.require::<T>()
     }
 }
 
-impl<T: Resource + ?Sized> Injectable for Const<T> {
+impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Injectable for Const<T> {
     fn from_resource_container(resource_container: &ResourceContainer) -> Self {
         let reference = Ref::<T>::from_resource_container(resource_container);
         reference.read()
     }
 }
 
-impl<T: Resource + ?Sized> Injectable for Mut<T> {
+impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Injectable for Mut<T> {
     fn from_resource_container(resource_container: &ResourceContainer) -> Self {
         let reference = Ref::<T>::from_resource_container(resource_container);
         reference.write()

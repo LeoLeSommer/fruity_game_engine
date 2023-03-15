@@ -2,7 +2,6 @@ use crate::wgpu_bridge::VERTEX_DESC;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
-use fruity_game_engine::resource::Resource;
 use fruity_graphic::resources::shader_resource::ShaderBinding;
 use fruity_graphic::resources::shader_resource::ShaderBindingGroup;
 use fruity_graphic::resources::shader_resource::ShaderBindingType;
@@ -13,7 +12,7 @@ use fruity_graphic::resources::shader_resource::ShaderResource;
 use fruity_graphic::resources::shader_resource::ShaderResourceSettings;
 use std::mem::size_of;
 
-#[derive(Debug, FruityAny, Resource)]
+#[derive(Debug, FruityAny)]
 #[export_struct]
 pub struct WgpuShaderResource {
     pub params: ShaderResourceSettings,

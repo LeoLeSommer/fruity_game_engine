@@ -1,12 +1,11 @@
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
-use fruity_game_engine::resource::Resource;
 use fruity_graphic::resources::mesh_resource::MeshResource;
 use fruity_graphic::resources::mesh_resource::MeshResourceSettings;
 use wgpu::util::DeviceExt;
 
-#[derive(Debug, FruityAny, Resource)]
+#[derive(Debug, FruityAny)]
 #[export_struct]
 pub struct WgpuMeshResource {
     pub params: MeshResourceSettings,

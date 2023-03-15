@@ -2,9 +2,9 @@ use crate::graphic_service::GraphicService;
 use crate::resources::shader_resource::ShaderResource;
 use crate::resources::texture_resource::TextureResource;
 use fruity_game_engine::any::FruityAny;
+use fruity_game_engine::introspect::{IntrospectFields, IntrospectMethods};
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::settings::Settings;
 use fruity_game_engine::{export_trait, FruityResult};
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 #[export_trait]
-pub trait MaterialResource: Resource {
+pub trait MaterialResource: IntrospectFields + IntrospectMethods + Send + Sync {
     fn get_shader(&self) -> Option<ResourceReference<dyn ShaderResource>>;
 }
 

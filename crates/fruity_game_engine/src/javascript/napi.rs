@@ -1,6 +1,5 @@
 use crate::{
     introspect::{IntrospectFields, IntrospectMethods},
-    resource::Resource,
     script_value::convert::TryIntoScriptValue,
     script_value::ScriptObject,
     script_value::ScriptValue,
@@ -12,19 +11,14 @@ use futures::{executor::block_on, future::Shared, FutureExt};
 use napi::{
     bindgen_prelude::{CallbackInfo, FromNapiValue, Promise, ToNapiValue},
     sys::{napi_env, napi_value},
-    threadsafe_function::{
-        ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
-    },
+    threadsafe_function::{ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction},
     Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, PropertyAttributes, Ref,
     Task, ValueType,
 };
 use napi::{check_status, NapiValue};
 use napi::{JsError, NapiRaw};
 use send_wrapper::SendWrapper;
-use std::{
-    ffi::CString, future::Future, marker::PhantomData, ops::Deref, pin::Pin, sync::mpsc::channel,
-    thread,
-};
+use std::{ffi::CString, future::Future, marker::PhantomData, ops::Deref, pin::Pin, thread};
 use std::{fmt::Debug, vec};
 use std::{rc::Rc, sync::Arc};
 use tokio::runtime::Builder;
@@ -501,7 +495,7 @@ where
 }
 
 /// A structure to store a javascript object that can be stored in a ScriptValue
-#[derive(FruityAny, Clone, Resource)]
+#[derive(FruityAny, Clone)]
 pub struct JsIntrospectObject {
     reference: SendWrapper<JsSharedRef<JsObject>>,
 }

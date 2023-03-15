@@ -1,6 +1,10 @@
-use fruity_game_engine::{resource::Resource, signal::Signal, FruityResult};
+use fruity_game_engine::{
+    introspect::{IntrospectFields, IntrospectMethods},
+    signal::Signal,
+    FruityResult,
+};
 
-pub trait WindowService: Resource {
+pub trait WindowService: IntrospectFields + IntrospectMethods + Send + Sync {
     fn close(&self);
     fn set_resizable(&self, resizable: bool);
     fn get_windows_size(&self) -> (u32, u32);

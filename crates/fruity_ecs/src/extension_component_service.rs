@@ -3,7 +3,6 @@ use crate::component::component::Component;
 use crate::component::component::StaticComponent;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::{export_impl, export_struct};
 use std::collections::HashMap;
@@ -16,7 +15,7 @@ use std::fmt::Formatter;
 /// attributes. This is for example used into the physic engine implementations.
 ///
 /// Warning: The same extension type cannot be shared across multiple based component types
-#[derive(FruityAny, Resource)]
+#[derive(FruityAny)]
 #[export_struct]
 pub struct ExtensionComponentService {
     extension_constructors: HashMap<String, Vec<Box<dyn Fn() -> AnyComponent + Send + Sync>>>,

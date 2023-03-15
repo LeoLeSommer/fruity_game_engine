@@ -2,7 +2,6 @@ use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::inject::Inject;
 use fruity_game_engine::profile::profile_scope;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::world::World;
 use fruity_game_engine::FruityResult;
@@ -99,7 +98,7 @@ pub struct FrameSystemPool {
 /// Pool 98 is for drawing
 /// Pool 99 is for camera
 ///
-#[derive(FruityAny, Resource)]
+#[derive(FruityAny)]
 #[export_struct]
 pub struct SystemService {
     pause: AtomicBool,

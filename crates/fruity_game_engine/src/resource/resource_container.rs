@@ -4,9 +4,10 @@ use fruity_game_engine_macro::export_struct;
 
 use super::resource_reference::AnyResourceReference;
 use crate::any::FruityAny;
+use crate::introspect::IntrospectFields;
+use crate::introspect::IntrospectMethods;
 use crate::javascript::JsIntrospectObject;
 use crate::resource::resource_reference::ResourceReference;
-use crate::resource::Resource;
 use crate::settings::Settings;
 use crate::FruityError;
 use crate::FruityResult;
@@ -54,7 +55,9 @@ impl ResourceContainer {
     /// # Generic Arguments
     /// * `T` - The resource type
     ///
-    pub fn require<T: Resource + ?Sized>(&self) -> ResourceReference<T> {
+    pub fn require<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized>(
+        &self,
+    ) -> ResourceReference<T> {
         let inner = self.inner.read();
 
         match inner.identifier_by_type.get(&TypeId::of::<T>()) {
@@ -94,7 +97,10 @@ impl ResourceContainer {
     /// # Generic Arguments
     /// * `T` - The resource type
     ///
-    pub fn get<T: Resource + ?Sized>(&self, identifier: &str) -> Option<ResourceReference<T>> {
+    pub fn get<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized>(
+        &self,
+        identifier: &str,
+    ) -> Option<ResourceReference<T>> {
         let inner = self.inner.read();
 
         match inner
@@ -148,7 +154,11 @@ impl ResourceContainer {
     /// * `identifier` - The resource identifier
     /// * `resource` - The resource object
     ///
-    pub fn add<T: Resource + ?Sized>(&self, identifier: &str, resource: Box<T>) {
+    pub fn add<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized>(
+        &self,
+        identifier: &str,
+        resource: Box<T>,
+    ) {
         let mut inner = self.inner.write();
 
         let shared = AnyResourceReference::from_native(identifier, resource);

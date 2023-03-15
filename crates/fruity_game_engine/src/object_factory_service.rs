@@ -1,7 +1,5 @@
 use crate::{
-    any::FruityAny,
-    resource::{resource_container::ResourceContainer, Resource},
-    script_value::ScriptValue,
+    any::FruityAny, resource::resource_container::ResourceContainer, script_value::ScriptValue,
     FruityResult,
 };
 use crate::{export, export_impl, export_struct};
@@ -28,7 +26,7 @@ pub type Factory = Arc<
 
 /// Provides a factory for the introspect types
 /// This will be used by to do the snapshots
-#[derive(FruityAny, Resource)]
+#[derive(FruityAny)]
 #[export_struct]
 pub struct ObjectFactoryService {
     resource_container: ResourceContainer,

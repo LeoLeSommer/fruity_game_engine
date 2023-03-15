@@ -9,8 +9,9 @@ use crate::resources::shader_resource::ShaderResourceSettings;
 use crate::resources::texture_resource::TextureResource;
 use crate::resources::texture_resource::TextureResourceSettings;
 use crate::Vector2D;
+use fruity_game_engine::introspect::IntrospectFields;
+use fruity_game_engine::introspect::IntrospectMethods;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::FruityError;
@@ -168,7 +169,7 @@ impl TryFromScriptValue for MaterialParam {
 }
 
 #[export_trait]
-pub trait GraphicService: Resource {
+pub trait GraphicService: IntrospectFields + IntrospectMethods + Send + Sync {
     #[export]
     fn start_draw(&mut self) -> FruityResult<()>;
 

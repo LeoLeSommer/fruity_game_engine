@@ -5,7 +5,6 @@ use fruity_game_engine::export_struct;
 use fruity_game_engine::profile::profile_scope;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::resource::Resource;
 use fruity_game_engine::RwLock;
 use fruity_windows::window_service::WindowService;
 use std::fmt::Debug;
@@ -28,7 +27,7 @@ impl Debug for DragAction {
     }
 }
 
-#[derive(Debug, FruityAny, Resource)]
+#[derive(Debug, FruityAny)]
 #[export_struct]
 pub struct DragService {
     current_drag_action: RwLock<Option<DragAction>>,

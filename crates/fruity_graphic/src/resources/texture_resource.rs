@@ -1,7 +1,8 @@
 use crate::graphic_service::GraphicService;
 use fruity_game_engine::{
     export, export_trait,
-    resource::{resource_container::ResourceContainer, Resource},
+    introspect::{IntrospectFields, IntrospectMethods},
+    resource::resource_container::ResourceContainer,
     settings::Settings,
     utils::file::read_file_to_bytes_async,
     FruityResult,
@@ -11,7 +12,7 @@ use std::{future::Future, pin::Pin};
 pub struct TextureResourceSettings {}
 
 #[export_trait]
-pub trait TextureResource: Resource {
+pub trait TextureResource: IntrospectFields + IntrospectMethods + Send + Sync {
     #[export]
     fn get_size(&self) -> (u32, u32);
 }

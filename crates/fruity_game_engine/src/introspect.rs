@@ -58,7 +58,6 @@ pub trait IntrospectMethods: Debug + FruityAny {
     fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue>;
 }
 
-//#[typegen = "type Box<T> = T"]
 impl<T: IntrospectFields + ?Sized> IntrospectFields for Box<T> {
     fn get_class_name(&self) -> FruityResult<String> {
         self.deref().get_class_name()
@@ -135,7 +134,6 @@ impl<T: IntrospectMethods + ?Sized> IntrospectMethods for Arc<T> {
     }
 }
 
-//#[typegen = "type RwLock<T> = T"]
 impl<T: IntrospectFields> IntrospectFields for RwLock<T> {
     fn get_class_name(&self) -> FruityResult<String> {
         self.read().get_class_name()

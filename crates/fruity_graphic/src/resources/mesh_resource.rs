@@ -2,7 +2,7 @@ use crate::math::vector3d::Vector3D;
 use crate::Vector2D;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export_trait;
-use fruity_game_engine::resource::Resource;
+use fruity_game_engine::introspect::{IntrospectFields, IntrospectMethods};
 use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 
 #[repr(C)]
@@ -24,7 +24,7 @@ pub struct Vertex {
 }
 
 #[export_trait]
-pub trait MeshResource: Resource {}
+pub trait MeshResource: IntrospectFields + IntrospectMethods + Send + Sync {}
 
 #[derive(Debug, Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
 pub struct MeshResourceSettings {

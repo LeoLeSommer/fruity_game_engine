@@ -11,7 +11,6 @@ use introspect::intern_export_enum;
 use introspect::{intern_export_impl, intern_export_struct};
 use proc_macro::{self, TokenStream};
 use quote::quote;
-use resource::intern_derive_resource;
 use syn::ItemEnum;
 use syn::ItemFn;
 use syn::__private::TokenStream2;
@@ -33,17 +32,11 @@ mod wasm_function_export;
 mod convert;
 mod fruity_any;
 mod introspect;
-mod resource;
 mod utils;
 
 #[proc_macro_derive(FruityAny)]
 pub fn derive_fruity_any(input: TokenStream) -> TokenStream {
     intern_derive_fruity_any(input)
-}
-
-#[proc_macro_derive(Resource)]
-pub fn derive_resource(input: TokenStream) -> TokenStream {
-    intern_derive_resource(input)
 }
 
 #[proc_macro_derive(TryFromScriptValue)]
