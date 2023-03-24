@@ -850,7 +850,7 @@ impl EntityService {
                         })
                 })?;
 
-            Ok(())
+            FruityResult::Ok(())
         })?;
 
         self.entity_locations

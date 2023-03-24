@@ -1,8 +1,7 @@
 use crate::component::AnyComponent;
 use crate::component::Component;
-use crate::deserialize_service::DeserializeFactory;
+use crate::deserialize::Deserialize;
 use crate::deserialize_service::DeserializeService;
-use crate::deserialize_service::Factory;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
@@ -112,25 +111,27 @@ impl TryFromScriptValue for EntityId {
     }
 }
 
-impl DeserializeFactory for EntityId {
-    fn get_factory() -> Factory {
-        std::sync::Arc::new(
-            |_deserialize_service: &DeserializeService,
-             value: ScriptValue,
-             _resource_container: ResourceContainer,
-             local_id_to_entity_id: &HashMap<u64, EntityId>| {
-                let local_id = <u64 as TryFromScriptValue>::from_script_value(value)?;
-                let entity_id = local_id_to_entity_id
-                    .get(&local_id)
-                    .map(|entity_id| entity_id.clone())
-                    .ok_or(FruityError::NumberExpected(format!(
-                        "You try to refer an entity that doesn't exists with local id {:?}",
-                        local_id
-                    )))?;
+impl Deserialize for EntityId {
+    fn get_identifier() -> String {
+        "EntityId".to_string()
+    }
 
-                Ok(ScriptValue::U64(entity_id.0))
-            },
-        )
+    fn deserialize(
+        _deserialize_service: &DeserializeService,
+        script_value: ScriptValue,
+        _resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<ScriptValue> {
+        let local_id = <u64 as TryFromScriptValue>::from_script_value(script_value)?;
+        let entity_id = local_id_to_entity_id
+            .get(&local_id)
+            .map(|entity_id| entity_id.clone())
+            .ok_or(FruityError::NumberExpected(format!(
+                "You try to refer an entity that doesn't exists with local id {:?}",
+                local_id
+            )))?;
+
+        Ok(ScriptValue::U64(entity_id.0))
     }
 }
 

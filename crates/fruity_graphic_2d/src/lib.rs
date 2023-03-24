@@ -41,12 +41,12 @@ pub fn create_fruity_graphic_2d_module() -> Module {
             let deserialize_service = resource_container.require::<DeserializeService>();
             let mut deserialize_service = deserialize_service.write();
 
-            deserialize_service.register::<Transform2D>("Transform2D");
-            deserialize_service.register::<Translate2D>("Translate2D");
-            deserialize_service.register::<Rotate2D>("Rotate2D");
-            deserialize_service.register::<Scale2D>("Scale2D");
-            deserialize_service.register::<Sprite>("Sprite");
-            deserialize_service.register::<Camera>("Camera");
+            deserialize_service.register::<Transform2D>();
+            deserialize_service.register::<Translate2D>();
+            deserialize_service.register::<Rotate2D>();
+            deserialize_service.register::<Scale2D>();
+            deserialize_service.register::<Sprite>();
+            deserialize_service.register::<Camera>();
 
             let system_service = resource_container.require::<SystemService>();
             let mut system_service = system_service.write();

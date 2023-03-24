@@ -33,10 +33,10 @@ pub fn create_fruity_graphic_module() -> Module {
             let deserialize_service = resource_container.require::<DeserializeService>();
             let mut deserialize_service = deserialize_service.write();
 
-            deserialize_service.register::<Color>("Color");
-            deserialize_service.register::<Vector2D>("Vector2D");
-            deserialize_service.register::<Matrix3>("Matrix3");
-            deserialize_service.register::<Matrix4>("Matrix4");
+            deserialize_service.register::<Color>();
+            deserialize_service.register::<Vector2D>();
+            deserialize_service.register::<Matrix3>();
+            deserialize_service.register::<Matrix4>();
 
             resource_container.add_resource_loader("material", load_material);
             resource_container.add_resource_loader("shader", load_shader);

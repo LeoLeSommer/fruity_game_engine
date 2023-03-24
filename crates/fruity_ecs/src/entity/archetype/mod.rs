@@ -39,7 +39,6 @@ pub mod component_storage;
 /// A collection of entities that share the same component structure
 /// Stored as a Struct Of Array
 pub struct Archetype {
-    test: usize,
     extension_component_service: ResourceReference<ExtensionComponentService>,
     pub(crate) identifier: EntityTypeIdentifier,
 
@@ -101,7 +100,6 @@ impl Archetype {
         }
 
         Ok(Archetype {
-            test: 42,
             extension_component_service,
             identifier: identifier,
             lock_array: vec![RwLock::new(())],

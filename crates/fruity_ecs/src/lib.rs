@@ -41,6 +41,9 @@ pub mod extension_component_service;
 /// This will be used by to do the snapshots
 pub mod deserialize_service;
 
+/// A trait to deserialize script values with the DeserializeService
+pub mod deserialize;
+
 #[typescript_import({Signal, ObserverHandler, Module, ScriptValue} from "fruity_game_engine")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
@@ -72,7 +75,7 @@ pub fn create_fruity_ecs_module() -> Module {
             let deserialize_service = resource_container.require::<DeserializeService>();
             let mut deserialize_service = deserialize_service.write();
 
-            deserialize_service.register::<EntityId>("EntityId");
+            deserialize_service.register::<EntityId>();
 
             // Register system middleware
             let system_service = resource_container.require::<SystemService>();

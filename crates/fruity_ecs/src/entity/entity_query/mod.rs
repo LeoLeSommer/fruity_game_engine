@@ -362,12 +362,15 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
         callback: impl Fn(T::Item) -> FruityResult<()> + Send + Sync,
     ) -> FruityResult<()> {
         let archetypes_reader = self.archetypes.read();
+
+        #[cfg(target_arch = "wasm32")]
         let mut iterator = archetypes_reader.iter();
 
-        /*
+        #[cfg(not(target_arch = "wasm32"))]
+        let iterator = archetypes_reader.iter();
+
         #[cfg(not(target_arch = "wasm32"))]
         let iterator = iterator.par_bridge();
-        */
 
         iterator.try_for_each(|archetype| {
             let archetype = unsafe { archetype.0.as_ref() };

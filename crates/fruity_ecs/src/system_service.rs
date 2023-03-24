@@ -441,7 +441,7 @@ impl SystemService {
 
         let parallel_systems = systems;
 
-        /*#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         let handler = {
             let execute_systems_closure = execute_systems_closure.clone();
             thread::spawn(move || {
@@ -453,7 +453,6 @@ impl SystemService {
         };
 
         #[cfg(target_arch = "wasm32")]
-        */
         parallel_systems
             .into_iter()
             .try_for_each(execute_systems_closure.clone())?;
@@ -464,9 +463,8 @@ impl SystemService {
             .try_for_each(execute_systems_closure)?;
 
         // Wait all the threaded systems
-        /*#[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32"))]
         handler.join().unwrap()?;
-        */
 
         Ok(())
     }

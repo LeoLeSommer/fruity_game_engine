@@ -271,13 +271,13 @@ impl<T: TryFromScriptValue> TryFromScriptValue for Range<T> {
                     })
                 } else {
                     Err(FruityError::ArrayExpected(format!(
-                        "Couldn't convert {:?} to 3 size array",
+                        "Couldn't convert {:?} to range",
                         value
                     )))
                 }
             }
             _ => Err(FruityError::ArrayExpected(format!(
-                "Couldn't convert {:?} to array",
+                "Couldn't convert {:?} range",
                 value
             ))),
         }

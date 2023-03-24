@@ -13,7 +13,7 @@ export type EntityServiceSnapshot = SerializedEntity[]
 
 export type EntityId = number
 
-export interface DeserializeFactoryService {
+export interface DeserializeService {
 
 }
 

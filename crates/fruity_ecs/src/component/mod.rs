@@ -105,7 +105,7 @@ impl AnyComponent {
 
         let new_object = deserialize_service
             .instantiate(
-                serialized_component.clone().into_script_value()?,
+                serialized_component.fields.clone().into_script_value()?,
                 serialized_component.class_name.clone(),
                 local_id_to_entity_id,
             )?

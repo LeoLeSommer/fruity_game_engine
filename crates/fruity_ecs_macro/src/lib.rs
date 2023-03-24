@@ -24,9 +24,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-#[proc_macro_derive(DeserializeFactory)]
-pub fn derive_deserialize_factory(input: TokenStream) -> TokenStream {
-    intern_derive_deserialize_factory(input)
+#[proc_macro_derive(Deserialize)]
+pub fn derive_deserialize(input: TokenStream) -> TokenStream {
+    intern_derive_deserialize(input)
 }
 
 fn derive_component_trait(input: TokenStream) -> TokenStream {
@@ -54,90 +54,95 @@ fn derive_component_trait(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-fn intern_derive_deserialize_factory(input: TokenStream) -> TokenStream {
+fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, data, .. } = parse_macro_input!(input);
     let ident_as_string = ident.to_string();
 
-    let fields_converters = match data {
+    let fields_initializer = match data {
         syn::Data::Struct(ref data) => {
             // Create a list with all field names,
             let fields: Vec<_> = parse_struct_fields(&data.fields);
 
-            fields
+            let fields_converters = fields
                 .into_iter()
                 .map(|FruityExportClassField { name, ty, public }| {
                     if public {
-                        let name  = match name {
+                        match name {
                             FruityExportClassFieldName::Named(name) => {
-                                quote! { #name }
-                            },
-                            FruityExportClassFieldName::Unnamed(name) => {
-                                let name = syn::Index::from(name);
-                                quote! { #name }
-                            },
-                        };
-                        let name_as_string = name.to_string();
-                        let ty_as_string = quote! { #ty }.to_string();
-
-                        // Special case for Option<ResourceReference<...>> we just grab the name and take the resource
-                        // from the resource container
-                        let option_resource_reference_resource_type = get_option_resource_reference_resource_type(&ty);
-                        if let Some(option_resource_reference_resource_type) = option_resource_reference_resource_type {
-                            return quote! {
-                                if let Some(fruity_game_engine::script_value::ScriptValue::String(value)) = fields.get(#name_as_string) {
-                                    new_object.#name = _resource_container.get::<#option_resource_reference_resource_type>(value);
+                                let name_as_string = name.to_string();
+                                quote! {
+                                    if script_object_field_names.contains(&#name_as_string.to_string()) {
+                                        result.#name = <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(
+                                            <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                                deserialize_service,
+                                                script_object.get_field_value(#name_as_string)?,
+                                                resource_container.clone(),
+                                                local_id_to_entity_id,
+                                            )?,
+                                        )?;
+                                    }
                                 }
                             }
-                        }
-
-                        // Fallback to the regular case
-                        quote! {
-                            if let Some(value) = fields.get(#name_as_string) {
-                                new_object.#name = {
-                                    // First try to deserialize with the deserialize factory service
-                                    let value = if let Some(value) = deserialize_service.instantiate(value.clone(), #ty_as_string.to_string(), local_id_to_entity_id)? {
-                                        value
-                                    } else {
-                                        value.clone()
-                                    };
-
-                                    <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(value.clone())
-                                }?;
+                            FruityExportClassFieldName::Unnamed(name) => {
+                                let name_as_string = name.to_string();
+                                let name = syn::Index::from(name);
+                                quote! {
+                                    if script_object_field_names.contains(&#name_as_string.to_string()) {
+                                        result.#name = <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(
+                                            <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                                deserialize_service,
+                                                script_object.get_field_value(#name_as_string)?,
+                                                resource_container.clone(),
+                                                local_id_to_entity_id,
+                                            )?,
+                                        )?;
+                                    }
+                                }
                             }
                         }
                     } else {
                         quote! { }
                     }
-                })
+                });
+
+            quote! {
+                #(#fields_converters)*
+            }
         }
         syn::Data::Union(_) => unimplemented!("Union not supported"),
         syn::Data::Enum(_) => unimplemented!("Enum not supported"),
     };
 
     let output = quote! {
-        impl fruity_ecs::deserialize_service::DeserializeFactory for #ident {
-            fn get_factory() -> fruity_ecs::deserialize_service::Factory {
-                std::sync::Arc::new(|
-                    deserialize_service: &fruity_ecs::deserialize_service::DeserializeService,
-                    value: fruity_game_engine::script_value::ScriptValue,
-                    _resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-                    local_id_to_entity_id: &std::collections::HashMap<u64, fruity_ecs::entity::EntityId>
-                | {
-                    if let fruity_game_engine::script_value::ScriptValue::Object(script_object) = value {
-                        let fields = <dyn fruity_game_engine::introspect::IntrospectFields>::get_field_values(&script_object)?;
+        impl fruity_ecs::deserialize::Deserialize for #ident {
+            fn get_identifier() -> String {
+                #ident_as_string.to_string()
+            }
 
-                        let mut new_object = Self::default();
+            fn deserialize(
+                deserialize_service: &fruity_ecs::deserialize_service::DeserializeService,
+                script_value: fruity_game_engine::script_value::ScriptValue,
+                resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
+                local_id_to_entity_id: &std::collections::HashMap<u64, fruity_ecs::entity::EntityId>,
+            ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+                if let fruity_game_engine::script_value::ScriptValue::Object(script_object) = script_value {
+                    let mut result = Self::default();
+                    let script_object_field_names = script_object.get_field_names()?;
 
-                        #(#fields_converters)*
+                    #fields_initializer
 
-                        Ok(fruity_game_engine::script_value::ScriptValue::Object(Box::new(new_object)))
-                    } else {
-                        Err(fruity_game_engine :: FruityError ::
-                        GenericFailure(format!
-                        ("Failed to deserialize a {} from {:?}",
-                        #ident_as_string, &value)))
-                    }
-                })
+                    Ok(fruity_game_engine::script_value::ScriptValue::Object(
+                        Box::new(result),
+                    ))
+                } else {
+                    Err(fruity_game_engine::FruityError::GenericFailure({
+                        let res = format!(
+                            "Failed to deserialize a {0} from {1:?}",
+                            #ident_as_string, &script_value
+                        );
+                        res
+                    }))
+                }
             }
         }
     };
@@ -149,142 +154,94 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
     let DeriveInput { ident, data, .. } = parse_macro_input!(input);
     let ident_as_string = ident.to_string();
 
-    let fields_converters = match data {
+    let fields_initializer = match data {
         syn::Data::Struct(ref data) => {
             // Create a list with all field names,
             let fields: Vec<_> = parse_struct_fields(&data.fields);
 
-            fields
+            let fields_converters = fields
                 .into_iter()
                 .map(|FruityExportClassField { name, ty, public }| {
                     if public {
-                        let name  = match name {
+                        match name {
                             FruityExportClassFieldName::Named(name) => {
-                                quote! { #name }
-                            },
-                            FruityExportClassFieldName::Unnamed(name) => {
-                                let name = syn::Index::from(name);
-                                quote! { #name }
-                            },
-                        };
-                        let name_as_string = name.to_string();
-                        let ty_as_string = quote! { #ty }.to_string();
-
-                        // Special case for Option<ResourceReference<...>> we just grab the name and take the resource
-                        // from the resource container
-                        let option_resource_reference_resource_type = get_option_resource_reference_resource_type(&ty);
-                        if let Some(option_resource_reference_resource_type) = option_resource_reference_resource_type {
-                            return quote! {
-                                if let Some(fruity_game_engine::script_value::ScriptValue::String(value)) = fields.get(#name_as_string) {
-                                    new_object.#name = _resource_container.get::<#option_resource_reference_resource_type>(value);
+                                let name_as_string = name.to_string();
+                                quote! {
+                                    if script_object_field_names.contains(&#name_as_string.to_string()) {
+                                        result.#name = <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(
+                                            <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                                deserialize_service,
+                                                script_object.get_field_value(#name_as_string)?,
+                                                resource_container.clone(),
+                                                local_id_to_entity_id,
+                                            )?,
+                                        )?;
+                                    }
                                 }
                             }
-                        }
-
-                        // Fallback to the regular case
-                        quote! {
-                            if let Some(value) = fields.get(#name_as_string) {
-                                new_object.#name = {
-                                    // First try to deserialize with the deserialize factory service
-                                    let value = if let Some(value) = deserialize_service.instantiate(value.clone(), #ty_as_string.to_string(), local_id_to_entity_id)? {
-                                        value
-                                    } else {
-                                        value.clone()
-                                    };
-
-                                    <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(value.clone())
-                                }?;
+                            FruityExportClassFieldName::Unnamed(name) => {
+                                let name_as_string = name.to_string();
+                                let name = syn::Index::from(name);
+                                quote! {
+                                    if script_object_field_names.contains(&#name_as_string.to_string()) {
+                                        result.#name = <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(
+                                            <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                                deserialize_service,
+                                                script_object.get_field_value(#name_as_string)?,
+                                                resource_container.clone(),
+                                                local_id_to_entity_id,
+                                            )?,
+                                        )?;
+                                    }
+                                }
                             }
                         }
                     } else {
                         quote! { }
                     }
-                })
+                });
+
+            quote! {
+                #(#fields_converters)*
+            }
         }
         syn::Data::Union(_) => unimplemented!("Union not supported"),
         syn::Data::Enum(_) => unimplemented!("Enum not supported"),
     };
 
     let output = quote! {
-        impl fruity_ecs::deserialize_service::DeserializeFactory for #ident {
-            fn get_factory() -> fruity_ecs::deserialize_service::Factory {
-                std::sync::Arc::new(|
-                    deserialize_service: &fruity_ecs::deserialize_service::DeserializeService,
-                    value: fruity_game_engine::script_value::ScriptValue,
-                    _resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-                    local_id_to_entity_id: &std::collections::HashMap<u64, fruity_ecs::entity::EntityId>
-                | {
-                    if let fruity_game_engine::script_value::ScriptValue::Object(script_object) = value {
-                        let fields = <dyn fruity_game_engine::introspect::IntrospectFields>::get_field_values(&script_object)?;
+        impl fruity_ecs::deserialize::Deserialize for #ident {
+            fn get_identifier() -> String {
+                #ident_as_string.to_string()
+            }
 
-                        let mut new_object = Self::default();
+            fn deserialize(
+                deserialize_service: &fruity_ecs::deserialize_service::DeserializeService,
+                script_value: fruity_game_engine::script_value::ScriptValue,
+                resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
+                local_id_to_entity_id: &std::collections::HashMap<u64, fruity_ecs::entity::EntityId>,
+            ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+                if let fruity_game_engine::script_value::ScriptValue::Object(script_object) = script_value {
+                    let mut result = Self::default();
+                    let script_object_field_names = script_object.get_field_names()?;
 
-                        #(#fields_converters)*
+                    #fields_initializer
 
-                        Ok(fruity_game_engine::script_value::ScriptValue::Object(Box::new(Box::new(new_object) as Box<dyn fruity_ecs::component::Component>)))
-                    } else {
-                        Err(fruity_game_engine :: FruityError ::
-                        GenericFailure(format!
-                        ("Failed to deserialize a {} from {:?}",
-                        #ident_as_string, &value)))
-                    }
-                })
+                    Ok(fruity_game_engine::script_value::ScriptValue::Object(
+                        Box::new(Box::new(result) as Box<dyn fruity_ecs::component::Component>),
+                    ))
+                } else {
+                    Err(fruity_game_engine::FruityError::GenericFailure({
+                        let res = format!(
+                            "Failed to deserialize a {0} from {1:?}",
+                            #ident_as_string, &script_value
+                        );
+                        res
+                    }))
+                }
             }
         }
     };
 
     output.into()
-}
-
-fn get_option_resource_reference_resource_type(ty: &syn::Type) -> Option<&syn::Type> {
-    let ty_path = if let syn::Type::Path(path) = ty {
-        Some(path)
-    } else {
-        None
-    }?;
-
-    let last_segment = ty_path.path.segments.last()?;
-    if last_segment.ident.to_string().as_str() != "Option" {
-        return None;
-    }
-
-    let option_bracketed =
-        if let syn::PathArguments::AngleBracketed(bracketed) = &last_segment.arguments {
-            bracketed.args.first()
-        } else {
-            None
-        }?;
-
-    let option_ty = if let syn::GenericArgument::Type(option_ty) = option_bracketed {
-        Some(option_ty)
-    } else {
-        None
-    }?;
-
-    let option_ty_path = if let syn::Type::Path(path) = option_ty {
-        Some(path)
-    } else {
-        None
-    }?;
-
-    let last_segment = option_ty_path.path.segments.last()?;
-    if last_segment.ident.to_string().as_str() != "ResourceReference" {
-        return None;
-    }
-
-    let resource_reference_bracketed =
-        if let syn::PathArguments::AngleBracketed(bracketed) = &last_segment.arguments {
-            bracketed.args.first()
-        } else {
-            None
-        }?;
-
-    let resource_reference_ty =
-        if let syn::GenericArgument::Type(resource_reference_ty) = resource_reference_bracketed {
-            Some(resource_reference_ty)
-        } else {
-            None
-        }?;
-
-    Some(resource_reference_ty)
 }
