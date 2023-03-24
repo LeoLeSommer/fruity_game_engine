@@ -1,11 +1,11 @@
 use crate::math::matrix3::Matrix3;
 use crate::math::matrix4::Matrix4;
+use fruity_ecs::deserialize_service::DeserializeFactory;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
 use fruity_game_engine::export_constructor;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
-use fruity_game_engine::object_factory_service::ObjectFactory;
 use std::ops::Add;
 use std::ops::AddAssign;
 use std::ops::Div;
@@ -24,7 +24,7 @@ use std::ops::SubAssign;
     Default,
     PartialEq,
     FruityAny,
-    ObjectFactory,
+    DeserializeFactory,
     bytemuck::Pod,
     bytemuck::Zeroable,
 )]

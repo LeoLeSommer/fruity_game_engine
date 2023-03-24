@@ -4,11 +4,11 @@ import {
 } from "fruity_game_engine"
 
 import {
-  EntityId,
+  EntityLocation,
 } from "fruity_ecs"
 
 export class Parent {
-  parentId: SignalProperty<EntityId | null | undefined | void>
+  parent: SignalProperty<EntityReference | null | undefined | void>
   nestedLevel: number
   constructor()
 }

@@ -1,38 +1,90 @@
-use crate::component::component::AnyComponent;
-use crate::entity::archetype::component_collection::ComponentCollection;
+use crate::component::AnyComponent;
 use crate::entity::archetype::Component;
 
-pub(crate) struct ComponentStorage {
-    pub(crate) collection: Box<dyn ComponentCollection>,
-    pub(crate) components_per_entity: usize,
+/// A abstraction of a collection over components
+/// If you wish to implements this, you should do it very carefully, it is intentionally
+/// designed to be implemented by a Vec cause a lot of unsafe operations are done on
+/// this collection considering it's a vec for optimization concerns
+///
+/// All items should be stored in memory in a single memory block, if the memory is moved, there
+/// is a method that should warn about it
+///
+/// Basically do not implements this trait except you know what you'r doing
+pub trait ComponentStorage: Send + Sync {
+    /// Add components to the collection
+    ///
+    /// It is unsafe cause mut reference over ComponentStorage, cause ComponentStorage is widely read everywhere in the ecs code
+    ///
+    /// # Arguments
+    /// * `components` - The components that will be added
+    ///
+    unsafe fn add_many(&mut self, components: Vec<AnyComponent>);
+
+    /// Get a single component by index
+    fn get(&self, index: usize) -> &dyn Component;
+
+    /// Remove components from the collection
+    ///
+    /// It is unsafe cause mut reference over ComponentStorage, cause ComponentStorage is widely read everywhere in the ecs code
+    ///
+    /// # Arguments
+    /// * `index` - The index of the first component to remove
+    /// * `count` - The number of components that will be removed
+    ///
+    unsafe fn remove_many(&mut self, index: usize, count: usize) -> Vec<Box<dyn Component>>;
+
+    /// Get every item memory size in bytes
+    fn item_size(&self) -> usize;
+
+    /// Returns true if the memory is about to be reallocated on the next insert
+    ///
+    /// # Arguments
+    /// * `count` - The number of components that will be inserted
+    ///
+    fn is_about_to_reallocate_on_next_insert(&self, count: usize) -> bool;
 }
 
-impl ComponentStorage {
-    pub(crate) fn new(components: Vec<AnyComponent>) -> Self {
-        let components_per_entity = components.len();
-        let first_component = components.get(0).unwrap();
-        let mut collection = first_component.get_collection();
-        collection.add_many(components);
+/// A collection of entities that share the same component structure
+/// Can store only multiple components of the same type
+pub struct VecComponentStorage<T: Component>(Vec<T>);
 
-        ComponentStorage {
-            collection,
-            components_per_entity,
-        }
+impl<T: Component> VecComponentStorage<T> {
+    /// Returns a VecComponentStorage
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+}
+
+impl<T: Component> ComponentStorage for VecComponentStorage<T> {
+    unsafe fn add_many(&mut self, components: Vec<AnyComponent>) {
+        // Check that all the components have the good type and convert it to an array of typed component
+        let mut components = components.into_iter().map(|component| match component.into_box().as_any_box().downcast::<T>() {
+            Ok(component) => *component,
+            Err(_) => {
+                panic!("Try to instantiate a component array from a array of components with wrong type");
+            }
+        }).collect::<Vec<_>>();
+
+        self.0.append(&mut components);
     }
 
-    pub(crate) fn add(&mut self, components: Vec<AnyComponent>) {
-        // Check the components count
-        if components.len() != self.components_per_entity {
-            panic!("Try to instantiate a component array from a component array with the wrong size of elements");
-        }
-
-        self.collection.add_many(components);
+    fn get(&self, index: usize) -> &dyn Component {
+        self.0.get(index).unwrap()
     }
 
-    pub(crate) fn get(&self, entity_id: usize) -> impl Iterator<Item = &dyn Component> {
-        let start_index = entity_id * self.components_per_entity;
-        let end_index = start_index + self.components_per_entity;
+    unsafe fn remove_many(&mut self, index: usize, count: usize) -> Vec<Box<dyn Component>> {
+        self.0
+            .drain(index..(index + count))
+            .into_iter()
+            .map(|component| Box::new(component) as Box<dyn Component>)
+            .collect()
+    }
 
-        (start_index..end_index).filter_map(|index| self.collection.get(&index))
+    fn item_size(&self) -> usize {
+        std::mem::size_of::<T>()
+    }
+
+    fn is_about_to_reallocate_on_next_insert(&self, count: usize) -> bool {
+        self.0.len() + count > self.0.capacity()
     }
 }

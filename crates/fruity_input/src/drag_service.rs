@@ -5,6 +5,7 @@ use fruity_game_engine::export_struct;
 use fruity_game_engine::profile::profile_scope;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::RwLock;
 use fruity_windows::window_service::WindowService;
 use std::fmt::Debug;
@@ -33,6 +34,7 @@ pub struct DragService {
     current_drag_action: RwLock<Option<DragAction>>,
     input_service: ResourceReference<InputService>,
     window_service: ResourceReference<dyn WindowService>,
+    _on_end_update_handle: ObserverHandler<()>,
 }
 
 #[export_impl]
@@ -43,7 +45,7 @@ impl DragService {
         let window_service_reader = window_service.read();
 
         let resource_container_2 = resource_container.clone();
-        window_service_reader
+        let on_end_update_handle = window_service_reader
             .on_end_update()
             .add_observer(move |_| {
                 profile_scope("update_drag");
@@ -60,6 +62,7 @@ impl DragService {
             current_drag_action: RwLock::new(None),
             input_service,
             window_service,
+            _on_end_update_handle: on_end_update_handle,
         }
     }
 

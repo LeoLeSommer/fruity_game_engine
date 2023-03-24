@@ -58,11 +58,6 @@ export interface Module {
   runWorldMiddleware?: RunWorldMiddleware | null | undefined | void
 }
 
-export interface ObjectFactoryService {
-
-  instantiate(objectType: string, fields: {[key: string]: ScriptValue}): ScriptValue | null
-}
-
 export interface ResourceContainer {
 
   require<T>(identifier: string): T

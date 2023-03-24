@@ -1,6 +1,7 @@
 #![warn(missing_docs)]
 #![feature(iterator_try_collect)]
 #![feature(drain_filter)]
+#![feature(pointer_byte_offsets)]
 
 //! ECS
 //!
@@ -15,6 +16,8 @@
 use crate::entity::entity_service::EntityService;
 use crate::extension_component_service::ExtensionComponentService;
 use crate::system_service::SystemService;
+use deserialize_service::DeserializeService;
+use entity::EntityId;
 pub use fruity_ecs_macro::Component;
 use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
@@ -34,6 +37,10 @@ pub mod system_service;
 /// A service to store components extensions
 pub mod extension_component_service;
 
+/// Provides a factory for the introspect object
+/// This will be used by to do the snapshots
+pub mod deserialize_service;
+
 #[typescript_import({Signal, ObserverHandler, Module, ScriptValue} from "fruity_game_engine")]
 
 /// Returns the module, ready to be registered into the fruity_game_engine
@@ -45,33 +52,12 @@ pub fn create_fruity_ecs_module() -> Module {
         setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
+            let deserialize_service = DeserializeService::new(resource_container.clone());
+            resource_container
+                .add::<DeserializeService>("deserialize_service", Box::new(deserialize_service));
+
             let system_service = SystemService::new(resource_container.clone());
             resource_container.add::<SystemService>("system_service", Box::new(system_service));
-
-            // Register system middleware
-            let system_service = resource_container.require::<SystemService>();
-            world.add_run_start_middleware(move |next, world| {
-                let mut system_service_writer = system_service.write();
-                system_service_writer.run_start(&world)?;
-
-                next(world)
-            });
-
-            let system_service = resource_container.require::<SystemService>();
-            world.add_run_frame_middleware(move |next, world| {
-                let system_service_reader = system_service.read();
-                system_service_reader.run_frame(&world)?;
-
-                next(world)
-            });
-
-            let system_service = resource_container.require::<SystemService>();
-            world.add_run_end_middleware(move |next, world| {
-                let mut system_service_writer = system_service.write();
-                system_service_writer.run_end(&world)?;
-
-                next(world)
-            });
 
             let extension_component_service =
                 ExtensionComponentService::new(resource_container.clone());
@@ -82,6 +68,60 @@ pub fn create_fruity_ecs_module() -> Module {
 
             let entity_service = EntityService::new(resource_container.clone());
             resource_container.add::<EntityService>("entity_service", Box::new(entity_service));
+
+            let deserialize_service = resource_container.require::<DeserializeService>();
+            let mut deserialize_service = deserialize_service.write();
+
+            deserialize_service.register::<EntityId>("EntityId");
+
+            // Register system middleware
+            let system_service = resource_container.require::<SystemService>();
+            let entity_service = resource_container.require::<EntityService>();
+            world.add_run_start_middleware(move |next, world| {
+                {
+                    let mut system_service_writer = system_service.write();
+                    system_service_writer.run_start()?;
+                }
+
+                {
+                    let mut entity_service_writer = entity_service.write();
+                    unsafe { entity_service_writer.apply_pending_mutations()? };
+                }
+
+                next(world)
+            });
+
+            let system_service = resource_container.require::<SystemService>();
+            let entity_service = resource_container.require::<EntityService>();
+            world.add_run_frame_middleware(move |next, world| {
+                {
+                    let system_service_reader = system_service.read();
+                    system_service_reader.run_frame()?;
+                }
+
+                {
+                    let mut entity_service_writer = entity_service.write();
+                    unsafe { entity_service_writer.apply_pending_mutations()? };
+                }
+
+                next(world)
+            });
+
+            let system_service = resource_container.require::<SystemService>();
+            let entity_service = resource_container.require::<EntityService>();
+            world.add_run_end_middleware(move |next, world| {
+                {
+                    let mut system_service_writer = system_service.write();
+                    system_service_writer.run_end()?;
+                }
+
+                {
+                    let mut entity_service_writer = entity_service.write();
+                    unsafe { entity_service_writer.apply_pending_mutations()? };
+                }
+
+                next(world)
+            });
 
             Ok(())
         })),

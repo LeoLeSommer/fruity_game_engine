@@ -1,7 +1,5 @@
-use super::component::Component;
-use crate::entity::archetype::{
-    component_array::ComponentArray, component_collection::ComponentCollection,
-};
+use super::Component;
+use crate::entity::archetype::component_storage::{ComponentStorage, VecComponentStorage};
 use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
@@ -56,11 +54,11 @@ impl IntrospectMethods for ScriptComponent {
 }
 
 impl Component for ScriptComponent {
-    fn get_collection(&self) -> Box<dyn ComponentCollection> {
-        Box::new(ComponentArray::<ScriptComponent>::new())
-    }
-
     fn duplicate(&self) -> Box<dyn Component> {
         Box::new(ScriptComponent(self.0.duplicate()))
+    }
+
+    fn get_storage(&self) -> Box<dyn ComponentStorage> {
+        Box::new(VecComponentStorage::<Self>::new())
     }
 }

@@ -1,14 +1,15 @@
-use crate::{
+use crate::entity::EntityId;
+use fruity_game_engine::{
     any::FruityAny, resource::resource_container::ResourceContainer, script_value::ScriptValue,
     FruityResult,
 };
-use crate::{export, export_impl, export_struct};
+use fruity_game_engine::{export_impl, export_struct};
 use std::{collections::HashMap, sync::Arc};
 
-pub use fruity_game_engine_macro::ObjectFactory;
+pub use fruity_ecs_macro::DeserializeFactory;
 
 /// Trait to implement a generic constructor from a ScriptValue
-pub trait ObjectFactory {
+pub trait DeserializeFactory {
     /// Get a constructor to instantiate an object
     fn get_factory() -> Factory;
 }
@@ -16,9 +17,10 @@ pub trait ObjectFactory {
 /// A setter caller
 pub type Factory = Arc<
     dyn Fn(
-            &ObjectFactoryService,
+            &DeserializeService,
+            ScriptValue,
             ResourceContainer,
-            HashMap<String, ScriptValue>,
+            &HashMap<u64, EntityId>,
         ) -> FruityResult<ScriptValue>
         + Send
         + Sync,
@@ -28,22 +30,22 @@ pub type Factory = Arc<
 /// This will be used by to do the snapshots
 #[derive(FruityAny)]
 #[export_struct]
-pub struct ObjectFactoryService {
+pub struct DeserializeService {
     resource_container: ResourceContainer,
     factories: HashMap<String, Factory>,
 }
 
 #[export_impl]
-impl ObjectFactoryService {
-    /// Returns an ObjectFactoryService
-    pub fn new(resource_container: ResourceContainer) -> ObjectFactoryService {
-        ObjectFactoryService {
+impl DeserializeService {
+    /// Returns an DeserializeService
+    pub fn new(resource_container: ResourceContainer) -> DeserializeService {
+        DeserializeService {
             resource_container,
             factories: HashMap::new(),
         }
     }
 
-    /// Register a new object factory
+    /// Register a new deserialize factory
     ///
     /// # Arguments
     /// * `object_type` - The object type identifier
@@ -53,13 +55,13 @@ impl ObjectFactoryService {
     ///
     pub fn register<T>(&mut self, object_type: &str)
     where
-        T: ObjectFactory,
+        T: DeserializeFactory,
     {
         self.factories
             .insert(object_type.to_string(), T::get_factory());
     }
 
-    /// Register a new object factory from a function constructor
+    /// Register a new deserialize factory from a function constructor
     ///
     /// # Arguments
     /// * `object_type` - The object type identifier
@@ -69,9 +71,10 @@ impl ObjectFactoryService {
         &mut self,
         object_type: &str,
         constructor: impl Fn(
-                &ObjectFactoryService,
+                &DeserializeService,
+                ScriptValue,
                 ResourceContainer,
-                HashMap<String, ScriptValue>,
+                &HashMap<u64, EntityId>,
             ) -> FruityResult<ScriptValue>
             + Send
             + Sync
@@ -87,14 +90,19 @@ impl ObjectFactoryService {
     /// * `object_type` - The object type identifier
     /// * `serialized` - A serialized value that will populate the new component
     ///
-    #[export]
     pub fn instantiate(
         &self,
+        value: ScriptValue,
         object_type: String,
-        fields: HashMap<String, ScriptValue>,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Option<ScriptValue>> {
         Ok(match self.factories.get(&object_type) {
-            Some(factory) => Some(factory(&self, self.resource_container.clone(), fields)?),
+            Some(factory) => Some(factory(
+                &self,
+                value,
+                self.resource_container.clone(),
+                local_id_to_entity_id,
+            )?),
             None => None,
         })
     }
@@ -105,7 +113,7 @@ impl ObjectFactoryService {
     }
 }
 
-impl std::fmt::Debug for ObjectFactoryService {
+impl std::fmt::Debug for DeserializeService {
     fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
         Ok(())
     }

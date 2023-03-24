@@ -12,7 +12,6 @@ pub trait WindowService: IntrospectFields + IntrospectMethods + Send + Sync {
     fn get_cursor_position(&self) -> (u32, u32);
     fn set_size(&self, width: u32, height: u32) -> FruityResult<()>;
     fn set_title(&self, title: &str);
-    fn on_enter_loop(&self) -> &Signal<()>;
     fn on_start_update(&self) -> &Signal<()>;
     fn on_end_update(&self) -> &Signal<()>;
     fn on_resize(&self) -> &Signal<(u32, u32)>;

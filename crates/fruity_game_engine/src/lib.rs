@@ -71,10 +71,6 @@ pub mod resource;
 /// Provides a tool to inject resources into functions
 pub mod inject;
 
-/// Provides a factory for the introspect object
-/// This will be used by to do the snapshots
-pub mod object_factory_service;
-
 /// Provides tools to profile functions/blocks
 pub mod profile;
 

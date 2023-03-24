@@ -8,9 +8,9 @@ use crate::graphic_2d_service::Graphic2dService;
 use crate::systems::draw_camera::draw_camera;
 use crate::systems::draw_sprite::draw_sprite;
 use crate::systems::update_transform_2d::update_transform_2d;
+use fruity_ecs::deserialize_service::DeserializeService;
 use fruity_ecs::system_service::{SystemParams, SystemService};
 use fruity_game_engine::module::Module;
-use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::{export_function, typescript_import};
 use std::sync::Arc;
 
@@ -38,15 +38,15 @@ pub fn create_fruity_graphic_2d_module() -> Module {
             resource_container
                 .add::<Graphic2dService>("graphic_2d_service", Box::new(graphic_2d_service));
 
-            let object_factory_service = resource_container.require::<ObjectFactoryService>();
-            let mut object_factory_service = object_factory_service.write();
+            let deserialize_service = resource_container.require::<DeserializeService>();
+            let mut deserialize_service = deserialize_service.write();
 
-            object_factory_service.register::<Transform2D>("Transform2D");
-            object_factory_service.register::<Translate2D>("Translate2D");
-            object_factory_service.register::<Rotate2D>("Rotate2D");
-            object_factory_service.register::<Scale2D>("Scale2D");
-            object_factory_service.register::<Sprite>("Sprite");
-            object_factory_service.register::<Camera>("Camera");
+            deserialize_service.register::<Transform2D>("Transform2D");
+            deserialize_service.register::<Translate2D>("Translate2D");
+            deserialize_service.register::<Rotate2D>("Rotate2D");
+            deserialize_service.register::<Scale2D>("Scale2D");
+            deserialize_service.register::<Sprite>("Sprite");
+            deserialize_service.register::<Camera>("Camera");
 
             let system_service = resource_container.require::<SystemService>();
             let mut system_service = system_service.write();

@@ -1,10 +1,8 @@
 use crate::Parent;
-use fruity_ecs::entity::entity_query::with::WithEntity;
+use fruity_ecs::entity::entity_query::with::WithEntityReference;
 use fruity_ecs::entity::entity_query::with::WithMut;
 use fruity_ecs::entity::entity_query::Query;
-use fruity_ecs::entity::entity_service::EntityService;
 use fruity_ecs::system_service::StartupDisposeSystemCallback;
-use fruity_game_engine::inject::Ref;
 use fruity_game_engine::FruityResult;
 use std::ops::Deref;
 
@@ -12,58 +10,61 @@ use std::ops::Deref;
 /// It's mainly used to update the position in cascade cause the position of
 /// a child must be updated after the parent
 pub fn update_nested_level(
-    entity_service: Ref<EntityService>,
-    query: Query<(WithEntity, WithMut<Parent>)>,
+    query: Query<(WithEntityReference, WithMut<Parent>)>,
 ) -> FruityResult<StartupDisposeSystemCallback> {
-    let handle = query.on_created(move |(entity, mut parent)| {
-        // Get the parent entity reference
-        let parent_entity = if let Some(parent_id) = &parent.parent_id.deref() {
-            let entity_service_reader = entity_service.read();
-            entity_service_reader.get_entity(*parent_id)
-        } else {
-            None
-        };
-
-        // Set the nested level as the parent one plus one
-        if let Some(parent_entity) = parent_entity {
-            if let Some(parent_parent) = parent_entity.read().read_single_component::<Parent>() {
-                parent.nested_level = parent_parent.nested_level + 1;
-            } else {
-                parent.nested_level = 1;
-            }
-        }
-
-        // When parent is updated, we update the nested level
-        let entity_service = entity_service.clone();
-        let handle = parent.parent_id.on_updated.add_observer(move |parent_id| {
-            let entity_writer = entity.write();
-            let mut parent = entity_writer.write_single_component::<Parent>().unwrap();
-
-            // Get the parent entity reference
-            let parent_entity = if let Some(parent_id) = &parent_id {
-                let entity_service_reader = entity_service.read();
-                entity_service_reader.get_entity(*parent_id)
-            } else {
-                None
-            };
-
-            // Set the nested level as the parent one plus one
-            if let Some(parent_entity) = parent_entity {
-                if let Some(parent_parent) = parent_entity.read().read_single_component::<Parent>()
+    let handle = query.on_created(
+        move |(child_entity_reference, mut child_entity_parent_component)| {
+            // Set child nested level as the parent plus one
+            if let Some(parent_entity_parent_component) =
+                child_entity_parent_component.parent.deref()
+            {
+                if let Some(parent_entity_parent_component) = parent_entity_parent_component
+                    .read()?
+                    .get_component_by_type::<Parent>()?
                 {
-                    parent.nested_level = parent_parent.nested_level + 1;
+                    child_entity_parent_component.nested_level =
+                        parent_entity_parent_component.nested_level + 1;
                 } else {
-                    parent.nested_level = 1;
+                    child_entity_parent_component.nested_level = 1;
                 }
             }
 
-            Ok(())
-        });
+            // When parent is updated, we update child nested level
+            let handle = child_entity_parent_component
+                .parent
+                .on_updated
+                .add_observer(move |parent_entity| {
+                    let child_entity_writer = child_entity_reference.write()?;
+                    let child_entity_parent_component = child_entity_writer
+                        .get_component_by_type_mut::<Parent>()
+                        .unwrap();
 
-        Some(Box::new(move || {
-            handle.dispose_by_ref();
-        }))
-    });
+                    // Set child nested level as the parent plus one
+                    if let Some(mut child_entity_parent_component) = child_entity_parent_component {
+                        if let Some(parent_entity) = parent_entity {
+                            if let Some(parent_entity_parent_component) =
+                                parent_entity.read()?.get_component_by_type::<Parent>()?
+                            {
+                                child_entity_parent_component.nested_level =
+                                    parent_entity_parent_component.nested_level + 1;
+                            } else {
+                                child_entity_parent_component.nested_level = 1;
+                            }
+                        } else {
+                            child_entity_parent_component.nested_level = 1;
+                        }
+                    }
+
+                    Ok(())
+                });
+
+            // TODO: When parent nested level is updated, we update child nested level
+
+            Ok(Some(Box::new(move || {
+                handle.dispose_by_ref();
+            })))
+        },
+    );
 
     Ok(Some(Box::new(move || {
         handle.dispose();

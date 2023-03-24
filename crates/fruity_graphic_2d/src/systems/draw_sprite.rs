@@ -18,7 +18,7 @@ pub fn draw_sprite(
 
         if let Some(material) = &sprite.material {
             graphic_2d_service.draw_quad(
-                entity_id,
+                entity_id.0,
                 material.clone(),
                 hashmap! {
                     "transform".to_string() => MaterialParam::Matrix4(transform.transform.into()),

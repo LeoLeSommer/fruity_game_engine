@@ -1,7 +1,7 @@
 use crate::components::circle_collider::CircleCollider;
 use crate::components::rect_collider::RectCollider;
+use fruity_ecs::deserialize_service::DeserializeService;
 use fruity_game_engine::module::Module;
-use fruity_game_engine::object_factory_service::ObjectFactoryService;
 use fruity_game_engine::{export_function, typescript_import};
 use std::sync::Arc;
 
@@ -19,11 +19,11 @@ pub fn create_fruity_physic_2d_module() -> Module {
         setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
-            let object_factory_service = resource_container.require::<ObjectFactoryService>();
-            let mut object_factory_service = object_factory_service.write();
+            let deserialize_service = resource_container.require::<DeserializeService>();
+            let mut deserialize_service = deserialize_service.write();
 
-            object_factory_service.register::<CircleCollider>("CircleCollider");
-            object_factory_service.register::<RectCollider>("RectCollider");
+            deserialize_service.register::<CircleCollider>("CircleCollider");
+            deserialize_service.register::<RectCollider>("RectCollider");
 
             Ok(())
         })),

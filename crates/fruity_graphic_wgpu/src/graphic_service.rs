@@ -12,6 +12,7 @@ use fruity_game_engine::profile::profile_function;
 use fruity_game_engine::profile::profile_scope;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
@@ -109,13 +110,13 @@ pub struct WgpuGraphicService {
     current_encoder: Option<RwLock<wgpu::CommandEncoder>>,
     viewport_offset: RwLock<(u32, u32)>,
     viewport_size: RwLock<(u32, u32)>,
+    _on_resize_handle: ObserverHandler<(u32, u32)>,
 }
 
 impl WgpuGraphicService {
     pub fn new(resource_container: ResourceContainer) -> FruityResult<WgpuGraphicService> {
         // Subscribe to windows observer to proceed the graphics when it's neededs
-        // TODO: Put this in middlewares
-        {
+        let on_resize_handle = {
             let window_service = resource_container.require::<dyn WindowService>();
             let window_service = window_service.read();
 
@@ -128,8 +129,8 @@ impl WgpuGraphicService {
                     graphic_service.resize(*width, *height);
 
                     Ok(())
-                });
-        }
+                })
+        };
 
         // Initialize the surface
         let (instance, surface) = {
@@ -170,6 +171,7 @@ impl WgpuGraphicService {
             current_encoder: None,
             viewport_offset: Default::default(),
             viewport_size: Default::default(),
+            _on_resize_handle: on_resize_handle,
         })
     }
 
@@ -392,7 +394,6 @@ impl WgpuGraphicService {
 
             let mut render_instances = self.render_instances.write();
             render_instances.clear();
-        } else {
         }
     }
 

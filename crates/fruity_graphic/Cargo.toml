@@ -8,6 +8,7 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 fruity_game_engine = { path = "../fruity_game_engine" }
+fruity_ecs = { path = "../fruity_ecs" }
 wasm-bindgen = "0.2.83"
 cgmath = "0.18"
 maplit = "1.0.2"

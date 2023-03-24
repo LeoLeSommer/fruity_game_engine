@@ -32,6 +32,7 @@
 [X] Add a way to extend components
 [ ] Support for async systems/queries for_each with tokio
 [ ] Find a way to move the introspect declaration into the associated traits
+[ ] Allow to access entities created in the current frame
 
 ## Editor
 

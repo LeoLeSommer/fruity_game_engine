@@ -111,9 +111,6 @@ pub fn run_world_middleware(
     // Run the render loop
     let frame_service = resource_container.require::<FrameService>();
     let window_service = resource_container.require::<dyn WindowService>();
-    let window_service_reader = window_service.read();
-    window_service_reader.on_enter_loop().notify(())?;
-    std::mem::drop(window_service_reader);
 
     profile_start();
 

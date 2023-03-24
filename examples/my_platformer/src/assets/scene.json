@@ -1,6 +1,6 @@
 [
   {
-    "entityId": 1,
+    "localId": 1,
     "name": "Player",
     "enabled": true,
     "components": [
@@ -68,7 +68,7 @@
     ]
   },
   {
-    "entityId": 3,
+    "localId": 3,
     "name": "Image 1",
     "enabled": true,
     "components": [
@@ -143,7 +143,7 @@
     ]
   },
   {
-    "entityId": 5,
+    "localId": 5,
     "name": "Image 2",
     "enabled": true,
     "components": [
@@ -202,7 +202,7 @@
     ]
   },
   {
-    "entityId": 8,
+    "localId": 8,
     "name": "Image 3",
     "enabled": true,
     "components": [
@@ -261,7 +261,7 @@
     ]
   },
   {
-    "entityId": 7,
+    "localId": 7,
     "name": "Camera",
     "enabled": true,
     "components": [
@@ -305,7 +305,7 @@
     ]
   },
   {
-    "entityId": 10,
+    "localId": 10,
     "name": "Ground",
     "enabled": true,
     "components": [

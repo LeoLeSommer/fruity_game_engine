@@ -26,7 +26,7 @@ pub fn create_fruity_hierarchy_2d_module() -> Module {
 
             system_service.add_system(
                 "transform_2d_cascade",
-                &transform_2d_cascade as &'static (dyn Fn(_, _) -> _ + Send + Sync),
+                &transform_2d_cascade as &'static (dyn Fn(_) -> _ + Send + Sync),
                 Some(SystemParams {
                     pool_index: Some(96),
                     ignore_pause: Some(true),

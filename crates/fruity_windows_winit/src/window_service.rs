@@ -22,7 +22,6 @@ pub struct WinitWindowService {
     window: Window,
     event_loop: Option<SendWrapper<EventLoop<()>>>,
     pub cursor_position: (u32, u32),
-    pub on_enter_loop: Signal<()>,
     pub on_start_update: Signal<()>,
     pub on_end_update: Signal<()>,
     pub on_resize: Signal<(u32, u32)>,
@@ -48,7 +47,6 @@ impl WinitWindowService {
             window,
             event_loop: Some(SendWrapper::new(event_loop)),
             cursor_position: Default::default(),
-            on_enter_loop: Signal::new(),
             on_start_update: Signal::new(),
             on_end_update: Signal::new(),
             on_resize: Signal::new(),
@@ -112,10 +110,6 @@ impl WindowService for WinitWindowService {
     #[export]
     fn set_title(&self, title: &str) {
         self.get_window().set_title(title);
-    }
-
-    fn on_enter_loop(&self) -> &Signal<()> {
-        &self.on_enter_loop
     }
 
     fn on_start_update(&self) -> &Signal<()> {

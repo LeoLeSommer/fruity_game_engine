@@ -1,4 +1,4 @@
-use crate::entity::archetype::EntityId;
+use crate::entity::EntityId;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 
 /// This store all the information that are common accross all entities

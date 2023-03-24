@@ -1,4 +1,4 @@
-use fruity_ecs::entity::entity::EntityId;
+use fruity_ecs::entity::entity_reference::EntityReference;
 use fruity_ecs::Component;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::signal::SignalProperty;
@@ -9,7 +9,7 @@ use fruity_game_engine::{export_constructor, export_impl, export_struct};
 #[export_struct]
 pub struct Parent {
     /// The parent id
-    pub parent_id: SignalProperty<Option<EntityId>>,
+    pub parent: SignalProperty<Option<EntityReference>>,
 
     /// The nested level of a hierarchy component
     /// It's mainly used to update the position in cascade cause the position of

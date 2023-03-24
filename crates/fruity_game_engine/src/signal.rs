@@ -48,7 +48,7 @@ struct InternSignal<T: 'static> {
 }
 
 /// An observer pattern
-#[derive(FruityAny, Clone)]
+#[derive(FruityAny)]
 #[typescript(
     "interface Signal<T> {
   notify(event: T);
@@ -57,6 +57,14 @@ struct InternSignal<T: 'static> {
 )]
 pub struct Signal<T: 'static> {
     intern: Arc<RwLock<InternSignal<T>>>,
+}
+
+impl<T: 'static> Clone for Signal<T> {
+    fn clone(&self) -> Self {
+        Self {
+            intern: self.intern.clone(),
+        }
+    }
 }
 
 impl<T> Signal<T> {
@@ -192,7 +200,6 @@ where
                 let arg1 = caster
                     .cast_next::<Arc<dyn Send + Sync + Fn(T) -> FruityResult<ScriptValue>>>()?;
 
-                // TODO: Restore
                 let handle = self.add_observer(move |arg| {
                     arg1(arg.clone())?;
 

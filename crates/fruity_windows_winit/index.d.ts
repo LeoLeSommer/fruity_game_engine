@@ -5,7 +5,6 @@ import {
 
 export interface WinitWindowService {
   cursorPosition: [number, number]
-  onEnterLoop: Signal<void>
   onStartUpdate: Signal<void>
   onEndUpdate: Signal<void>
   onResize: Signal<[number, number]>

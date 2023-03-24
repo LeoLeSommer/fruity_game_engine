@@ -65,20 +65,16 @@ world.registerModule({
       }
     );
 
+    let test1Query = entityService
+      .query()
+      .with<CustomComponent>("CustomComponent")
+      .with<CustomComponent2>("CustomComponent2");
     systemService.addSystem("test 1", () => {
       console.log("A frame is rendered");
 
-      entityService
-        .query()
-        .with<CustomComponent>("CustomComponent")
-        .with<CustomComponent2>("CustomComponent2")
-        .forEach(([customComponent, customComponent2]) => {
-          console.log(
-            "Component",
-            customComponent.value,
-            customComponent2.value
-          );
-        });
+      test1Query.forEach(([customComponent, customComponent2]) => {
+        console.log("Component", customComponent.value, customComponent2.value);
+      });
     });
   },
   loadResources: (world: World, settings: Settings) => {

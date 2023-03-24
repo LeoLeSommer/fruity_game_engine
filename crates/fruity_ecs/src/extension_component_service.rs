@@ -1,6 +1,6 @@
-use crate::component::component::AnyComponent;
-use crate::component::component::Component;
-use crate::component::component::StaticComponent;
+use crate::component::AnyComponent;
+use crate::component::Component;
+use crate::component::StaticComponent;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::FruityResult;

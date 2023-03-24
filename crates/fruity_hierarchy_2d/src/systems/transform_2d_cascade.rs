@@ -1,8 +1,6 @@
 use fruity_ecs::entity::entity_query::with::With;
 use fruity_ecs::entity::entity_query::with::WithMut;
 use fruity_ecs::entity::entity_query::Query;
-use fruity_ecs::entity::entity_service::EntityService;
-use fruity_game_engine::inject::Ref;
 use fruity_game_engine::FruityResult;
 use fruity_graphic_2d::components::transform_2d::Transform2D;
 use fruity_hierarchy::components::parent::Parent;
@@ -12,15 +10,10 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 
 pub fn transform_2d_cascade(
-    entity_service: Ref<EntityService>,
     query: Query<(With<Parent>, WithMut<Transform2D>)>,
 ) -> FruityResult<()> {
     let mut current_nested_level = 1;
-    while transform_2d_cascade_for_nested_level(
-        entity_service.clone(),
-        query.clone(),
-        current_nested_level,
-    )? {
+    while transform_2d_cascade_for_nested_level(query.clone(), current_nested_level)? {
         current_nested_level += 1;
     }
 
@@ -28,7 +21,6 @@ pub fn transform_2d_cascade(
 }
 
 pub fn transform_2d_cascade_for_nested_level(
-    entity_service: Ref<EntityService>,
     query: Query<(With<Parent>, WithMut<Transform2D>)>,
     nested_level: usize,
 ) -> FruityResult<bool> {
@@ -37,18 +29,11 @@ pub fn transform_2d_cascade_for_nested_level(
 
     query.for_each(move |(child, mut transform)| {
         if child.nested_level == nested_level {
-            // Get the parent entity reference
-            let parent_entity = if let Some(parent_id) = &child.parent_id.deref() {
-                let entity_service_reader = entity_service.read();
-                entity_service_reader.get_entity(*parent_id)
-            } else {
-                None
-            };
-
             // Apply the parent transform to the child
-            if let Some(parent_entity) = parent_entity {
-                if let Some(parent_transform) =
-                    parent_entity.read().read_single_component::<Transform2D>()
+            if let Some(parent_entity) = &child.parent.deref() {
+                if let Some(parent_transform) = parent_entity
+                    .read()?
+                    .get_component_by_type::<Transform2D>()?
                 {
                     transform.transform = parent_transform.transform * transform.transform;
                     did_transform.store(true, Relaxed);

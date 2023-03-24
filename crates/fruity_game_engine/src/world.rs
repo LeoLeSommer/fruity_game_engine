@@ -2,7 +2,6 @@ use crate::any::FruityAny;
 use crate::export;
 use crate::frame_service::FrameService;
 use crate::module::Module;
-use crate::object_factory_service::ObjectFactoryService;
 use crate::settings::Settings;
 use crate::FruityResult;
 use crate::ModulesService;
@@ -102,12 +101,6 @@ impl World {
 
         let frame_service = FrameService::new(resource_container.clone());
         resource_container.add::<FrameService>("frame_service", Box::new(frame_service));
-
-        let object_factory_service = ObjectFactoryService::new(resource_container.clone());
-        resource_container.add::<ObjectFactoryService>(
-            "object_factory_service",
-            Box::new(object_factory_service),
-        );
     }
 
     /// Register a module

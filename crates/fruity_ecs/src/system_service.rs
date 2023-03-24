@@ -3,7 +3,6 @@ use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::inject::Inject;
 use fruity_game_engine::profile::profile_scope;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
-use fruity_game_engine::world::World;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
 use fruity_game_engine::{export, export_impl, export_struct};
@@ -20,7 +19,7 @@ use std::thread;
 use rayon::prelude::*;
 
 /// A callback for a system called every frame
-pub type SystemCallback = dyn Fn(ResourceContainer) -> FruityResult<()> + Send + Sync + 'static;
+pub type SystemCallback = dyn Fn() -> FruityResult<()> + Send + Sync + 'static;
 
 /// A callback for a startup system dispose callback
 pub type StartupDisposeSystemCallback =
@@ -28,7 +27,7 @@ pub type StartupDisposeSystemCallback =
 
 /// A callback for a startup system
 pub type StartupSystemCallback =
-    dyn Fn(ResourceContainer) -> FruityResult<StartupDisposeSystemCallback> + Send + Sync + 'static;
+    dyn Fn() -> FruityResult<StartupDisposeSystemCallback> + Send + Sync + 'static;
 
 /// Params for a system
 #[derive(Debug, Clone, TryFromScriptValue, Default)]
@@ -141,7 +140,11 @@ impl SystemService {
         callback: T,
         params: Option<SystemParams>,
     ) {
-        self.add_arc_system(identifier, callback.inject().into(), params)
+        self.add_arc_system(
+            identifier,
+            callback.inject(&self.resource_container).into(),
+            params,
+        )
     }
 
     /// Add a system to the collection
@@ -154,7 +157,7 @@ impl SystemService {
     pub fn add_script_system(
         &mut self,
         identifier: String,
-        callback: Arc<dyn Send + Sync + Fn(ResourceContainer) -> FruityResult<()>>,
+        callback: Arc<dyn Send + Sync + Fn() -> FruityResult<()>>,
         params: Option<SystemParams>,
     ) {
         self.add_arc_system(
@@ -183,7 +186,7 @@ impl SystemService {
     pub fn add_arc_system(
         &mut self,
         identifier: &str,
-        callback: Arc<dyn Send + Sync + Fn(ResourceContainer) -> FruityResult<()>>,
+        callback: Arc<dyn Send + Sync + Fn() -> FruityResult<()>>,
         params: Option<SystemParams>,
     ) {
         let params = params.unwrap_or_default();
@@ -221,7 +224,11 @@ impl SystemService {
         callback: T,
         params: Option<StartupSystemParams>,
     ) {
-        self.add_arc_startup_system(identifier, callback.inject().into(), params);
+        self.add_arc_startup_system(
+            identifier,
+            callback.inject(&self.resource_container).into(),
+            params,
+        );
     }
 
     /// Add a startup system
@@ -237,9 +244,7 @@ impl SystemService {
         callback: Arc<
             dyn Send
                 + Sync
-                + Fn(
-                    ResourceContainer,
-                ) -> FruityResult<
+                + Fn() -> FruityResult<
                     Option<Box<dyn FnOnce() -> FruityResult<()> + Send + Sync + 'static>>,
                 >,
         >,
@@ -274,9 +279,7 @@ impl SystemService {
         callback: Arc<
             dyn Send
                 + Sync
-                + Fn(
-                    ResourceContainer,
-                ) -> FruityResult<
+                + Fn() -> FruityResult<
                     Option<Box<dyn FnOnce() -> FruityResult<()> + Send + Sync + 'static>>,
                 >,
         >,
@@ -299,7 +302,7 @@ impl SystemService {
     }
 
     /// Run all the stored systems
-    pub(crate) fn run_frame(&self, world: &World) -> FruityResult<()> {
+    pub(crate) fn run_frame(&self) -> FruityResult<()> {
         let is_paused = self.is_paused();
 
         self.iter_system_pools()
@@ -307,15 +310,13 @@ impl SystemService {
             .try_for_each(|pool| {
                 if pool.enabled {
                     // Run the threaded systems
-                    let resource_container = world.get_resource_container();
-
                     Self::run_systems_collection(
                         pool.systems.clone(),
                         |system| system.execute_in_main_thread,
                         move |system| {
                             if !is_paused || system.ignore_pause {
                                 profile_scope(&system.identifier);
-                                (system.callback)(resource_container.clone())
+                                (system.callback)()
                             } else {
                                 Ok(())
                             }
@@ -328,9 +329,8 @@ impl SystemService {
     }
 
     /// Run all the startup systems
-    pub(crate) fn run_start(&mut self, world: &World) -> FruityResult<()> {
+    pub(crate) fn run_start(&mut self) -> FruityResult<()> {
         // Run the threaded systems
-        let resource_container = world.get_resource_container();
         let startup_dispose_callbacks = self.startup_dispose_callbacks.clone();
 
         Self::run_systems_collection(
@@ -343,7 +343,7 @@ impl SystemService {
             move |system| {
                 profile_scope(&system.identifier);
 
-                let dispose_callback = (system.callback)(resource_container.clone())?;
+                let dispose_callback = (system.callback)()?;
 
                 if let Some(dispose_callback) = dispose_callback {
                     let mut startup_dispose_callbacks = startup_dispose_callbacks.lock();
@@ -366,7 +366,7 @@ impl SystemService {
     }
 
     /// Run all startup dispose callbacks
-    pub(crate) fn run_end(&mut self, _world: &World) -> FruityResult<()> {
+    pub(crate) fn run_end(&mut self) -> FruityResult<()> {
         if !self.is_paused() {
             self.run_unpause_end()?;
         }
@@ -386,7 +386,6 @@ impl SystemService {
 
     /// Run all the startup systems that start when pause is stopped
     fn run_unpause_start(&self) -> FruityResult<()> {
-        let resource_container = self.resource_container.clone();
         let startup_pause_dispose_callbacks = self.startup_pause_dispose_callbacks.clone();
 
         Self::run_systems_collection(
@@ -399,7 +398,7 @@ impl SystemService {
             move |system| {
                 profile_scope(&system.identifier);
 
-                let dispose_callback = (system.callback)(resource_container.clone())?;
+                let dispose_callback = (system.callback)()?;
 
                 if let Some(dispose_callback) = dispose_callback {
                     let mut startup_dispose_callbacks = startup_pause_dispose_callbacks.lock();
@@ -442,7 +441,7 @@ impl SystemService {
 
         let parallel_systems = systems;
 
-        #[cfg(not(target_arch = "wasm32"))]
+        /*#[cfg(not(target_arch = "wasm32"))]
         let handler = {
             let execute_systems_closure = execute_systems_closure.clone();
             thread::spawn(move || {
@@ -454,6 +453,7 @@ impl SystemService {
         };
 
         #[cfg(target_arch = "wasm32")]
+        */
         parallel_systems
             .into_iter()
             .try_for_each(execute_systems_closure.clone())?;
@@ -464,8 +464,9 @@ impl SystemService {
             .try_for_each(execute_systems_closure)?;
 
         // Wait all the threaded systems
-        #[cfg(not(target_arch = "wasm32"))]
+        /*#[cfg(not(target_arch = "wasm32"))]
         handler.join().unwrap()?;
+        */
 
         Ok(())
     }

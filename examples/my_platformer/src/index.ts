@@ -91,7 +91,7 @@ world.registerModule({
     systemService.addStartupSystem(
       "initialize entities save",
       () => {
-        entityService.restore(scene);
+        entityService.restore(true, scene);
       },
       {
         ignorePause: true,
@@ -120,19 +120,21 @@ world.registerModule({
       };
     });
 
-    /*systemService.addStartupSystem("test startup 2", () => {
-      let handle = entityService
-        .query()
-        .withName()
-        .with("Translate2D")
-        .with("Velocity")
-        .onCreated((name) => {
-          console.log(`Entity created ${name}`);
+    /*const testStartup2Query = entityService
+      .query()
+      .withName()
+      .with("Translate2D")
+      .with("Velocity")
+      .build();
 
-          return () => {
-            console.log(`Entity deleted ${name}`);
-          };
-        });
+    systemService.addStartupSystem("test startup 2", () => {
+      let handle = testStartup2Query.onCreated((name) => {
+        console.log(`Entity created ${name}`);
+
+        return () => {
+          console.log(`Entity deleted ${name}`);
+        };
+      });
 
       return () => {
         handle.dispose();
@@ -170,57 +172,63 @@ world.registerModule({
       };
     });
 
+    let test1Query = entityService
+      .query()
+      .with<Translate2D>("Translate2D")
+      .with<Velocity>("Velocity")
+      .build();
+
     systemService.addSystem("test 1", () => {
-      entityService
-        .query()
-        .with<Translate2D>("Translate2D")
-        .with<Velocity>("Velocity")
-        .forEach(([translate, velocity]) => {
-          const beforeTranslate = translate.vec;
-          translate.vec = beforeTranslate.add(
-            beforeTranslate.mul(velocity.velocity * frameService.getDelta())
-          );
-        });
+      test1Query.forEach(([translate, velocity]) => {
+        const beforeTranslate = translate.vec;
+        translate.vec = beforeTranslate.add(
+          beforeTranslate.mul(velocity.velocity * frameService.getDelta())
+        );
+      });
     });
+
+    const test2Query = entityService
+      .query()
+      .withEntity()
+      .with<Translate2D>("Translate2D")
+      .with<Move>("Move")
+      .build();
 
     systemService.addSystem("test 2", () => {
-      entityService
-        .query()
-        .withEntity()
-        .with<Translate2D>("Translate2D")
-        .with<Move>("Move")
-        .forEach(([entity, translate, move]) => {
-          let vel = new Vector2D(0, 0);
-          if (inputService.isPressed("Run Left")) {
-            vel.x -= move.velocity;
-          }
+      test2Query.forEach(([entity, translate, move]) => {
+        let vel = new Vector2D(0, 0);
+        if (inputService.isPressed("Run Left")) {
+          vel.x -= move.velocity;
+        }
 
-          if (inputService.isPressed("Run Right")) {
-            vel.x += move.velocity;
-          }
+        if (inputService.isPressed("Run Right")) {
+          vel.x += move.velocity;
+        }
 
-          if (inputService.isPressed("Jump")) {
-            vel.y += move.velocity;
-          }
+        if (inputService.isPressed("Jump")) {
+          vel.y += move.velocity;
+        }
 
-          if (inputService.isPressed("Down")) {
-            vel.y -= move.velocity;
-          }
+        if (inputService.isPressed("Down")) {
+          vel.y -= move.velocity;
+        }
 
-          translate.vec = translate.vec.add(vel.mul(frameService.getDelta()));
-        });
+        translate.vec = translate.vec.add(vel.mul(frameService.getDelta()));
+      });
     });
 
+    const test3Query = entityService
+      .query()
+      .with<Rotate2D>("Rotate2D")
+      .with<Move>("Move")
+      .build();
+
     systemService.addSystem("test 3", () => {
-      entityService
-        .query()
-        .with<Rotate2D>("Rotate2D")
-        .with<Move>("Move")
-        .forEach(([rotate, move]) => {
-          if (inputService.isPressed("Rotate")) {
-            rotate.angle += move.velocity * frameService.getDelta();
-          }
-        });
+      test3Query.forEach(([rotate, move]) => {
+        if (inputService.isPressed("Rotate")) {
+          rotate.angle += move.velocity * frameService.getDelta();
+        }
+      });
     });
   },
   loadResourcesAsync: async (world: World, settings: Settings) => {

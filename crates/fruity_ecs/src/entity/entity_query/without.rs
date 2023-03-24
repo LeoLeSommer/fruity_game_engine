@@ -1,8 +1,9 @@
-use crate::component::component::Component;
-use crate::component::component::StaticComponent;
+use super::InfiniteBidirectionalIterator;
+use super::SingleBidirectionalIterator;
+use crate::component::Component;
+use crate::component::StaticComponent;
 use crate::entity::archetype::Archetype;
 use crate::entity::entity_query::QueryParam;
-use crate::entity::entity_query::RequestedEntityGuard;
 use crate::entity::entity_reference::EntityReference;
 use std::marker::PhantomData;
 
@@ -13,6 +14,8 @@ pub struct Without<T: Component + StaticComponent + 'static> {
 
 impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for Without<T> {
     type Item = ();
+    type Iterator = InfiniteBidirectionalIterator<Self::Item>;
+    type FromEntityReferenceIterator = SingleBidirectionalIterator<Self::Item>;
 
     fn filter_archetype(archetype: &Archetype) -> bool {
         !archetype
@@ -28,10 +31,17 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for Without<T>
         false
     }
 
-    fn iter_entity_components(
-        _entity_reference: EntityReference,
-        _entity_guard: &'a RequestedEntityGuard<'a>,
-    ) -> Box<dyn Iterator<Item = Self::Item> + 'a> {
-        Box::new(vec![()].into_iter())
+    fn items_per_entity(_archetype: &'a Archetype) -> usize {
+        1
+    }
+
+    fn iter(_archetype: &'a Archetype) -> Self::Iterator {
+        InfiniteBidirectionalIterator::default()
+    }
+
+    fn from_entity_reference(
+        _entity_reference: &EntityReference,
+    ) -> Self::FromEntityReferenceIterator {
+        SingleBidirectionalIterator::default()
     }
 }
