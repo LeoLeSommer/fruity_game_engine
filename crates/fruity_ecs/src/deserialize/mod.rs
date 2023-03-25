@@ -1,4 +1,4 @@
-use crate::{deserialize_service::DeserializeService, entity::EntityId};
+use crate::entity::EntityId;
 use fruity_game_engine::{
     resource::resource_container::ResourceContainer, script_value::ScriptValue, FruityResult,
 };
@@ -26,7 +26,6 @@ pub trait Deserialize: Sized {
 
     /// Deserialize an object
     fn deserialize(
-        deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,

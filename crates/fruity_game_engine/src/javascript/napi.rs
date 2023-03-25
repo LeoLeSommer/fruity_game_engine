@@ -25,6 +25,8 @@ use tokio::runtime::Builder;
 
 /// Create a napi js value from a script value
 pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<JsUnknown> {
+    puffin::profile_scope!("script_value_to_js_value");
+
     Ok(match value.into_script_value()? {
         ScriptValue::I8(value) => env
             .create_int32(value as i32)
@@ -281,6 +283,8 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
 
 /// Create a script value from a napi js value
 pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<ScriptValue> {
+    puffin::profile_scope!("js_value_to_script_value");
+
     Ok(
         match value.get_type().map_err(|e| FruityError::from_napi(e))? {
             ValueType::Undefined => ScriptValue::Undefined,

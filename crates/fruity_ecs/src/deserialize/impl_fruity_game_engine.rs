@@ -1,8 +1,5 @@
 use super::Deserialize;
-use crate::{
-    deserialize_service::DeserializeService,
-    entity::{entity_reference::EntityReference, entity_service::EntityService, EntityId},
-};
+use crate::entity::{entity_reference::EntityReference, entity_service::EntityService, EntityId};
 use fruity_game_engine::{
     introspect::{IntrospectFields, IntrospectMethods},
     resource::{
@@ -26,7 +23,6 @@ impl<T: Deserialize + TryFromScriptValue + TryIntoScriptValue + Clone + 'static>
     }
 
     fn deserialize(
-        _deserialize_service: &DeserializeService,
         _script_value: ScriptValue,
         _resource_container: ResourceContainer,
         _local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -41,13 +37,11 @@ impl<T: Deserialize + Send + Sync + Clone + 'static> Deserialize for SignalPrope
     }
 
     fn deserialize(
-        deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self> {
         Ok(SignalProperty::new(T::deserialize(
-            deserialize_service,
             script_value,
             resource_container.clone(),
             local_id_to_entity_id,
@@ -61,7 +55,6 @@ impl Deserialize for EntityReference {
     }
 
     fn deserialize(
-        _deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -93,7 +86,6 @@ impl Deserialize for AnyResourceReference {
     }
 
     fn deserialize(
-        _deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         _local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -123,7 +115,6 @@ impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Deserialize
     }
 
     fn deserialize(
-        _deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         _local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -152,7 +143,6 @@ impl Deserialize for EntityId {
     }
 
     fn deserialize(
-        _deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         _resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,

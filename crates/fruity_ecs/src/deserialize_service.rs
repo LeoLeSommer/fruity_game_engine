@@ -18,7 +18,6 @@ pub struct DeserializeService {
         String,
         Box<
             dyn Fn(
-                    &DeserializeService,
                     ScriptValue,
                     ResourceContainer,
                     &HashMap<u64, EntityId>,
@@ -53,18 +52,12 @@ impl DeserializeService {
     {
         self.factories.insert(
             T::get_identifier(),
-            Box::new(
-                |deserialize_service, script_value, resource_container, local_id_to_entity_id| {
-                    let result = T::deserialize(
-                        deserialize_service,
-                        script_value,
-                        resource_container,
-                        local_id_to_entity_id,
-                    )?;
+            Box::new(|script_value, resource_container, local_id_to_entity_id| {
+                let result =
+                    T::deserialize(script_value, resource_container, local_id_to_entity_id)?;
 
-                    result.into_script_value()
-                },
-            ),
+                result.into_script_value()
+            }),
         );
     }
 
@@ -82,18 +75,15 @@ impl DeserializeService {
     {
         self.factories.insert(
             T::get_identifier(),
-            Box::new(
-                |deserialize_service, script_value, resource_container, local_id_to_entity_id| {
-                    let result = Box::new(T::deserialize(
-                        deserialize_service,
-                        script_value,
-                        resource_container,
-                        local_id_to_entity_id,
-                    )?) as Box<dyn Component>;
+            Box::new(|script_value, resource_container, local_id_to_entity_id| {
+                let result = Box::new(T::deserialize(
+                    script_value,
+                    resource_container,
+                    local_id_to_entity_id,
+                )?) as Box<dyn Component>;
 
-                    result.into_script_value()
-                },
-            ),
+                result.into_script_value()
+            }),
         );
     }
 
@@ -107,7 +97,6 @@ impl DeserializeService {
         &mut self,
         object_type: &str,
         instantiate: fn(
-            &DeserializeService,
             ScriptValue,
             ResourceContainer,
             &HashMap<u64, EntityId>,
@@ -131,7 +120,6 @@ impl DeserializeService {
     ) -> FruityResult<Option<ScriptValue>> {
         Ok(match self.factories.get(&object_type) {
             Some(factory) => Some(factory(
-                &self,
                 value,
                 self.resource_container.clone(),
                 local_id_to_entity_id,

@@ -1,5 +1,4 @@
 use super::Deserialize;
-use crate::deserialize_service::DeserializeService;
 use crate::entity::EntityId;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
@@ -17,7 +16,6 @@ impl<T: Deserialize> Deserialize for Vec<T> {
     }
 
     fn deserialize(
-        deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -25,14 +23,7 @@ impl<T: Deserialize> Deserialize for Vec<T> {
         match script_value {
             ScriptValue::Array(value) => Ok(value
                 .into_iter()
-                .map(|elem| {
-                    T::deserialize(
-                        deserialize_service,
-                        elem,
-                        resource_container.clone(),
-                        local_id_to_entity_id,
-                    )
-                })
+                .map(|elem| T::deserialize(elem, resource_container.clone(), local_id_to_entity_id))
                 .try_collect::<Vec<_>>()?),
             _ => Err(FruityError::ArrayExpected(format!(
                 "Couldn't convert {:?} to vec",
@@ -48,7 +39,6 @@ impl<T: Deserialize + Eq + Hash> Deserialize for HashSet<T> {
     }
 
     fn deserialize(
-        deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -56,14 +46,7 @@ impl<T: Deserialize + Eq + Hash> Deserialize for HashSet<T> {
         match script_value {
             ScriptValue::Array(value) => Ok(value
                 .into_iter()
-                .map(|elem| {
-                    T::deserialize(
-                        deserialize_service,
-                        elem,
-                        resource_container.clone(),
-                        local_id_to_entity_id,
-                    )
-                })
+                .map(|elem| T::deserialize(elem, resource_container.clone(), local_id_to_entity_id))
                 .try_collect::<HashSet<_>>()?),
             _ => Err(FruityError::ArrayExpected(format!(
                 "Couldn't convert {:?} to vec",
@@ -79,7 +62,6 @@ impl<T: Deserialize> Deserialize for HashMap<String, T> {
     }
 
     fn deserialize(
-        deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -95,7 +77,6 @@ impl<T: Deserialize> Deserialize for HashMap<String, T> {
                     result.insert(
                         name,
                         T::deserialize(
-                            deserialize_service,
                             field_value,
                             resource_container.clone(),
                             local_id_to_entity_id,
@@ -121,7 +102,6 @@ impl<T: Deserialize> Deserialize for Option<T> {
     }
 
     fn deserialize(
-        deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -130,7 +110,6 @@ impl<T: Deserialize> Deserialize for Option<T> {
             ScriptValue::Null => Ok(None),
             ScriptValue::Undefined => Ok(None),
             _ => Ok(Some(T::deserialize(
-                deserialize_service,
                 script_value,
                 resource_container.clone(),
                 local_id_to_entity_id,
@@ -145,7 +124,6 @@ impl<T: Deserialize> Deserialize for Range<T> {
     }
 
     fn deserialize(
-        deserialize_service: &DeserializeService,
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
@@ -155,13 +133,11 @@ impl<T: Deserialize> Deserialize for Range<T> {
                 if value.len() == 2 {
                     Ok(Range {
                         start: T::deserialize(
-                            deserialize_service,
                             value.remove(0).into_script_value()?,
                             resource_container.clone(),
                             local_id_to_entity_id,
                         )?,
                         end: T::deserialize(
-                            deserialize_service,
                             value.remove(0).into_script_value()?,
                             resource_container.clone(),
                             local_id_to_entity_id,

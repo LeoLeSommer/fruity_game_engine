@@ -73,7 +73,6 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
                                         result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
-                                            deserialize_service,
                                             script_object.get_field_value(#name_as_string)?,
                                             resource_container.clone(),
                                             local_id_to_entity_id,
@@ -87,7 +86,6 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
                                         result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
-                                            deserialize_service,
                                             script_object.get_field_value(#name_as_string)?,
                                             resource_container.clone(),
                                             local_id_to_entity_id,
@@ -116,7 +114,6 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
             }
 
             fn deserialize(
-                deserialize_service: &fruity_ecs::deserialize_service::DeserializeService,
                 script_value: fruity_game_engine::script_value::ScriptValue,
                 resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
                 local_id_to_entity_id: &std::collections::HashMap<u64, fruity_ecs::entity::EntityId>,
@@ -163,7 +160,6 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
                                         result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
-                                            deserialize_service,
                                             script_object.get_field_value(#name_as_string)?,
                                             resource_container.clone(),
                                             local_id_to_entity_id,
@@ -177,7 +173,6 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
                                         result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
-                                            deserialize_service,
                                             script_object.get_field_value(#name_as_string)?,
                                             resource_container.clone(),
                                             local_id_to_entity_id,
@@ -206,7 +201,6 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
             }
 
             fn deserialize(
-                deserialize_service: &fruity_ecs::deserialize_service::DeserializeService,
                 script_value: fruity_game_engine::script_value::ScriptValue,
                 resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
                 local_id_to_entity_id: &std::collections::HashMap<u64, fruity_ecs::entity::EntityId>,
