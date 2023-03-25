@@ -8,9 +8,11 @@ use crate::entity::archetype::Entity;
 use crate::entity::archetype::EntityMut;
 use crate::entity::entity_query::QueryParam;
 use crate::entity::entity_reference::EntityReference;
+use crate::entity::entity_reference::InnerShareableEntityReference;
 use crate::entity::EntityId;
 use either::Either;
 use std::marker::PhantomData;
+use std::ops::Deref;
 use std::ptr::NonNull;
 
 /// The entity reference
@@ -157,11 +159,18 @@ impl<'a> QueryParam<'a> for WithEntity {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-
-        SingleBidirectionalIterator::new(Entity {
-            entity_index: inner_entity_reference.entity_index,
-            archetype: unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap(),
-        })
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            SingleBidirectionalIterator::new(Entity {
+                entity_index: *entity_index,
+                archetype: unsafe { archetype_ptr.as_ref() }.unwrap(),
+            })
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -237,11 +246,18 @@ impl<'a> QueryParam<'a> for WithEntityMut {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-
-        SingleBidirectionalIterator::new(EntityMut {
-            entity_index: inner_entity_reference.entity_index,
-            archetype: unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap(),
-        })
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            SingleBidirectionalIterator::new(EntityMut {
+                entity_index: *entity_index,
+                archetype: unsafe { archetype_ptr.as_ref() }.unwrap(),
+            })
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -314,11 +330,17 @@ impl<'a> QueryParam<'a> for WithId {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        SingleBidirectionalIterator::new(
-            archetype.entity_id_array[inner_entity_reference.entity_index],
-        )
+            SingleBidirectionalIterator::new(archetype.entity_id_array[*entity_index])
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -391,9 +413,17 @@ impl<'a> QueryParam<'a> for WithName {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        SingleBidirectionalIterator::new(&archetype.name_array[inner_entity_reference.entity_index])
+            SingleBidirectionalIterator::new(&archetype.name_array[*entity_index])
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -466,11 +496,17 @@ impl<'a> QueryParam<'a> for WithEnabled {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        SingleBidirectionalIterator::new(
-            archetype.enabled_array[inner_entity_reference.entity_index],
-        )
+            SingleBidirectionalIterator::new(archetype.enabled_array[*entity_index])
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -554,22 +590,30 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for With<T> {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
-        let component_storage = &archetype.component_storages[T::get_component_name()];
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            let component_storage = &archetype.component_storages[T::get_component_name()];
 
-        let begin = component_storage
-            .component_storage
-            .get(inner_entity_reference.entity_index * component_storage.components_per_entity)
-            .as_any_ref()
-            .downcast_ref::<T>()
-            .unwrap() as *const T as *mut T;
+            let begin = component_storage
+                .component_storage
+                .get(entity_index * component_storage.components_per_entity)
+                .as_any_ref()
+                .downcast_ref::<T>()
+                .unwrap() as *const T as *mut T;
 
-        WithIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe {
-                NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
-            },
-            _marker: Default::default(),
+            WithIterator {
+                current: unsafe { NonNull::new_unchecked(begin) },
+                end: unsafe {
+                    NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
+                },
+                _marker: Default::default(),
+            }
+        } else {
+            unreachable!()
         }
     }
 }
@@ -656,21 +700,30 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithMut<T>
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
-        let component_storage = &archetype.component_storages[T::get_component_name()];
-        let begin = component_storage
-            .component_storage
-            .get(inner_entity_reference.entity_index * component_storage.components_per_entity)
-            .as_any_ref()
-            .downcast_ref::<T>()
-            .unwrap() as *const T as *mut T;
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            let component_storage = &archetype.component_storages[T::get_component_name()];
 
-        WithMutIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe {
-                NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
-            },
-            _marker: Default::default(),
+            let begin = component_storage
+                .component_storage
+                .get(entity_index * component_storage.components_per_entity)
+                .as_any_ref()
+                .downcast_ref::<T>()
+                .unwrap() as *const T as *mut T;
+
+            WithMutIterator {
+                current: unsafe { NonNull::new_unchecked(begin) },
+                end: unsafe {
+                    NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
+                },
+                _marker: Default::default(),
+            }
+        } else {
+            unreachable!()
         }
     }
 }
@@ -764,26 +817,34 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithOption
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        match archetype.component_storages.get(T::get_component_name()) {
-            Some(storage) => {
-                let begin = storage
-                    .component_storage
-                    .get(inner_entity_reference.entity_index * storage.components_per_entity)
-                    .as_any_ref()
-                    .downcast_ref::<T>()
-                    .unwrap() as *const T as *mut T;
+            match archetype.component_storages.get(T::get_component_name()) {
+                Some(storage) => {
+                    let begin = storage
+                        .component_storage
+                        .get(entity_index * storage.components_per_entity)
+                        .as_any_ref()
+                        .downcast_ref::<T>()
+                        .unwrap() as *const T as *mut T;
 
-                Either::Left(WithOptionalIterator {
-                    current: unsafe { NonNull::new_unchecked(begin) },
-                    end: unsafe {
-                        NonNull::new_unchecked(begin.add(storage.components_per_entity))
-                    },
-                    _marker: Default::default(),
-                })
+                    Either::Left(WithOptionalIterator {
+                        current: unsafe { NonNull::new_unchecked(begin) },
+                        end: unsafe {
+                            NonNull::new_unchecked(begin.add(storage.components_per_entity))
+                        },
+                        _marker: Default::default(),
+                    })
+                }
+                None => Either::Right(NoneBidirectionalIterator::default()),
             }
-            None => Either::Right(NoneBidirectionalIterator::default()),
+        } else {
+            unreachable!()
         }
     }
 }
@@ -877,26 +938,34 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithOption
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        match archetype.component_storages.get(T::get_component_name()) {
-            Some(storage) => {
-                let begin = storage
-                    .component_storage
-                    .get(inner_entity_reference.entity_index * storage.components_per_entity)
-                    .as_any_ref()
-                    .downcast_ref::<T>()
-                    .unwrap() as *const T as *mut T;
+            match archetype.component_storages.get(T::get_component_name()) {
+                Some(storage) => {
+                    let begin = storage
+                        .component_storage
+                        .get(entity_index * storage.components_per_entity)
+                        .as_any_ref()
+                        .downcast_ref::<T>()
+                        .unwrap() as *const T as *mut T;
 
-                Either::Left(WithOptionalMutIterator {
-                    current: unsafe { NonNull::new_unchecked(begin) },
-                    end: unsafe {
-                        NonNull::new_unchecked(begin.add(storage.components_per_entity))
-                    },
-                    _marker: Default::default(),
-                })
+                    Either::Left(WithOptionalMutIterator {
+                        current: unsafe { NonNull::new_unchecked(begin) },
+                        end: unsafe {
+                            NonNull::new_unchecked(begin.add(storage.components_per_entity))
+                        },
+                        _marker: Default::default(),
+                    })
+                }
+                None => Either::Right(NoneBidirectionalIterator::default()),
             }
-            None => Either::Right(NoneBidirectionalIterator::default()),
+        } else {
+            unreachable!()
         }
     }
 }
@@ -1007,31 +1076,40 @@ impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponen
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        let component_storage = &archetype.component_storages[T::get_component_name()];
-        let begin = component_storage
-            .component_storage
-            .get(inner_entity_reference.entity_index * component_storage.components_per_entity)
-            .as_any_ref()
-            .downcast_ref::<T>()
-            .unwrap() as *const T as *mut T;
+            let component_storage = &archetype.component_storages[T::get_component_name()];
+            let begin = component_storage
+                .component_storage
+                .get(entity_index * component_storage.components_per_entity)
+                .as_any_ref()
+                .downcast_ref::<T>()
+                .unwrap() as *const T as *mut T;
 
-        let component_storage_extension = &archetype.component_storages[E::get_component_name()];
-        let begin_extension = component_storage_extension
-            .component_storage
-            .get(inner_entity_reference.entity_index * component_storage.components_per_entity)
-            .as_any_ref()
-            .downcast_ref::<E>()
-            .unwrap() as *const E as *mut E;
+            let component_storage_extension =
+                &archetype.component_storages[E::get_component_name()];
+            let begin_extension = component_storage_extension
+                .component_storage
+                .get(entity_index * component_storage.components_per_entity)
+                .as_any_ref()
+                .downcast_ref::<E>()
+                .unwrap() as *const E as *mut E;
 
-        WithExtensionIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-            end: unsafe {
-                NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
-            },
-            _marker: Default::default(),
+            WithExtensionIterator {
+                current: unsafe { NonNull::new_unchecked(begin) },
+                current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+                end: unsafe {
+                    NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
+                },
+                _marker: Default::default(),
+            }
+        } else {
+            unreachable!()
         }
     }
 }
@@ -1143,31 +1221,40 @@ impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponen
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        let component_storage = &archetype.component_storages[T::get_component_name()];
-        let begin = component_storage
-            .component_storage
-            .get(inner_entity_reference.entity_index * component_storage.components_per_entity)
-            .as_any_ref()
-            .downcast_ref::<T>()
-            .unwrap() as *const T as *mut T;
+            let component_storage = &archetype.component_storages[T::get_component_name()];
+            let begin = component_storage
+                .component_storage
+                .get(entity_index * component_storage.components_per_entity)
+                .as_any_ref()
+                .downcast_ref::<T>()
+                .unwrap() as *const T as *mut T;
 
-        let component_storage_extension = &archetype.component_storages[E::get_component_name()];
-        let begin_extension = component_storage_extension
-            .component_storage
-            .get(inner_entity_reference.entity_index * component_storage.components_per_entity)
-            .as_any_ref()
-            .downcast_ref::<E>()
-            .unwrap() as *const E as *mut E;
+            let component_storage_extension =
+                &archetype.component_storages[E::get_component_name()];
+            let begin_extension = component_storage_extension
+                .component_storage
+                .get(entity_index * component_storage.components_per_entity)
+                .as_any_ref()
+                .downcast_ref::<E>()
+                .unwrap() as *const E as *mut E;
 
-        WithExtensionMutIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-            end: unsafe {
-                NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
-            },
-            _marker: Default::default(),
+            WithExtensionMutIterator {
+                current: unsafe { NonNull::new_unchecked(begin) },
+                current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+                end: unsafe {
+                    NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
+                },
+                _marker: Default::default(),
+            }
+        } else {
+            unreachable!()
         }
     }
 }
@@ -1282,36 +1369,44 @@ impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponen
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        match archetype.component_storages.get(T::get_component_name()) {
-            Some(storage) => {
-                let begin = storage
-                    .component_storage
-                    .get(inner_entity_reference.entity_index * storage.components_per_entity)
-                    .as_any_ref()
-                    .downcast_ref::<T>()
-                    .unwrap() as *const T as *mut T;
+            match archetype.component_storages.get(T::get_component_name()) {
+                Some(storage) => {
+                    let begin = storage
+                        .component_storage
+                        .get(entity_index * storage.components_per_entity)
+                        .as_any_ref()
+                        .downcast_ref::<T>()
+                        .unwrap() as *const T as *mut T;
 
-                let component_storage_extension =
-                    &archetype.component_storages[E::get_component_name()];
-                let begin_extension = component_storage_extension
-                    .component_storage
-                    .get(inner_entity_reference.entity_index * storage.components_per_entity)
-                    .as_any_ref()
-                    .downcast_ref::<E>()
-                    .unwrap() as *const E as *mut E;
+                    let component_storage_extension =
+                        &archetype.component_storages[E::get_component_name()];
+                    let begin_extension = component_storage_extension
+                        .component_storage
+                        .get(entity_index * storage.components_per_entity)
+                        .as_any_ref()
+                        .downcast_ref::<E>()
+                        .unwrap() as *const E as *mut E;
 
-                Either::Left(WithExtensionOptionalIterator {
-                    current: unsafe { NonNull::new_unchecked(begin) },
-                    current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-                    end: unsafe {
-                        NonNull::new_unchecked(begin.add(storage.components_per_entity))
-                    },
-                    _marker: Default::default(),
-                })
+                    Either::Left(WithExtensionOptionalIterator {
+                        current: unsafe { NonNull::new_unchecked(begin) },
+                        current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+                        end: unsafe {
+                            NonNull::new_unchecked(begin.add(storage.components_per_entity))
+                        },
+                        _marker: Default::default(),
+                    })
+                }
+                None => Either::Right(NoneBidirectionalIterator::default()),
             }
-            None => Either::Right(NoneBidirectionalIterator::default()),
+        } else {
+            unreachable!()
         }
     }
 }
@@ -1430,36 +1525,44 @@ impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponen
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        match archetype.component_storages.get(T::get_component_name()) {
-            Some(storage) => {
-                let begin = storage
-                    .component_storage
-                    .get(inner_entity_reference.entity_index * storage.components_per_entity)
-                    .as_any_ref()
-                    .downcast_ref::<T>()
-                    .unwrap() as *const T as *mut T;
+            match archetype.component_storages.get(T::get_component_name()) {
+                Some(storage) => {
+                    let begin = storage
+                        .component_storage
+                        .get(entity_index * storage.components_per_entity)
+                        .as_any_ref()
+                        .downcast_ref::<T>()
+                        .unwrap() as *const T as *mut T;
 
-                let component_storage_extension =
-                    &archetype.component_storages[E::get_component_name()];
-                let begin_extension = component_storage_extension
-                    .component_storage
-                    .get(inner_entity_reference.entity_index * storage.components_per_entity)
-                    .as_any_ref()
-                    .downcast_ref::<E>()
-                    .unwrap() as *const E as *mut E;
+                    let component_storage_extension =
+                        &archetype.component_storages[E::get_component_name()];
+                    let begin_extension = component_storage_extension
+                        .component_storage
+                        .get(entity_index * storage.components_per_entity)
+                        .as_any_ref()
+                        .downcast_ref::<E>()
+                        .unwrap() as *const E as *mut E;
 
-                Either::Left(WithExtensionOptionalMutIterator {
-                    current: unsafe { NonNull::new_unchecked(begin) },
-                    current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-                    end: unsafe {
-                        NonNull::new_unchecked(begin.add(storage.components_per_entity))
-                    },
-                    _marker: Default::default(),
-                })
+                    Either::Left(WithExtensionOptionalMutIterator {
+                        current: unsafe { NonNull::new_unchecked(begin) },
+                        current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+                        end: unsafe {
+                            NonNull::new_unchecked(begin.add(storage.components_per_entity))
+                        },
+                        _marker: Default::default(),
+                    })
+                }
+                None => Either::Right(NoneBidirectionalIterator::default()),
             }
-            None => Either::Right(NoneBidirectionalIterator::default()),
+        } else {
+            unreachable!()
         }
     }
 }

@@ -5,13 +5,14 @@ use crate::entity::entity_query::script::ScriptQueryParam;
 use crate::entity::entity_query::{
     BidirectionalIterator, InfiniteBidirectionalIterator, SingleBidirectionalIterator,
 };
-use crate::entity::entity_reference::EntityReference;
+use crate::entity::entity_reference::{EntityReference, InnerShareableEntityReference};
 use crate::entity::EntityId;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::RwLock;
 use std::marker::PhantomData;
+use std::ops::Deref;
 use std::ptr::NonNull;
 
 /// An iterator over entity references
@@ -154,13 +155,21 @@ impl ScriptQueryParam for WithId {
         entity_reference: &'a EntityReference,
     ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        Box::new(SingleBidirectionalIterator::new(
-            archetype.entity_id_array[inner_entity_reference.entity_index]
-                .into_script_value()
-                .unwrap(),
-        ))
+            Box::new(SingleBidirectionalIterator::new(
+                archetype.entity_id_array[*entity_index]
+                    .into_script_value()
+                    .unwrap(),
+            ))
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -232,14 +241,22 @@ impl ScriptQueryParam for WithName {
         entity_reference: &'a EntityReference,
     ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        Box::new(SingleBidirectionalIterator::new(
-            archetype.name_array[inner_entity_reference.entity_index]
-                .clone()
-                .into_script_value()
-                .unwrap(),
-        ))
+            Box::new(SingleBidirectionalIterator::new(
+                archetype.name_array[*entity_index]
+                    .clone()
+                    .into_script_value()
+                    .unwrap(),
+            ))
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -310,13 +327,21 @@ impl ScriptQueryParam for WithEnabled {
         entity_reference: &'a EntityReference,
     ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
 
-        Box::new(SingleBidirectionalIterator::new(
-            archetype.enabled_array[inner_entity_reference.entity_index]
-                .into_script_value()
-                .unwrap(),
-        ))
+            Box::new(SingleBidirectionalIterator::new(
+                archetype.enabled_array[*entity_index]
+                    .into_script_value()
+                    .unwrap(),
+            ))
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -428,32 +453,41 @@ impl ScriptQueryParam for With {
         entity_reference: &'a EntityReference,
     ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
-        let component_storage = &archetype.component_storages[&self.identifier];
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            let component_storage = &archetype.component_storages[&self.identifier];
 
-        let begin_entity_lock = &archetype.lock_array[inner_entity_reference.entity_index]
-            as *const RwLock<()> as *mut RwLock<()>;
-        let begin_component = unsafe {
-            NonNull::new_unchecked(
-                component_storage.component_storage.get(
-                    inner_entity_reference.entity_index * component_storage.components_per_entity,
-                ) as *const dyn Component as *mut dyn Component,
-            )
-        };
-
-        Box::new(WithIterator {
-            archetype,
-            current_entity_lock: unsafe { NonNull::new_unchecked(begin_entity_lock) },
-            current_component: begin_component,
-            component_size: component_storage.component_storage.item_size(),
-            component_index: 0,
-            items_per_entity: self.items_per_entity(archetype),
-            end: unsafe {
+            let begin_entity_lock =
+                &archetype.lock_array[*entity_index] as *const RwLock<()> as *mut RwLock<()>;
+            let begin_component = unsafe {
                 NonNull::new_unchecked(
-                    begin_entity_lock.add(component_storage.components_per_entity),
+                    component_storage
+                        .component_storage
+                        .get(entity_index * component_storage.components_per_entity)
+                        as *const dyn Component as *mut dyn Component,
                 )
-            },
-        })
+            };
+
+            Box::new(WithIterator {
+                archetype,
+                current_entity_lock: unsafe { NonNull::new_unchecked(begin_entity_lock) },
+                current_component: begin_component,
+                component_size: component_storage.component_storage.item_size(),
+                component_index: 0,
+                items_per_entity: self.items_per_entity(archetype),
+                end: unsafe {
+                    NonNull::new_unchecked(
+                        begin_entity_lock.add(component_storage.components_per_entity),
+                    )
+                },
+            })
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -511,32 +545,42 @@ impl ScriptQueryParam for WithOptional {
         entity_reference: &'a EntityReference,
     ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
         let inner_entity_reference = entity_reference.inner.read();
-        let archetype = unsafe { inner_entity_reference.archetype_ptr.as_ref() }.unwrap();
-        if let Some(component_storage) = archetype.component_storages.get(&self.identifier) {
-            let begin_entity_lock = &archetype.lock_array[inner_entity_reference.entity_index]
-                as *const RwLock<()> as *mut RwLock<()>;
-            let begin_component = unsafe {
-                NonNull::new_unchecked(component_storage.component_storage.get(
-                    inner_entity_reference.entity_index * component_storage.components_per_entity,
-                ) as *const dyn Component
-                    as *mut dyn Component)
-            };
-
-            Box::new(WithIterator {
-                archetype,
-                current_entity_lock: unsafe { NonNull::new_unchecked(begin_entity_lock) },
-                current_component: begin_component,
-                component_size: component_storage.component_storage.item_size(),
-                component_index: 0,
-                items_per_entity: self.items_per_entity(archetype),
-                end: unsafe {
+        if let InnerShareableEntityReference::Archetype {
+            entity_index,
+            archetype_ptr,
+        } = inner_entity_reference.deref()
+        {
+            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            if let Some(component_storage) = archetype.component_storages.get(&self.identifier) {
+                let begin_entity_lock =
+                    &archetype.lock_array[*entity_index] as *const RwLock<()> as *mut RwLock<()>;
+                let begin_component = unsafe {
                     NonNull::new_unchecked(
-                        begin_entity_lock.add(component_storage.components_per_entity),
+                        component_storage
+                            .component_storage
+                            .get(*entity_index * component_storage.components_per_entity)
+                            as *const dyn Component as *mut dyn Component,
                     )
-                },
-            })
+                };
+
+                Box::new(WithIterator {
+                    archetype,
+                    current_entity_lock: unsafe { NonNull::new_unchecked(begin_entity_lock) },
+                    current_component: begin_component,
+                    component_size: component_storage.component_storage.item_size(),
+                    component_index: 0,
+                    items_per_entity: self.items_per_entity(archetype),
+                    end: unsafe {
+                        NonNull::new_unchecked(
+                            begin_entity_lock.add(component_storage.components_per_entity),
+                        )
+                    },
+                })
+            } else {
+                Box::new(SingleBidirectionalIterator::new(ScriptValue::Null))
+            }
         } else {
-            Box::new(SingleBidirectionalIterator::new(ScriptValue::Null))
+            unreachable!()
         }
     }
 }
@@ -704,8 +748,14 @@ impl ScriptQueryParam for Tuple {
                 .iter()
                 .map(|param| {
                     let archetype = {
-                        let entity_reference_inner = entity_reference.inner.read();
-                        unsafe { entity_reference_inner.archetype_ptr.as_ref().unwrap() }
+                        let inner_entity_reference = entity_reference.inner.read();
+                        if let InnerShareableEntityReference::Archetype { archetype_ptr, .. } =
+                            inner_entity_reference.deref()
+                        {
+                            unsafe { archetype_ptr.as_ref().unwrap() }
+                        } else {
+                            unreachable!()
+                        }
                     };
 
                     TupleIteratorElem {

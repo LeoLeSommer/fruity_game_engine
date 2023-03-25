@@ -27,8 +27,15 @@ pub fn load_texture(
         // Get the resource path
         let path = settings.get("path", String::default());
 
+        // Get the resource bytes
+        let bytes = settings.get("bytes", <Option<Vec<u8>>>::default());
+
         // read the whole file
-        let buffer = read_file_to_bytes_async(&path).await?;
+        let buffer = if let Some(bytes) = bytes {
+            bytes
+        } else {
+            read_file_to_bytes_async(&path).await?
+        };
 
         // Parse settings
         let settings = read_texture_settings(&settings);

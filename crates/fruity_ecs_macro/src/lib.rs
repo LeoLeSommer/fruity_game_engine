@@ -72,13 +72,11 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                                 let name_as_string = name.to_string();
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(
-                                            <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
-                                                deserialize_service,
-                                                script_object.get_field_value(#name_as_string)?,
-                                                resource_container.clone(),
-                                                local_id_to_entity_id,
-                                            )?,
+                                        result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                            deserialize_service,
+                                            script_object.get_field_value(#name_as_string)?,
+                                            resource_container.clone(),
+                                            local_id_to_entity_id,
                                         )?;
                                     }
                                 }
@@ -88,13 +86,11 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                                 let name = syn::Index::from(name);
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(
-                                            <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
-                                                deserialize_service,
-                                                script_object.get_field_value(#name_as_string)?,
-                                                resource_container.clone(),
-                                                local_id_to_entity_id,
-                                            )?,
+                                        result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                            deserialize_service,
+                                            script_object.get_field_value(#name_as_string)?,
+                                            resource_container.clone(),
+                                            local_id_to_entity_id,
                                         )?;
                                     }
                                 }
@@ -124,16 +120,14 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                 script_value: fruity_game_engine::script_value::ScriptValue,
                 resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
                 local_id_to_entity_id: &std::collections::HashMap<u64, fruity_ecs::entity::EntityId>,
-            ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+            ) -> fruity_game_engine::FruityResult<Self> {
                 if let fruity_game_engine::script_value::ScriptValue::Object(script_object) = script_value {
                     let mut result = Self::default();
                     let script_object_field_names = script_object.get_field_names()?;
 
                     #fields_initializer
 
-                    Ok(fruity_game_engine::script_value::ScriptValue::Object(
-                        Box::new(result),
-                    ))
+                    Ok(result)
                 } else {
                     Err(fruity_game_engine::FruityError::GenericFailure({
                         let res = format!(
@@ -168,13 +162,11 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
                                 let name_as_string = name.to_string();
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(
-                                            <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
-                                                deserialize_service,
-                                                script_object.get_field_value(#name_as_string)?,
-                                                resource_container.clone(),
-                                                local_id_to_entity_id,
-                                            )?,
+                                        result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                            deserialize_service,
+                                            script_object.get_field_value(#name_as_string)?,
+                                            resource_container.clone(),
+                                            local_id_to_entity_id,
                                         )?;
                                     }
                                 }
@@ -184,13 +176,11 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
                                 let name = syn::Index::from(name);
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as fruity_game_engine::script_value::convert::TryFromScriptValue>::from_script_value(
-                                            <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
-                                                deserialize_service,
-                                                script_object.get_field_value(#name_as_string)?,
-                                                resource_container.clone(),
-                                                local_id_to_entity_id,
-                                            )?,
+                                        result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                            deserialize_service,
+                                            script_object.get_field_value(#name_as_string)?,
+                                            resource_container.clone(),
+                                            local_id_to_entity_id,
                                         )?;
                                     }
                                 }
@@ -220,16 +210,14 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
                 script_value: fruity_game_engine::script_value::ScriptValue,
                 resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
                 local_id_to_entity_id: &std::collections::HashMap<u64, fruity_ecs::entity::EntityId>,
-            ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+            ) -> fruity_game_engine::FruityResult<Self> {
                 if let fruity_game_engine::script_value::ScriptValue::Object(script_object) = script_value {
                     let mut result = Self::default();
                     let script_object_field_names = script_object.get_field_names()?;
 
                     #fields_initializer
 
-                    Ok(fruity_game_engine::script_value::ScriptValue::Object(
-                        Box::new(Box::new(result) as Box<dyn fruity_ecs::component::Component>),
-                    ))
+                    Ok(result)
                 } else {
                     Err(fruity_game_engine::FruityError::GenericFailure({
                         let res = format!(

@@ -1,7 +1,9 @@
 use super::entity_reference::EntityReference;
+use super::entity_reference::InnerShareableEntityReference;
 use super::entity_service::EntityService;
 use super::entity_service::OnArchetypeAddressMoved;
 use super::entity_service::OnComponentAddressMoved;
+use super::entity_service::OnEntityAddressAdded;
 use super::entity_service::OnEntityLocationMoved;
 use super::entity_service::OnEntityLockAddressMoved;
 use super::EntityId;
@@ -17,6 +19,7 @@ use crate::entity::archetype::entity_properties::EntityProperties;
 use crate::entity::get_type_identifier_by_any;
 use crate::entity::EntityTypeIdentifier;
 use crate::ExtensionComponentService;
+use either::Either;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
@@ -50,6 +53,7 @@ pub struct Archetype {
     pub(crate) component_storages: BTreeMap<String, ArchetypeComponentStorage>,
 
     // Entity service signals
+    pub(crate) on_entity_address_added: Signal<OnEntityAddressAdded>,
     pub(crate) on_entity_location_moved: Signal<OnEntityLocationMoved>,
     pub(crate) on_entity_lock_address_moved: Signal<OnEntityLockAddressMoved>,
     pub(crate) on_component_address_moved: Signal<OnComponentAddressMoved>,
@@ -107,6 +111,7 @@ impl Archetype {
             name_array: vec![name.to_string()],
             enabled_array: vec![enabled],
             component_storages,
+            on_entity_address_added: entity_service.on_entity_address_added.clone(),
             on_entity_location_moved: entity_service.on_entity_location_moved.clone(),
             on_entity_lock_address_moved: entity_service.on_entity_lock_address_moved.clone(),
             on_component_address_moved: entity_service.on_component_address_moved.clone(),
@@ -249,12 +254,15 @@ impl Archetype {
 
     pub fn get_entity_reference(&self, entity_index: usize) -> EntityReference {
         EntityReference::new(
+            InnerShareableEntityReference::Archetype {
+                entity_index,
+                archetype_ptr: self as *const Archetype as *mut Archetype,
+            },
             &self.on_entity_location_moved,
             &self.on_archetype_address_moved,
+            &self.on_entity_address_added,
             &self.on_entity_lock_address_moved,
             &self.on_component_address_moved,
-            entity_index,
-            self as *const Archetype as *mut Archetype,
         )
     }
 
@@ -277,12 +285,15 @@ impl Archetype {
             })
             .map(move |entity_index| {
                 EntityReference::new(
+                    InnerShareableEntityReference::Archetype {
+                        entity_index,
+                        archetype_ptr,
+                    },
                     &on_entity_location_moved,
                     &on_archetype_address_moved,
+                    &self.on_entity_address_added,
                     &on_entity_lock_address_moved,
                     &on_component_address_moved,
-                    entity_index,
-                    archetype_ptr,
                 )
             })
     }
@@ -537,17 +548,19 @@ impl<'a> Entity<'a> {
     ) -> FruityResult<impl Iterator<Item = AnyComponentReadGuard<'_>>> {
         let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
 
-        let storage = self.archetype
-            .component_storages
-            .get(component_identifier)
-            .ok_or(FruityError::GenericFailure(format!("You try to access a component with identifier {} in the entity named {} but the component don't exists", component_identifier, self.get_name())))?;
+        let storage =
+            if let Some(storage) = self.archetype.component_storages.get(component_identifier) {
+                storage
+            } else {
+                return Ok(Either::Left(vec![].into_iter()));
+            };
 
-        Ok(storage
-            .get(self.entity_index)
-            .map(|component| AnyComponentReadGuard {
+        Ok(Either::Right(storage.get(self.entity_index).map(
+            |component| AnyComponentReadGuard {
                 entity_guard: lock.read(),
                 component_ptr: NonNull::from(component),
-            }))
+            },
+        )))
     }
 
     /// Read a single component with a given type
@@ -700,17 +713,19 @@ impl<'a> EntityMut<'a> {
     ) -> FruityResult<impl Iterator<Item = AnyComponentReadGuard<'_>>> {
         let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
 
-        let storage = self.archetype
-            .component_storages
-            .get(component_identifier)
-            .ok_or(FruityError::GenericFailure(format!("You try to access a component with identifier {} in the entity named {} but the component don't exists", component_identifier, self.get_name())))?;
+        let storage =
+            if let Some(storage) = self.archetype.component_storages.get(component_identifier) {
+                storage
+            } else {
+                return Ok(Either::Left(vec![].into_iter()));
+            };
 
-        Ok(storage
-            .get(self.entity_index)
-            .map(|component| AnyComponentReadGuard {
+        Ok(Either::Right(storage.get(self.entity_index).map(
+            |component| AnyComponentReadGuard {
                 entity_guard: lock.read(),
                 component_ptr: NonNull::from(component),
-            }))
+            },
+        )))
     }
 
     /// Write components with a given type
@@ -724,17 +739,19 @@ impl<'a> EntityMut<'a> {
     ) -> FruityResult<impl Iterator<Item = AnyComponentWriteGuard<'_>>> {
         let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
 
-        let storage = self.archetype
-            .component_storages
-            .get(component_identifier)
-            .ok_or(FruityError::GenericFailure(format!("You try to access a component with identifier {} in the entity named {} but the component don't exists", component_identifier, self.get_name())))?;
+        let storage =
+            if let Some(storage) = self.archetype.component_storages.get(component_identifier) {
+                storage
+            } else {
+                return Ok(Either::Left(vec![].into_iter()));
+            };
 
-        Ok(storage
-            .get(self.entity_index)
-            .map(|component| AnyComponentWriteGuard {
+        Ok(Either::Right(storage.get(self.entity_index).map(
+            |component| AnyComponentWriteGuard {
                 entity_guard: lock.write(),
                 component_ptr: NonNull::from(component),
-            }))
+            },
+        )))
     }
 
     /// Read a single component with a given type

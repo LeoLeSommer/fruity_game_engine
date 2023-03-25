@@ -5,6 +5,7 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::script_value::ScriptValue;
 use crate::typescript;
+use crate::utils::encode_decode::decode_base_64;
 use crate::FruityError;
 use crate::FruityResult;
 use std::collections::HashMap;
@@ -166,6 +167,20 @@ impl TryFrom<Settings> for Option<String> {
         match String::try_from(value) {
             Ok(e) => Ok(Some(e)),
             Err(_) => Ok(None),
+        }
+    }
+}
+
+impl TryFrom<Settings> for Option<Vec<u8>> {
+    type Error = FruityError;
+
+    fn try_from(value: Settings) -> FruityResult<Self> {
+        match String::try_from(value.clone()) {
+            Ok(e) => Ok(Some(decode_base_64(e)?)),
+            Err(_) => match <Vec<u8>>::try_from(value) {
+                Ok(e) => Ok(Some(e)),
+                Err(_) => Ok(None),
+            },
         }
     }
 }

@@ -72,6 +72,15 @@ pub struct ScriptQuery {
     params: Box<dyn ScriptQueryParam>,
 }
 
+impl Drop for ScriptQuery {
+    fn drop(&mut self) {
+        self.on_archetype_address_added_handle.dispose_by_ref();
+        self.on_archetype_address_moved_handle.dispose_by_ref();
+        self.on_entity_address_added_handle.dispose_by_ref();
+        self.on_entity_address_removed_handle.dispose_by_ref();
+    }
+}
+
 #[export_impl]
 impl ScriptQuery {
     /// Create the entity query

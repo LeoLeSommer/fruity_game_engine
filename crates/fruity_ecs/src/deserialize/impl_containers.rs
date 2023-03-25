@@ -1,9 +1,11 @@
+use super::Deserialize;
+use crate::deserialize_service::DeserializeService;
+use crate::entity::EntityId;
+use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
-
-use super::Deserialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -15,13 +17,13 @@ impl<T: Deserialize> Deserialize for Vec<T> {
     }
 
     fn deserialize(
-        deserialize_service: &crate::deserialize_service::DeserializeService,
-        script_value: fruity_game_engine::script_value::ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        local_id_to_entity_id: &HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+        deserialize_service: &DeserializeService,
+        script_value: ScriptValue,
+        resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
         match script_value {
-            ScriptValue::Array(value) => value
+            ScriptValue::Array(value) => Ok(value
                 .into_iter()
                 .map(|elem| {
                     T::deserialize(
@@ -31,8 +33,7 @@ impl<T: Deserialize> Deserialize for Vec<T> {
                         local_id_to_entity_id,
                     )
                 })
-                .try_collect::<Vec<_>>()?
-                .into_script_value(),
+                .try_collect::<Vec<_>>()?),
             _ => Err(FruityError::ArrayExpected(format!(
                 "Couldn't convert {:?} to vec",
                 script_value
@@ -47,13 +48,13 @@ impl<T: Deserialize + Eq + Hash> Deserialize for HashSet<T> {
     }
 
     fn deserialize(
-        deserialize_service: &crate::deserialize_service::DeserializeService,
-        script_value: fruity_game_engine::script_value::ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        local_id_to_entity_id: &HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+        deserialize_service: &DeserializeService,
+        script_value: ScriptValue,
+        resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
         match script_value {
-            ScriptValue::Array(value) => value
+            ScriptValue::Array(value) => Ok(value
                 .into_iter()
                 .map(|elem| {
                     T::deserialize(
@@ -63,8 +64,7 @@ impl<T: Deserialize + Eq + Hash> Deserialize for HashSet<T> {
                         local_id_to_entity_id,
                     )
                 })
-                .try_collect::<Vec<_>>()?
-                .into_script_value(),
+                .try_collect::<HashSet<_>>()?),
             _ => Err(FruityError::ArrayExpected(format!(
                 "Couldn't convert {:?} to vec",
                 script_value
@@ -79,13 +79,13 @@ impl<T: Deserialize> Deserialize for HashMap<String, T> {
     }
 
     fn deserialize(
-        deserialize_service: &crate::deserialize_service::DeserializeService,
-        script_value: fruity_game_engine::script_value::ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        local_id_to_entity_id: &HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+        deserialize_service: &DeserializeService,
+        script_value: ScriptValue,
+        resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
         if let ScriptValue::Object(script_value) = script_value {
-            let mut result = HashMap::<String, ScriptValue>::new();
+            let mut result = HashMap::<String, T>::new();
 
             script_value
                 .get_field_names()?
@@ -105,7 +105,7 @@ impl<T: Deserialize> Deserialize for HashMap<String, T> {
                     FruityResult::Ok(())
                 })?;
 
-            result.into_script_value()
+            Ok(result)
         } else {
             Err(FruityError::ObjectExpected(format!(
                 "Couldn't convert {:?} to HashMap",
@@ -121,20 +121,20 @@ impl<T: Deserialize> Deserialize for Option<T> {
     }
 
     fn deserialize(
-        deserialize_service: &crate::deserialize_service::DeserializeService,
-        script_value: fruity_game_engine::script_value::ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        local_id_to_entity_id: &HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+        deserialize_service: &DeserializeService,
+        script_value: ScriptValue,
+        resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
         match script_value {
-            ScriptValue::Null => Ok(ScriptValue::Null),
-            ScriptValue::Undefined => Ok(ScriptValue::Null),
-            _ => T::deserialize(
+            ScriptValue::Null => Ok(None),
+            ScriptValue::Undefined => Ok(None),
+            _ => Ok(Some(T::deserialize(
                 deserialize_service,
                 script_value,
                 resource_container.clone(),
                 local_id_to_entity_id,
-            ),
+            )?)),
         }
     }
 }
@@ -145,15 +145,15 @@ impl<T: Deserialize> Deserialize for Range<T> {
     }
 
     fn deserialize(
-        deserialize_service: &crate::deserialize_service::DeserializeService,
-        script_value: fruity_game_engine::script_value::ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        local_id_to_entity_id: &HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<fruity_game_engine::script_value::ScriptValue> {
+        deserialize_service: &DeserializeService,
+        script_value: ScriptValue,
+        resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
         match script_value {
             ScriptValue::Array(mut value) => {
                 if value.len() == 2 {
-                    Range {
+                    Ok(Range {
                         start: T::deserialize(
                             deserialize_service,
                             value.remove(0).into_script_value()?,
@@ -166,8 +166,7 @@ impl<T: Deserialize> Deserialize for Range<T> {
                             resource_container.clone(),
                             local_id_to_entity_id,
                         )?,
-                    }
-                    .into_script_value()
+                    })
                 } else {
                     Err(FruityError::ArrayExpected(format!(
                         "Couldn't convert {:?} to range",

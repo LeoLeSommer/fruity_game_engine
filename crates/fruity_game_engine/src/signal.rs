@@ -4,6 +4,7 @@ use crate::introspect::IntrospectMethods;
 use crate::lazy_static;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
+use crate::script_value::ScriptObject;
 use crate::script_value::ScriptValue;
 use crate::typescript;
 use crate::utils::introspect::ArgumentCaster;
@@ -79,6 +80,8 @@ impl<T> Signal<T> {
 
     /// Add an observer to the signal
     /// An observer is a closure that will be called when the signal will be sent
+    /// Returns an handler, the handler can be duplicated but when the last observer is dropped,
+    /// the observer is unregistered
     pub fn add_observer<F: Sync + Send + Fn(&T) -> FruityResult<()> + 'static>(
         &self,
         observer: F,
@@ -148,7 +151,7 @@ impl<T> Debug for Signal<T> {
 
 impl<T> IntrospectFields for Signal<T>
 where
-    T: TryFromScriptValue + TryIntoScriptValue + Clone,
+    T: TryFromScriptValue + TryIntoScriptValue,
 {
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("Signal".to_string())
@@ -202,6 +205,51 @@ where
 
                 let handle = self.add_observer(move |arg| {
                     arg1(arg.clone())?;
+
+                    Ok(())
+                });
+
+                handle.into_script_value()
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl IntrospectMethods for Signal<Box<dyn ScriptObject>> {
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec!["notify".to_string()])
+    }
+
+    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        match name {
+            "notify" => {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 = caster.cast_next::<Box<dyn ScriptObject>>()?;
+
+                let handle = self.notify(arg1);
+
+                handle.into_script_value()
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec!["add_observer".to_string()])
+    }
+
+    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        match name {
+            "add_observer" => {
+                let mut caster = ArgumentCaster::new(args);
+                let arg1 =
+                    caster.cast_next::<Arc<
+                        dyn Send + Sync + Fn(Box<dyn ScriptObject>) -> FruityResult<ScriptValue>,
+                    >>()?;
+
+                let handle = self.add_observer(move |arg| {
+                    arg1(arg.duplicate())?;
 
                     Ok(())
                 });

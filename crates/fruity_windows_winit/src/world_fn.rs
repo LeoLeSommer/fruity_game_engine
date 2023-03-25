@@ -1,7 +1,8 @@
 use crate::window_service::WinitWindowService;
 use fruity_game_engine::{
     frame_service::FrameService,
-    profile::{profile_new_frame, profile_scope, profile_start},
+    profile::{profile_new_frame, profile_start},
+    profile_scope,
     settings::Settings,
     world::{RunWorldMiddlewareNext, SetupWorldMiddlewareNext, World},
     FruityResult,
@@ -124,12 +125,12 @@ pub fn run_world_middleware(
         }
 
         profile_new_frame();
-        profile_scope("main_loop");
+        profile_scope!("main_loop");
         *control_flow = ControlFlow::Wait;
 
         // Handle events
         {
-            profile_scope("handle events");
+            profile_scope!("handle events");
 
             // TODO: Try to find a way to remove this
             let event = &event as *const _ as *const c_void;
@@ -198,19 +199,19 @@ pub fn run_world_middleware(
 
         // Start updating
         {
-            profile_scope("start_update");
+            profile_scope!("start_update");
             on_start_update.notify(()).unwrap();
         }
 
         // Run the systems
         {
-            profile_scope("frame");
+            profile_scope!("frame");
             world.frame().unwrap();
         }
 
         // End the update
         {
-            profile_scope("end_update");
+            profile_scope!("end_update");
             on_end_update.notify(()).unwrap();
         }
 

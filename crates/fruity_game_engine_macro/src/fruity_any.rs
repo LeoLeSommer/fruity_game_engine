@@ -9,12 +9,11 @@ pub fn intern_derive_fruity_any(input: TokenStream) -> TokenStream {
     } = parse_macro_input!(input);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let fruity_crate = fruity_crate();
-    let ident_string = ident.to_string();
 
     let output = quote! {
         impl #impl_generics #fruity_crate::any::FruityAny for #ident #ty_generics #where_clause {
             fn get_type_name(&self) -> &'static str {
-                #ident_string
+                std::any::type_name::<Self>()
             }
 
             fn as_any_ref(&self) -> &dyn std::any::Any {

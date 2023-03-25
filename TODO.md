@@ -4,7 +4,7 @@
 
 [X] Generate js import files for modules
 [X] Generate ts typedef for modules
-[ ] Automate ts import generation
+[X] Automate ts import generation
 [ ] replaces export_struct, export_impl ... by a common fruity_export
 
 ## Script Language Interface

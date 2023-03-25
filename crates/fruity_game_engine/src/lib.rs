@@ -119,9 +119,12 @@ pub fn console_err(message: &str) {
     eprintln!("{}", message);
 }
 
-#[cfg(target_arch = "wasm32")]
+/// Profile a scope
 #[macro_export]
-/// Profiling is disabled in wasm32
-macro_rules! profile_function {
-    () => {};
+macro_rules! profile_scope {
+    (
+        $arg:expr
+    ) => {
+        let _scope = $crate::profile::intern_profile_scope($arg);
+    };
 }

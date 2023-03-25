@@ -76,7 +76,7 @@
         "className": "Parent",
         "fields": {
           "nestedLevel": 1,
-          "parentId": 1
+          "parent": 1
         }
       },
       {
@@ -150,7 +150,7 @@
       {
         "className": "Parent",
         "fields": {
-          "parentId": 3,
+          "parent": 3,
           "nestedLevel": 2
         }
       },
@@ -209,7 +209,7 @@
       {
         "className": "Parent",
         "fields": {
-          "parentId": 3,
+          "parent": 3,
           "nestedLevel": 2
         }
       },

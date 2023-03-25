@@ -69,21 +69,27 @@ impl<R: TryFromScriptValue> TryFromScriptValue for Arc<dyn Send + Sync + Fn() ->
     }
 }
 
-impl<T1: TryIntoScriptValue, T2: TryIntoScriptValue, R: TryFromScriptValue> TryFromScriptValue
+impl<
+        T1: TryIntoScriptValue + Send + 'static,
+        T2: TryIntoScriptValue + Send + 'static,
+        R: TryFromScriptValue,
+    > TryFromScriptValue
     for Arc<dyn Send + Sync + Fn(T1, T2) -> Pin<Box<dyn Send + Future<Output = FruityResult<R>>>>>
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        // TODO: Better catch errors
         match value {
             ScriptValue::Callback(value) => Ok(Arc::new(move |arg1: T1, arg2: T2| {
-                let args: Vec<ScriptValue> = vec![
-                    arg1.into_script_value().unwrap(),
-                    arg2.into_script_value().unwrap(),
-                ];
+                let value = value.clone();
+                Box::pin(async move {
+                    let args: Vec<ScriptValue> =
+                        vec![arg1.into_script_value()?, arg2.into_script_value()?];
 
-                let result = value(args).unwrap();
-                <Pin<Box<dyn Send + Future<Output = FruityResult<R>>>>>::from_script_value(result)
-                    .unwrap()
+                    let result = value(args)?;
+                    <Pin<Box<dyn Send + Future<Output = FruityResult<R>>>>>::from_script_value(
+                        result,
+                    )?
+                    .await
+                })
             })),
             _ => Err(FruityError::FunctionExpected(format!(
                 "Couldn't convert {:?} to native callback ",

@@ -22,8 +22,8 @@ pub fn create_fruity_physic_2d_module() -> Module {
             let deserialize_service = resource_container.require::<DeserializeService>();
             let mut deserialize_service = deserialize_service.write();
 
-            deserialize_service.register::<CircleCollider>();
-            deserialize_service.register::<RectCollider>();
+            deserialize_service.register_component::<CircleCollider>();
+            deserialize_service.register_component::<RectCollider>();
 
             Ok(())
         })),

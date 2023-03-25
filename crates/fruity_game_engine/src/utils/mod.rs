@@ -6,3 +6,6 @@ pub mod asynchronous;
 
 /// Provides utility functions to read and write files
 pub mod file;
+
+/// Provides utility functions to encode and decode data
+pub mod encode_decode;

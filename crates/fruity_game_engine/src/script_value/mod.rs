@@ -117,6 +117,7 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
 }
 
 /// A trait that can be implemented for an object storable in a ScriptValue
+#[typescript("type ScriptObject = {[key: string]: ScriptValue}")]
 pub trait ScriptObject: IntrospectFields + IntrospectMethods + Send + Sync {
     /// Duplicate the script object
     fn duplicate(&self) -> Box<dyn ScriptObject>;

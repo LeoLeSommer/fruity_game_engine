@@ -1,30 +1,39 @@
 use super::Deserialize;
-use crate::entity::{entity_reference::EntityReference, entity_service::EntityService};
+use crate::{
+    deserialize_service::DeserializeService,
+    entity::{entity_reference::EntityReference, entity_service::EntityService, EntityId},
+};
 use fruity_game_engine::{
     introspect::{IntrospectFields, IntrospectMethods},
-    resource::resource_reference::{AnyResourceReference, ResourceReference},
+    resource::{
+        resource_container::ResourceContainer,
+        resource_reference::{AnyResourceReference, ResourceReference},
+    },
     script_value::{
         convert::{TryFromScriptValue, TryIntoScriptValue},
         ScriptValue,
     },
     signal::{Signal, SignalProperty},
-    FruityError,
+    FruityError, FruityResult,
 };
+use std::collections::HashMap;
 
-/*impl<T: Deserialize + 'static> Deserialize for Signal<T> {
+impl<T: Deserialize + TryFromScriptValue + TryIntoScriptValue + Clone + 'static> Deserialize
+    for Signal<T>
+{
     fn get_identifier() -> String {
         format!("Signal<{}>", T::get_identifier())
     }
 
     fn deserialize(
-        _deserialize_service: &crate::deserialize_service::DeserializeService,
+        _deserialize_service: &DeserializeService,
         _script_value: ScriptValue,
-        _resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        _local_id_to_entity_id: &std::collections::HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<ScriptValue> {
-        Self::default().into_script_value()
+        _resource_container: ResourceContainer,
+        _local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
+        Ok(Self::default())
     }
-}*/
+}
 
 impl<T: Deserialize + Send + Sync + Clone + 'static> Deserialize for SignalProperty<T> {
     fn get_identifier() -> String {
@@ -32,18 +41,17 @@ impl<T: Deserialize + Send + Sync + Clone + 'static> Deserialize for SignalPrope
     }
 
     fn deserialize(
-        deserialize_service: &crate::deserialize_service::DeserializeService,
+        deserialize_service: &DeserializeService,
         script_value: ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        local_id_to_entity_id: &std::collections::HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<ScriptValue> {
-        SignalProperty::new(T::deserialize(
+        resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
+        Ok(SignalProperty::new(T::deserialize(
             deserialize_service,
             script_value,
             resource_container.clone(),
             local_id_to_entity_id,
-        )?)
-        .into_script_value()
+        )?))
     }
 }
 
@@ -53,11 +61,11 @@ impl Deserialize for EntityReference {
     }
 
     fn deserialize(
-        _deserialize_service: &crate::deserialize_service::DeserializeService,
+        _deserialize_service: &DeserializeService,
         script_value: ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        local_id_to_entity_id: &std::collections::HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<ScriptValue> {
+        resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
         let local_id = u64::from_script_value(script_value)?;
         let entity_id = local_id_to_entity_id
             .get(&local_id)
@@ -75,7 +83,7 @@ impl Deserialize for EntityReference {
                 entity_id
             )))?;
 
-        entity_reference.into_script_value()
+        Ok(entity_reference)
     }
 }
 
@@ -85,11 +93,11 @@ impl Deserialize for AnyResourceReference {
     }
 
     fn deserialize(
-        _deserialize_service: &crate::deserialize_service::DeserializeService,
+        _deserialize_service: &DeserializeService,
         script_value: ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        _local_id_to_entity_id: &std::collections::HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<ScriptValue> {
+        resource_container: ResourceContainer,
+        _local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
         if let ScriptValue::String(script_value) = script_value {
             let resource = resource_container.get_untyped(script_value.clone()).ok_or(
                 FruityError::GenericFailure(format!(
@@ -98,7 +106,7 @@ impl Deserialize for AnyResourceReference {
                 )),
             )?;
 
-            resource.into_script_value()
+            Ok(resource)
         } else {
             Err(FruityError::GenericFailure(
                 "Cannot deserialize a resource, a string is expected".to_string(),
@@ -115,11 +123,11 @@ impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Deserialize
     }
 
     fn deserialize(
-        _deserialize_service: &crate::deserialize_service::DeserializeService,
+        _deserialize_service: &DeserializeService,
         script_value: ScriptValue,
-        resource_container: fruity_game_engine::resource::resource_container::ResourceContainer,
-        _local_id_to_entity_id: &std::collections::HashMap<u64, crate::entity::EntityId>,
-    ) -> fruity_game_engine::FruityResult<ScriptValue> {
+        resource_container: ResourceContainer,
+        _local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
         if let ScriptValue::String(script_value) = script_value {
             let resource =
                 resource_container
@@ -129,11 +137,35 @@ impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Deserialize
                         &script_value
                     )))?;
 
-            resource.into_script_value()
+            Ok(resource)
         } else {
             Err(FruityError::GenericFailure(
                 "Cannot deserialize a resource, a string is expected".to_string(),
             ))
         }
+    }
+}
+
+impl Deserialize for EntityId {
+    fn get_identifier() -> String {
+        "EntityId".to_string()
+    }
+
+    fn deserialize(
+        _deserialize_service: &DeserializeService,
+        script_value: ScriptValue,
+        _resource_container: ResourceContainer,
+        local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
+        let local_id = <u64 as TryFromScriptValue>::from_script_value(script_value)?;
+        let entity_id = local_id_to_entity_id
+            .get(&local_id)
+            .map(|entity_id| entity_id.clone())
+            .ok_or(FruityError::NumberExpected(format!(
+                "You try to refer an entity that doesn't exists with local id {:?}",
+                local_id
+            )))?;
+
+        Ok(entity_id)
     }
 }

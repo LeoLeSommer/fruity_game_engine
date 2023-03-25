@@ -37,7 +37,7 @@ pub fn create_fruity_hierarchy_module() -> Module {
             let deserialize_service = resource_container.require::<DeserializeService>();
             let mut deserialize_service = deserialize_service.write();
 
-            deserialize_service.register::<Parent>();
+            deserialize_service.register_component::<Parent>();
 
             let system_service = resource_container.require::<SystemService>();
             let mut system_service = system_service.write();

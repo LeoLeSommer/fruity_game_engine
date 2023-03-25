@@ -70,6 +70,24 @@ where
     }
 }
 
+impl TryIntoScriptValue for Box<dyn ScriptObject> {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(self))
+    }
+}
+
+impl TryFromScriptValue for Box<dyn ScriptObject> {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => Ok(value),
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
+    }
+}
+
 impl<T: ScriptObject> TryIntoScriptValue for T {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Object(Box::new(self)))
@@ -81,12 +99,14 @@ where
     T: ScriptObject,
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        use lazy_static::__Deref;
+
         match value {
             ScriptValue::Object(value) => match value.downcast::<T>() {
                 Ok(value) => Ok(*value),
                 Err(value) => Err(FruityError::InvalidArg(format!(
                     "Couldn't convert a {} to {}",
-                    value.get_type_name(),
+                    value.deref().get_type_name(),
                     type_name::<T>()
                 ))),
             },

@@ -26,6 +26,7 @@ fn now_in_seconds() -> f64 {
 #[derive(FruityAny, Debug)]
 #[export_struct]
 pub struct FrameService {
+    first_frame_instant: f64,
     last_frame_instant: f64,
     delta: f64,
 }
@@ -37,6 +38,7 @@ impl FrameService {
     pub fn new(_resource_container: ResourceContainer) -> FrameService {
         FrameService {
             delta: 0.0,
+            first_frame_instant: now_in_seconds(),
             last_frame_instant: now_in_seconds(),
         }
     }
@@ -53,5 +55,11 @@ impl FrameService {
     #[export]
     pub fn get_delta(&self) -> f64 {
         self.delta
+    }
+
+    /// Get the time elapsed since the app launched
+    #[export]
+    pub fn get_elapsed(&self) -> f64 {
+        now_in_seconds() - self.first_frame_instant
     }
 }

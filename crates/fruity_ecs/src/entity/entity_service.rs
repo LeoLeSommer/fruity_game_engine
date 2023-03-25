@@ -1,6 +1,7 @@
 use super::entity_query::script::builder::ScriptQueryBuilder;
 use super::entity_query::Query;
 use super::entity_query::QueryParam;
+use super::entity_reference::InnerShareableEntityReference;
 use super::EntityId;
 use super::SerializedEntity;
 use crate::component::AnyComponent;
@@ -29,6 +30,7 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 /// A save for the entities stored in an [’EntityService’]
 #[typescript("type EntityServiceSnapshot = SerializedEntity[]")]
@@ -70,13 +72,15 @@ pub(crate) struct OnArchetypeAddressMoved {
     pub(crate) new: *mut Archetype,
 }
 
+pub(crate) struct AddEntityMutation {
+    pub(crate) entity_id: EntityId,
+    pub(crate) name: String,
+    pub(crate) enabled: bool,
+    pub(crate) components: Vec<AnyComponent>,
+}
+
 enum Mutation {
-    AddEntityMutation {
-        entity_id: EntityId,
-        name: String,
-        enabled: bool,
-        components: Vec<AnyComponent>,
-    },
+    AddEntityMutation(Arc<RwLock<AddEntityMutation>>),
     RemoveEntityMutation {
         entity_id: EntityId,
     },
@@ -162,14 +166,35 @@ impl EntityService {
     ///
     #[export]
     pub fn get_entity_reference(&self, entity_id: EntityId) -> Option<EntityReference> {
-        self.entity_locations
-            .get(&entity_id)
-            .map(|entity_location| {
+        if let Some(entity_location) = self.entity_locations.get(&entity_id) {
+            Some(
                 self.archetypes
                     .get(entity_location.archetype_index)
                     .unwrap()
-                    .get_entity_reference(entity_location.entity_index)
-            })
+                    .get_entity_reference(entity_location.entity_index),
+            )
+        } else if let Some(add_entity_mutation) =
+            self.pending_mutations
+                .lock()
+                .iter()
+                .find_map(|mutation| match mutation {
+                    Mutation::AddEntityMutation(add_entity_mutation) => Some(add_entity_mutation),
+                    _ => None,
+                })
+        {
+            Some(EntityReference::new(
+                InnerShareableEntityReference::Mutation {
+                    entity: add_entity_mutation.clone(),
+                },
+                &self.on_entity_location_moved,
+                &self.on_archetype_address_moved,
+                &self.on_entity_address_added,
+                &self.on_entity_lock_address_moved,
+                &self.on_component_address_moved,
+            ))
+        } else {
+            None
+        }
     }
 
     /// Iterate over all entities
@@ -216,12 +241,14 @@ impl EntityService {
 
         self.pending_mutations
             .lock()
-            .push_back(Mutation::AddEntityMutation {
-                entity_id,
-                name,
-                enabled,
-                components,
-            });
+            .push_back(Mutation::AddEntityMutation(Arc::new(RwLock::new(
+                AddEntityMutation {
+                    entity_id,
+                    name,
+                    enabled,
+                    components,
+                },
+            ))));
 
         Ok(entity_id)
     }
@@ -361,15 +388,23 @@ impl EntityService {
             self.clear()?;
         }
 
-        snapshot
-            .iter()
-            .try_for_each(|serialized_entity| self.restore_entity(serialized_entity))
+        let mut local_id_to_entity_id = HashMap::<u64, EntityId>::new();
+        let deserialize_service = self.deserialize_service.read();
+        snapshot.iter().try_for_each(|serialized_entity| {
+            self.restore_entity(
+                serialized_entity,
+                &mut local_id_to_entity_id,
+                &deserialize_service,
+            )
+        })
     }
 
-    fn restore_entity(&self, serialized_entity: &SerializedEntity) -> FruityResult<()> {
-        let deserialize_service = self.deserialize_service.read();
-        let mut local_id_to_entity_id = HashMap::<u64, EntityId>::new();
-
+    fn restore_entity(
+        &self,
+        serialized_entity: &SerializedEntity,
+        local_id_to_entity_id: &mut HashMap<u64, EntityId>,
+        deserialize_service: &DeserializeService,
+    ) -> FruityResult<()> {
         let entity_id = self.create(
             serialized_entity.name.clone(),
             serialized_entity.enabled,
@@ -394,7 +429,7 @@ impl EntityService {
 
     /// It is unsafe cause apply mutations is the only operation that mutate the archetypes vec witch is widely
     /// read in an unsafe way everywhere in the ecs code
-    pub(crate) unsafe fn apply_pending_mutations(&mut self) -> FruityResult<()> {
+    pub unsafe fn apply_pending_mutations(&mut self) -> FruityResult<()> {
         // Apply add entity mutations
         let mutations = {
             let mut mutations = self.pending_mutations.lock();
@@ -404,14 +439,20 @@ impl EntityService {
         mutations
             .into_iter()
             .try_for_each(|mutation| match mutation {
-                Mutation::AddEntityMutation {
-                    entity_id,
-                    name,
-                    enabled,
-                    components,
-                } => self
-                    .apply_add_entity_mutation(entity_id, name, enabled, components)
-                    .map(|_| ()),
+                Mutation::AddEntityMutation(pending_add_entity) => {
+                    let (entity_id, name, enabled, components) = {
+                        let pending_add_entity_reader = pending_add_entity.read();
+                        (
+                            pending_add_entity_reader.entity_id,
+                            pending_add_entity_reader.name.clone(),
+                            pending_add_entity_reader.enabled,
+                            pending_add_entity_reader.components.clone(),
+                        )
+                    };
+
+                    self.apply_add_entity_mutation(entity_id, name, enabled, components)
+                        .map(|_| ())
+                }
                 Mutation::RemoveEntityMutation { entity_id } => {
                     self.apply_remove_entity_mutation(entity_id)
                 }

@@ -43,7 +43,14 @@ impl ModulesService {
                 });
 
             if with_all_dependencies_loaded.len() == 0 {
-                return Err(crate::FruityError::GenericFailure(format!("A problem happened, couldn't load the dependencies cause there is a missing dependency, the modules that are still waiting to be initialized are:\n{:#?}", &others.iter().map(|module| module.name.clone()).collect::<Vec<_>>())));
+                let needed_dependencies = others
+                    .iter()
+                    .map(|module| module.dependencies.clone())
+                    .flatten()
+                    .filter(|module_name| !processed_module_identifiers.contains(module_name))
+                    .collect::<Vec<_>>();
+
+                return Err(crate::FruityError::GenericFailure(format!("A problem happened, couldn't load the dependencies cause there is a missing dependency, the modules that are still waiting to be initialized are:\n{:#?}\nMissing modules are:\n{:#?}", &others.iter().map(|module| module.name.clone()).collect::<Vec<_>>(), &needed_dependencies)));
             }
 
             processed_module_identifiers.append(

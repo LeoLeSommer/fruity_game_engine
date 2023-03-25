@@ -1,7 +1,9 @@
 use crate::any::FruityAny;
+use crate::console_log;
 use crate::export;
 use crate::frame_service::FrameService;
 use crate::module::Module;
+use crate::profile_scope;
 use crate::settings::Settings;
 use crate::FruityResult;
 use crate::ModulesService;
@@ -171,6 +173,8 @@ impl World {
             };
 
             for module in ordered_modules.into_iter() {
+                console_log(&format!("Setup {}", &module.name));
+
                 if let Some(setup) = module.setup {
                     setup(world.clone(), settings.clone())?;
                 }
@@ -199,6 +203,8 @@ impl World {
             };
 
             for module in ordered_modules.into_iter() {
+                console_log(&format!("Load Resources {}", &module.name));
+
                 if let Some(load_resources) = module.load_resources {
                     load_resources(world.clone(), settings.clone())?;
                 }
@@ -218,7 +224,7 @@ impl World {
     /// Run the world
     #[export]
     pub fn setup(&self) -> FruityResult<()> {
-        crate::profile::profile_function!();
+        profile_scope!("setup");
 
         let settings = self.inner.deref().read().settings.clone();
         let setup = self.inner.deref().read().setup_world.clone();
@@ -229,7 +235,7 @@ impl World {
     /// Run the world
     #[export]
     pub fn run(&self) -> FruityResult<()> {
-        crate::profile::profile_function!();
+        profile_scope!("run");
 
         let settings = self.inner.deref().read().settings.clone();
         let run = self.inner.deref().read().run_world.clone();
@@ -239,7 +245,7 @@ impl World {
 
     /// Run the start middleware
     pub fn start(&self) -> FruityResult<()> {
-        crate::profile::profile_function!();
+        profile_scope!("start");
 
         let start_middleware = self.inner.deref().read().start_middleware.clone();
         start_middleware(self.clone())
@@ -247,7 +253,7 @@ impl World {
 
     /// Run the frame middleware
     pub fn frame(&self) -> FruityResult<()> {
-        crate::profile::profile_function!();
+        profile_scope!("frame");
 
         let frame_middleware = self.inner.deref().read().frame_middleware.clone();
         frame_middleware(self.clone())
@@ -255,7 +261,7 @@ impl World {
 
     /// Run the end middleware
     pub fn end(&self) -> FruityResult<()> {
-        crate::profile::profile_function!();
+        profile_scope!("end");
 
         let end_middleware = self.inner.deref().read().end_middleware.clone();
         end_middleware(self.clone())

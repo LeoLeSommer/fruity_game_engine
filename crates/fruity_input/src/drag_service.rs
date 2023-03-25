@@ -2,7 +2,7 @@ use crate::InputService;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
-use fruity_game_engine::profile::profile_scope;
+use fruity_game_engine::profile_scope;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::signal::ObserverHandler;
@@ -34,7 +34,13 @@ pub struct DragService {
     current_drag_action: RwLock<Option<DragAction>>,
     input_service: ResourceReference<InputService>,
     window_service: ResourceReference<dyn WindowService>,
-    _on_end_update_handle: ObserverHandler<()>,
+    on_end_update_handle: ObserverHandler<()>,
+}
+
+impl Drop for DragService {
+    fn drop(&mut self) {
+        self.on_end_update_handle.dispose_by_ref();
+    }
 }
 
 #[export_impl]
@@ -48,7 +54,7 @@ impl DragService {
         let on_end_update_handle = window_service_reader
             .on_end_update()
             .add_observer(move |_| {
-                profile_scope("update_drag");
+                profile_scope!("update_drag");
 
                 let drag_service = resource_container_2.require::<DragService>();
                 let drag_service_reader = drag_service.read();
@@ -62,7 +68,7 @@ impl DragService {
             current_drag_action: RwLock::new(None),
             input_service,
             window_service,
-            _on_end_update_handle: on_end_update_handle,
+            on_end_update_handle: on_end_update_handle,
         }
     }
 

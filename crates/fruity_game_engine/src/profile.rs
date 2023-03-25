@@ -1,18 +1,17 @@
 #[cfg(not(target_arch = "wasm32"))]
-pub use puffin::profile_function;
-
-#[cfg(not(target_arch = "wasm32"))]
 use puffin::{are_scopes_on, ProfilerScope};
 
 /// Profile a scope, you should keep the handle in the scope so it will use the drop
 /// automatic system to profile the duree of the scope
 #[cfg(not(target_arch = "wasm32"))]
-pub fn profile_scope(identifier: &str) {
+pub fn intern_profile_scope(identifier: &str) -> Option<ProfilerScope> {
     // Safe cause identifier don't need to be static (from the doc)
     let identifier = unsafe { std::mem::transmute::<&str, &str>(identifier) };
 
     if are_scopes_on() {
-        ProfilerScope::new(identifier, "system", "");
+        Some(ProfilerScope::new(identifier, "system", ""))
+    } else {
+        None
     }
 }
 
@@ -28,13 +27,10 @@ pub fn profile_new_frame() {
     puffin::GlobalProfiler::lock().new_frame();
 }
 
-#[cfg(target_arch = "wasm32")]
-pub use crate::profile_function;
-
 /// Profile a scope, you should keep the handle in the scope so it will use the drop
 /// automatic system to profile the duree of the scope
 #[cfg(target_arch = "wasm32")]
-pub fn profile_scope(_: &str) {}
+pub fn intern_profile_scope(_: &str) {}
 
 /// Start profiling before the first frame
 #[cfg(target_arch = "wasm32")]

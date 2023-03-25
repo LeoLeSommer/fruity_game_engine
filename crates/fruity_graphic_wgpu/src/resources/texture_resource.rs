@@ -269,6 +269,10 @@ impl WgpuTextureResource {
             size: (config.width, config.height),
         }
     }
+
+    pub fn get_view(&self) -> &wgpu::TextureView {
+        &self.view
+    }
 }
 
 #[export_impl]

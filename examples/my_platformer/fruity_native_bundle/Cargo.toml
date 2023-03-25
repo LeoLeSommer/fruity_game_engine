@@ -9,6 +9,9 @@ crate-type = ["cdylib"]
 [dependencies]
 fruity_game_engine = { path = "../../../crates/fruity_game_engine" }
 fruity_ecs = { path = "../../../crates/fruity_ecs" }
+fruity_editor = { path = "../../../crates/fruity_editor" }
+fruity_editor_egui = { path = "../../../crates/fruity_editor_egui" }
+fruity_editor_hierarchy = { path = "../../../crates/fruity_editor_hierarchy" }
 fruity_graphic = { path = "../../../crates/fruity_graphic" }
 fruity_graphic_2d = { path = "../../../crates/fruity_graphic_2d" }
 fruity_graphic_wgpu = { path = "../../../crates/fruity_graphic_wgpu" }

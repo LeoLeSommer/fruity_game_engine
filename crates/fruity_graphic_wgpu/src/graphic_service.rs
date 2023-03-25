@@ -8,8 +8,7 @@ use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
-use fruity_game_engine::profile::profile_function;
-use fruity_game_engine::profile::profile_scope;
+use fruity_game_engine::profile_scope;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::signal::ObserverHandler;
@@ -278,7 +277,7 @@ impl WgpuGraphicService {
         material: ResourceReference<dyn MaterialResource>,
         z_index: i32,
     ) {
-        profile_function!();
+        profile_scope!("push_render_instance");
 
         let identifier = RenderInstanceIdentifier {
             mesh_identifier: mesh.get_name(),
@@ -324,7 +323,7 @@ impl WgpuGraphicService {
 
             *render_bundles = render_instances_reader
                 .iter()
-                .filter_map(|(_test, render_instance)| {
+                .filter_map(|(_, render_instance)| {
                     let device = self.get_device();
                     let config = self.get_config();
 
@@ -724,7 +723,7 @@ impl WgpuGraphicService {
 impl GraphicService for WgpuGraphicService {
     #[export]
     fn start_draw(&mut self) -> FruityResult<()> {
-        profile_scope("start_draw");
+        profile_scope!("start_draw");
 
         let mut state = self.state.as_mut().unwrap();
 
@@ -755,7 +754,7 @@ impl GraphicService for WgpuGraphicService {
 
     #[export]
     fn end_draw(&mut self) {
-        profile_scope("end_draw");
+        profile_scope!("end_draw");
 
         let encoder = if let Some(encoder) = self.current_encoder.take() {
             encoder.into_inner()
@@ -786,7 +785,7 @@ impl GraphicService for WgpuGraphicService {
         background_color: Color,
         target: Option<ResourceReference<dyn TextureResource>>,
     ) {
-        profile_function!();
+        profile_scope!("render_scene");
 
         let state = self.state.as_ref().unwrap();
 

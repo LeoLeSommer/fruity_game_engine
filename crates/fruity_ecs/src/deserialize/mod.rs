@@ -19,7 +19,7 @@ pub mod impl_containers;
 pub mod impl_tuples;
 
 /// Trait to implement a generic constructor from a ScriptValue
-pub trait Deserialize {
+pub trait Deserialize: Sized {
     /// Identifier of the deserialize object
     /// in the js, it correspond to the class name
     fn get_identifier() -> String;
@@ -30,5 +30,5 @@ pub trait Deserialize {
         script_value: ScriptValue,
         resource_container: ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
-    ) -> FruityResult<ScriptValue>;
+    ) -> FruityResult<Self>;
 }

@@ -11,6 +11,7 @@ crate-type = ["rlib", "cdylib"]
 build-std = ["core", "alloc"]
 
 [dependencies]
+base64 = "0.21.0"
 lazy_static = "1.4.0"
 convert_case = "0.6.0"
 send_wrapper = { version = "0.6.0", features = ["futures"] }
@@ -35,4 +36,4 @@ tokio = { version = "1.12", features = ["rt", "time", "rt-multi-thread"] }
 napi = { version = "2.11.2", default-features = false, features = ["napi4", "napi5", "napi6", "tokio_rt", "compat-mode", "async"] }
 napi-derive = "2.11.1"
 napi-sys = "2.2.3"
-puffin = "0.12.1"
+puffin = "0.14.3"

@@ -54,7 +54,7 @@ impl Clone for Box<dyn Component> {
 }
 
 /// An container for a component without knowing the instancied type
-#[derive(FruityAny, Debug)]
+#[derive(FruityAny, Debug, Clone)]
 #[typescript("type AnyComponent = { [key: string]: any }")]
 pub struct AnyComponent {
     component: Box<dyn Component>,

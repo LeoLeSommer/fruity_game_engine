@@ -1,15 +1,11 @@
 use crate::component::AnyComponent;
 use crate::component::Component;
-use crate::deserialize::Deserialize;
-use crate::deserialize_service::DeserializeService;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::typescript;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -29,7 +25,7 @@ pub mod entity_service;
 pub mod archetype;
 
 /// A module for the engine
-#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
+#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default, Debug)]
 pub struct SerializedEntity {
     /// Entity id, it will not be the definitively used id but is internal to the serialization
     /// so the same id can be found in different serializations
@@ -108,30 +104,6 @@ impl TryFromScriptValue for EntityId {
                 value
             ))),
         }
-    }
-}
-
-impl Deserialize for EntityId {
-    fn get_identifier() -> String {
-        "EntityId".to_string()
-    }
-
-    fn deserialize(
-        _deserialize_service: &DeserializeService,
-        script_value: ScriptValue,
-        _resource_container: ResourceContainer,
-        local_id_to_entity_id: &HashMap<u64, EntityId>,
-    ) -> FruityResult<ScriptValue> {
-        let local_id = <u64 as TryFromScriptValue>::from_script_value(script_value)?;
-        let entity_id = local_id_to_entity_id
-            .get(&local_id)
-            .map(|entity_id| entity_id.clone())
-            .ok_or(FruityError::NumberExpected(format!(
-                "You try to refer an entity that doesn't exists with local id {:?}",
-                local_id
-            )))?;
-
-        Ok(ScriptValue::U64(entity_id.0))
     }
 }
 

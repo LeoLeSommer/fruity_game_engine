@@ -38,8 +38,15 @@ unsafe impl Sync for InnerShareableAnyComponentReference {}
 #[typescript("type AnyComponentReference<T = unknown> = T")]
 pub struct AnyComponentReference {
     inner: Arc<RwLock<InnerShareableAnyComponentReference>>,
-    _on_entity_lock_address_moved_handle: ObserverHandler<OnEntityLockAddressMoved>,
-    _on_component_address_moved_handle: ObserverHandler<OnComponentAddressMoved>,
+    on_entity_lock_address_moved_handle: ObserverHandler<OnEntityLockAddressMoved>,
+    on_component_address_moved_handle: ObserverHandler<OnComponentAddressMoved>,
+}
+
+impl Drop for AnyComponentReference {
+    fn drop(&mut self) {
+        self.on_entity_lock_address_moved_handle.dispose_by_ref();
+        self.on_component_address_moved_handle.dispose_by_ref();
+    }
 }
 
 impl AnyComponentReference {
@@ -92,8 +99,8 @@ impl AnyComponentReference {
 
         Self {
             inner,
-            _on_entity_lock_address_moved_handle: on_entity_lock_address_moved_handle,
-            _on_component_address_moved_handle: on_component_address_moved_handle,
+            on_entity_lock_address_moved_handle: on_entity_lock_address_moved_handle,
+            on_component_address_moved_handle: on_component_address_moved_handle,
         }
     }
 
@@ -211,11 +218,18 @@ unsafe impl<T: Component> Sync for InnerShareableComponentReference<T> {}
 
 /// A reference over an entity stored into an Archetype
 /// The pointer are updated with an observer over the EntityService to catch memory updates
-#[derive(FruityAny, Clone)]
+#[derive(FruityAny)]
 pub struct ComponentReference<T: Component> {
     inner: Arc<RwLock<InnerShareableComponentReference<T>>>,
     _on_entity_lock_address_moved_handle: ObserverHandler<OnEntityLockAddressMoved>,
     _on_component_address_moved_handle: ObserverHandler<OnComponentAddressMoved>,
+}
+
+impl<T: Component> Drop for ComponentReference<T> {
+    fn drop(&mut self) {
+        self._on_entity_lock_address_moved_handle.dispose_by_ref();
+        self._on_component_address_moved_handle.dispose_by_ref();
+    }
 }
 
 impl<T: Component> ComponentReference<T> {

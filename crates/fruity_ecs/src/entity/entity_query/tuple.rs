@@ -2,6 +2,8 @@ use crate::entity::archetype::Archetype;
 use crate::entity::entity_query::BidirectionalIterator;
 use crate::entity::entity_query::QueryParam;
 use crate::entity::entity_reference::EntityReference;
+use crate::entity::entity_reference::InnerShareableEntityReference;
+use std::ops::Deref;
 use std::ops::Mul;
 
 struct TupleSubIterator<'a, T: QueryParam<'a> + 'static> {
@@ -214,24 +216,31 @@ macro_rules! impl_query_param {
             fn from_entity_reference(
                 entity_reference: &EntityReference,
             ) -> Self::FromEntityReferenceIterator {
-                let archetype = unsafe {
-                    entity_reference
-                        .inner
-                        .read()
-                        .archetype_ptr
-                        .as_ref()
-                        .unwrap()
-                };
+                let inner_entity_reference = entity_reference.inner.read();
+                if let InnerShareableEntityReference::Archetype {
+                    archetype_ptr, ..
+                } = inner_entity_reference.deref()
+                {
+                    let archetype = unsafe {
+                            archetype_ptr
+                            .as_ref()
+                            .unwrap()
+                    };
 
-                $from_entity_reference_iterator_ident {
-                    $(
-                        $tn: TupleSubFromEntityReferenceIterator {
-                            iterator: $tn::from_entity_reference(entity_reference),
-                            local_id: 0,
-                            items_per_entity: $tn::items_per_entity(archetype),
-                        },
-                    )*
+                    $from_entity_reference_iterator_ident {
+                        $(
+                            $tn: TupleSubFromEntityReferenceIterator {
+                                iterator: $tn::from_entity_reference(entity_reference),
+                                local_id: 0,
+                                items_per_entity: $tn::items_per_entity(archetype),
+                            },
+                        )*
+                    }
+                } else {
+                    unreachable!()
                 }
+
+
             }
         }
     };

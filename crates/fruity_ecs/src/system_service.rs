@@ -1,7 +1,7 @@
 use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::inject::Inject;
-use fruity_game_engine::profile::profile_scope;
+use fruity_game_engine::profile_scope;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
@@ -302,7 +302,7 @@ impl SystemService {
     }
 
     /// Run all the stored systems
-    pub(crate) fn run_frame(&self) -> FruityResult<()> {
+    pub fn run_frame(&self) -> FruityResult<()> {
         let is_paused = self.is_paused();
 
         self.iter_system_pools()
@@ -315,7 +315,7 @@ impl SystemService {
                         |system| system.execute_in_main_thread,
                         move |system| {
                             if !is_paused || system.ignore_pause {
-                                profile_scope(&system.identifier);
+                                profile_scope!(&system.identifier);
                                 (system.callback)()
                             } else {
                                 Ok(())
@@ -329,7 +329,7 @@ impl SystemService {
     }
 
     /// Run all the startup systems
-    pub(crate) fn run_start(&mut self) -> FruityResult<()> {
+    pub(crate) fn run_start(&self) -> FruityResult<()> {
         // Run the threaded systems
         let startup_dispose_callbacks = self.startup_dispose_callbacks.clone();
 
@@ -341,7 +341,7 @@ impl SystemService {
                 .collect::<Vec<_>>(),
             |system| system.execute_in_main_thread,
             move |system| {
-                profile_scope(&system.identifier);
+                profile_scope!(&system.identifier);
 
                 let dispose_callback = (system.callback)()?;
 
@@ -366,7 +366,7 @@ impl SystemService {
     }
 
     /// Run all startup dispose callbacks
-    pub(crate) fn run_end(&mut self) -> FruityResult<()> {
+    pub(crate) fn run_end(&self) -> FruityResult<()> {
         if !self.is_paused() {
             self.run_unpause_end()?;
         }
@@ -376,7 +376,7 @@ impl SystemService {
             startup_dispose_callbacks.drain(..).collect::<Vec<_>>(),
             |system| system.execute_in_main_thread,
             move |system| {
-                profile_scope(&system.identifier);
+                profile_scope!(&system.identifier);
                 (system.callback)()
             },
         )?;
@@ -396,7 +396,7 @@ impl SystemService {
                 .collect::<Vec<_>>(),
             |system| system.execute_in_main_thread,
             move |system| {
-                profile_scope(&system.identifier);
+                profile_scope!(&system.identifier);
 
                 let dispose_callback = (system.callback)()?;
 
@@ -421,7 +421,7 @@ impl SystemService {
             startup_dispose_callbacks.drain(..).collect::<Vec<_>>(),
             |system| system.execute_in_main_thread,
             move |system| {
-                profile_scope(&system.identifier);
+                profile_scope!(&system.identifier);
                 (system.callback)()
             },
         )?;

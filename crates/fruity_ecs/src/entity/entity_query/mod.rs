@@ -221,6 +221,15 @@ pub struct Query<T> {
     _param_phantom: PhantomData<T>,
 }
 
+impl<T> Drop for Query<T> {
+    fn drop(&mut self) {
+        self.on_archetype_address_added_handle.dispose_by_ref();
+        self.on_archetype_address_moved_handle.dispose_by_ref();
+        self.on_entity_address_added_handle.dispose_by_ref();
+        self.on_entity_address_removed_handle.dispose_by_ref();
+    }
+}
+
 impl<T> Clone for Query<T> {
     fn clone(&self) -> Self {
         Query {
@@ -374,7 +383,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
 
         iterator.try_for_each(|archetype| {
             let archetype = unsafe { archetype.0.as_ref() };
-            let test = T::iter(archetype)
+            T::iter(archetype)
                 .enumerate()
                 .try_for_each(|(index, item)| {
                     let entity_lock = &archetype.lock_array[index / T::items_per_entity(archetype)];
@@ -389,9 +398,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
                     };
 
                     callback(item)
-                });
-
-            test
+                })
         })
     }
 

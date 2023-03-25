@@ -35,7 +35,7 @@ pub fn create_fruity_physic_parry_2d_module() -> Module {
             let deserialize_service = resource_container.require::<DeserializeService>();
             let mut deserialize_service = deserialize_service.write();
 
-            deserialize_service.register::<RigidBody>();
+            deserialize_service.register_component::<RigidBody>();
 
             let extension_component_service =
                 resource_container.require::<ExtensionComponentService>();

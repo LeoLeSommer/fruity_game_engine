@@ -82,8 +82,8 @@ pub fn create_fruity_ecs_module() -> Module {
             let entity_service = resource_container.require::<EntityService>();
             world.add_run_start_middleware(move |next, world| {
                 {
-                    let mut system_service_writer = system_service.write();
-                    system_service_writer.run_start()?;
+                    let system_service_reader = system_service.read();
+                    system_service_reader.run_start()?;
                 }
 
                 {
@@ -114,8 +114,8 @@ pub fn create_fruity_ecs_module() -> Module {
             let entity_service = resource_container.require::<EntityService>();
             world.add_run_end_middleware(move |next, world| {
                 {
-                    let mut system_service_writer = system_service.write();
-                    system_service_writer.run_end()?;
+                    let system_service_reader = system_service.read();
+                    system_service_reader.run_end()?;
                 }
 
                 {

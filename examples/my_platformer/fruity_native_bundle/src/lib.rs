@@ -1,6 +1,9 @@
 #![deny(clippy::all)]
 
 pub extern crate fruity_ecs;
+pub extern crate fruity_editor;
+pub extern crate fruity_editor_egui;
+pub extern crate fruity_editor_hierarchy;
 pub extern crate fruity_game_engine;
 pub extern crate fruity_graphic;
 pub extern crate fruity_graphic_2d;

@@ -1,5 +1,7 @@
+use crate::component::Component;
 use crate::deserialize::Deserialize;
 use crate::entity::EntityId;
+use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::{
     any::FruityAny, resource::resource_container::ResourceContainer, script_value::ScriptValue,
     FruityResult,
@@ -14,12 +16,16 @@ pub struct DeserializeService {
     resource_container: ResourceContainer,
     factories: HashMap<
         String,
-        fn(
-            deserialize_service: &DeserializeService,
-            script_value: ScriptValue,
-            resource_container: ResourceContainer,
-            local_id_to_entity_id: &HashMap<u64, EntityId>,
-        ) -> FruityResult<ScriptValue>,
+        Box<
+            dyn Fn(
+                    &DeserializeService,
+                    ScriptValue,
+                    ResourceContainer,
+                    &HashMap<u64, EntityId>,
+                ) -> FruityResult<ScriptValue>
+                + Send
+                + Sync,
+        >,
     >,
 }
 
@@ -43,9 +49,52 @@ impl DeserializeService {
     ///
     pub fn register<T>(&mut self)
     where
-        T: Deserialize,
+        T: Deserialize + TryIntoScriptValue,
     {
-        self.factories.insert(T::get_identifier(), T::deserialize);
+        self.factories.insert(
+            T::get_identifier(),
+            Box::new(
+                |deserialize_service, script_value, resource_container, local_id_to_entity_id| {
+                    let result = T::deserialize(
+                        deserialize_service,
+                        script_value,
+                        resource_container,
+                        local_id_to_entity_id,
+                    )?;
+
+                    result.into_script_value()
+                },
+            ),
+        );
+    }
+
+    /// Register a new deserialize type
+    ///
+    /// # Arguments
+    /// * `object_type` - The object type identifier
+    ///
+    /// # Generic Arguments
+    /// * `T` - The type of the object
+    ///
+    pub fn register_component<T>(&mut self)
+    where
+        T: Deserialize + Component + TryIntoScriptValue,
+    {
+        self.factories.insert(
+            T::get_identifier(),
+            Box::new(
+                |deserialize_service, script_value, resource_container, local_id_to_entity_id| {
+                    let result = Box::new(T::deserialize(
+                        deserialize_service,
+                        script_value,
+                        resource_container,
+                        local_id_to_entity_id,
+                    )?) as Box<dyn Component>;
+
+                    result.into_script_value()
+                },
+            ),
+        );
     }
 
     /// Register a new deserialize type from a function
@@ -64,7 +113,8 @@ impl DeserializeService {
             &HashMap<u64, EntityId>,
         ) -> FruityResult<ScriptValue>,
     ) {
-        self.factories.insert(object_type.to_string(), instantiate);
+        self.factories
+            .insert(object_type.to_string(), Box::new(instantiate));
     }
 
     /// Instantiate an object from it's factory

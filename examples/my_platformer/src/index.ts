@@ -5,6 +5,9 @@ import {
   EntityService,
   SystemService,
 } from "fruity_ecs";
+import { createEditorModule } from "fruity_editor";
+import { createFruityEditorEguiModule } from "fruity_editor_egui";
+import { createFruityEditorHierarchyModule } from "fruity_editor_hierarchy";
 import {
   createFruityGraphicModule,
   MaterialResource,
@@ -51,6 +54,9 @@ class Velocity {
 const world = new World(settings as any);
 
 world.registerModule(createFruityEcsModule());
+world.registerModule(createEditorModule());
+world.registerModule(createFruityEditorEguiModule());
+world.registerModule(createFruityEditorHierarchyModule());
 world.registerModule(createFruityGraphicModule());
 world.registerModule(createFruityGraphic2DModule());
 world.registerModule(createFruityGraphicWgpuModule());
@@ -150,12 +156,23 @@ world.registerModule({
       let handle1 = inputService.onPressed.addObserver((input) => {
         if (input === "Action 1") {
           console.log("Create");
-          createdEntityId = entityService.create("New Entity", true, [
+          const test2 = new Transform2D();
+          console.log("1");
+          const test3 = new Sprite(materialResource, null, 30);
+          console.log("2");
+          const test4 = new Translate2D(new Vector2D(1, 1));
+          console.log("3");
+          const test5 = new Velocity({ velocity: 1.0 });
+          console.log("Create 1");
+          const test = [
             new Transform2D(),
             new Sprite(materialResource, null, 30),
             new Translate2D(new Vector2D(1, 1)),
             new Velocity({ velocity: 1.0 }),
-          ]);
+          ];
+          console.log("Create 2");
+
+          createdEntityId = entityService.create("New Entity", true, test);
         }
       });
 

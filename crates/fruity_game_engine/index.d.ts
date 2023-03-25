@@ -1,5 +1,7 @@
 export type ScriptValue = any
 
+export type ScriptObject = {[key: string]: ScriptValue}
+
 export type JsIntrospectObject = { [key: string]: any }
 
 export type ResourceReference<T> = T
