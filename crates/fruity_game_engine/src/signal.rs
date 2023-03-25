@@ -80,8 +80,9 @@ impl<T> Signal<T> {
 
     /// Add an observer to the signal
     /// An observer is a closure that will be called when the signal will be sent
-    /// Returns an handler, the handler can be duplicated but when the last observer is dropped,
-    /// the observer is unregistered
+    ///
+    /// Returns an handler, the handler can be cloned but when the last handle is cloned, thee observer
+    /// is unregistered
     pub fn add_observer<F: Sync + Send + Fn(&T) -> FruityResult<()> + 'static>(
         &self,
         observer: F,

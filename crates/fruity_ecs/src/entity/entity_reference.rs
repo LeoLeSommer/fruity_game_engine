@@ -56,14 +56,6 @@ pub struct EntityReference {
     on_entity_address_added_handle: ObserverHandler<OnEntityAddressAdded>,
 }
 
-impl Drop for EntityReference {
-    fn drop(&mut self) {
-        self.on_entity_location_moved_handle.dispose_by_ref();
-        self.on_archetype_address_moved_handle.dispose_by_ref();
-        self.on_entity_address_added_handle.dispose_by_ref();
-    }
-}
-
 #[export_impl]
 impl EntityReference {
     pub(crate) fn new(

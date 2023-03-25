@@ -12,6 +12,7 @@ use fruity_game_engine::export_struct;
 use fruity_game_engine::frame_service::FrameService;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::graphic_service::GraphicService;
@@ -35,6 +36,7 @@ pub struct EditorService {
     frame_service: ResourceReference<FrameService>,
     state: EditorServiceState,
     ctx: UIContext,
+    _on_event_handle: ObserverHandler<Event<'static, ()>>,
 }
 
 impl Debug for EditorService {
@@ -58,7 +60,7 @@ impl EditorService {
 
         // Register to events of windows_service to update the event inputs when needed
         let resource_container_2 = resource_container.clone();
-        window_service_reader.on_event().add_observer(move |event| {
+        let on_event_handle = window_service_reader.on_event().add_observer(move |event| {
             let editor_service = resource_container_2.require::<EditorService>();
             let mut editor_service = editor_service.write();
 
@@ -79,6 +81,7 @@ impl EditorService {
             frame_service,
             state,
             ctx: UIContext::new(resource_container.clone()),
+            _on_event_handle: on_event_handle,
         }
     }
 
