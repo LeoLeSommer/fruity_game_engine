@@ -1,10 +1,14 @@
-use fruity_ecs::component::component_reference::AnyComponentReference;
+use fruity_ecs::{
+    component::component_reference::AnyComponentReference,
+    entity::entity_reference::EntityReference,
+};
 use fruity_editor::state::inspector::InspectorState;
 use fruity_game_engine::{
     any::FruityAny,
     export_impl, export_struct,
     resource::{resource_container::ResourceContainer, resource_reference::ResourceReference},
 };
+use std::ops::Deref;
 
 #[derive(Debug, FruityAny)]
 #[export_struct]
@@ -58,5 +62,17 @@ impl ColliderState {
 
     pub fn get_editing_collider(&self) -> Option<AnyComponentReference> {
         self.current_editing_collider.clone()
+    }
+
+    pub fn get_editing_entity(&self) -> Option<EntityReference> {
+        Some(
+            self.inspector_state
+                .read()
+                .get_selected()?
+                .deref()
+                .as_any_ref()
+                .downcast_ref::<EntityReference>()?
+                .clone(),
+        )
     }
 }

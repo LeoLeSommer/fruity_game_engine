@@ -9,7 +9,6 @@ use crate::any::FruityAny;
 use crate::script_value::ScriptValue;
 use crate::FruityResult;
 use crate::RwLock;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::ops::DerefMut;
@@ -35,14 +34,14 @@ pub trait IntrospectFields: Debug + FruityAny {
 
 impl dyn IntrospectFields {
     /// Get all field values as an hasmap of ScriptValue
-    pub fn get_field_values(&self) -> FruityResult<HashMap<String, ScriptValue>> {
+    pub fn get_field_values(&self) -> FruityResult<Vec<(String, ScriptValue)>> {
         self.get_field_names()?
             .into_iter()
             .map(|field_name| {
                 self.get_field_value(&field_name)
                     .map(|field_value| (field_name, field_value))
             })
-            .try_collect::<HashMap<_, _>>()
+            .try_collect::<Vec<_>>()
     }
 }
 

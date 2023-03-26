@@ -3,6 +3,7 @@ use fruity_editor::mutations::mutation_service::MutationService;
 use fruity_editor::mutations::set_field_mutation::SetFieldMutation;
 use fruity_editor_graphic_2d::gizmos_service::GizmosService;
 use fruity_game_engine::inject::{Const, Ref};
+use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::graphic_service::GraphicService;
 use fruity_graphic::math::matrix4::Matrix4;
@@ -25,21 +26,25 @@ pub fn draw_circle_collider_2d_gizmos(
         return Ok(());
     }
 
+    let entity = if let Some(entity) = collider_state.get_editing_entity() {
+        entity
+    } else {
+        return Ok(());
+    };
+
     if let Some(collider) = collider_state.get_editing_collider() {
         let transform = {
-            let entity_reader = collider.read_entity();
+            let entity_reader = entity.read()?;
+            let transform = entity_reader.get_component_by_type::<Transform2D>()?;
 
-            if let Some(transform) = entity_reader
-                .read_single_component::<Transform2D>()
-                .map(|transform| transform.transform)
-            {
+            if let Some(transform) = transform.map(|transform| transform.transform) {
                 transform
             } else {
                 return Ok(());
             }
         };
 
-        if let Some(circle_collider) = collider.read_typed::<CircleCollider>() {
+        if let Ok(circle_collider) = collider.read_typed::<CircleCollider>() {
             let bottom = circle_collider.center + Vector2D::new(0.0, -circle_collider.radius);
             let size = Vector2D::new(circle_collider.radius, circle_collider.radius);
 
@@ -78,7 +83,7 @@ pub fn draw_circle_collider_2d_gizmos(
                     };
 
                     let mutation_service = mutation_service.clone();
-                    (
+                    Ok((
                         Box::new(move |action| {
                             let (cursor_pos, start_pos) = {
                                 let graphic_service_reader = graphic_service.read();
@@ -106,6 +111,8 @@ pub fn draw_circle_collider_2d_gizmos(
                             if move_y {
                                 circle_collider.center.y = center_origin.y + cursor_movement.y;
                             }
+
+                            Ok(())
                         }),
                         Box::new(move |_| {
                             let collider = collider_2.clone();
@@ -120,16 +127,17 @@ pub fn draw_circle_collider_2d_gizmos(
                             };
 
                             // Store the mutations
-                            mutation_service.push_action(SetFieldMutation {
-                                target: Box::new(collider.clone()),
-                                field: "center".to_string(),
-                                previous_value: center_origin.fruity_into(),
-                                new_value: center_current.fruity_into(),
-                            });
+                            mutation_service.push_action(SetFieldMutation::new(
+                                Box::new(collider.clone()),
+                                "center".to_string(),
+                                center_current.into_script_value()?,
+                            ))?;
+
+                            Ok(())
                         }),
-                    )
+                    ))
                 },
-            );
+            )?;
 
             // Get camera transform
             let camera_transform = {
@@ -161,7 +169,7 @@ pub fn draw_circle_collider_2d_gizmos(
 
                     let graphic_service = graphic_service.clone();
                     let mutation_service = mutation_service_2.clone();
-                    (
+                    Ok((
                         Box::new(move |action| {
                             let collider = collider.clone();
 
@@ -185,6 +193,8 @@ pub fn draw_circle_collider_2d_gizmos(
                             // Resize the entity with the cursor
                             let cursor_movement = cursor_pos - start_pos;
                             circle_collider.radius = radius_origin - cursor_movement.y;
+
+                            Ok(())
                         }),
                         Box::new(move |_| {
                             let collider = collider_2.clone();
@@ -199,15 +209,16 @@ pub fn draw_circle_collider_2d_gizmos(
                             };
 
                             // Store the mutations
-                            mutation_service.push_action(SetFieldMutation {
-                                target: Box::new(collider.clone()),
-                                field: "center".to_string(),
-                                previous_value: radius_origin.fruity_into(),
-                                new_value: radius_current.fruity_into(),
-                            });
+                            mutation_service.push_action(SetFieldMutation::new(
+                                Box::new(collider.clone()),
+                                "radius".to_string(),
+                                radius_current.into_script_value()?,
+                            ))?;
+
+                            Ok(())
                         }),
-                    )
-                });
+                    ))
+                })?;
             }
         }
     }

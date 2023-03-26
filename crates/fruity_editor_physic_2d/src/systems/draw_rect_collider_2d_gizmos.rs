@@ -22,14 +22,18 @@ pub fn draw_rectangle_collider_2d_gizmos(
         return Ok(());
     }
 
+    let entity = if let Some(entity) = collider_state.get_editing_entity() {
+        entity
+    } else {
+        return Ok(());
+    };
+
     if let Some(collider) = collider_state.get_editing_collider() {
         let transform = {
-            let entity_reader = collider.read_entity();
+            let entity_reader = entity.read()?;
+            let transform = entity_reader.get_component_by_type::<Transform2D>()?;
 
-            if let Some(transform) = entity_reader
-                .read_single_component::<Transform2D>()
-                .map(|transform| transform.transform)
-            {
+            if let Some(transform) = transform.map(|transform| transform.transform) {
                 transform
             } else {
                 return Ok(());
@@ -130,13 +134,13 @@ pub fn draw_rectangle_collider_2d_gizmos(
                                     "top_right".to_string(),
                                     top_right_current.into_script_value()?,
                                 ),
-                            ));
+                            ))?;
 
                             Ok(())
                         }),
                     ))
                 },
-            );
+            )?;
         }
     }
 

@@ -7,7 +7,10 @@ import {
 } from "fruity_ecs";
 import { createEditorModule } from "fruity_editor";
 import { createFruityEditorEguiModule } from "fruity_editor_egui";
+import { createFruityEditorGraphicModule } from "fruity_editor_graphic";
+import { createFruityEditorGraphic2DModule } from "fruity_editor_graphic_2d";
 import { createFruityEditorHierarchyModule } from "fruity_editor_hierarchy";
+import { createFruityEditorPhysic2DModule } from "fruity_editor_physic_2d";
 import {
   createFruityGraphicModule,
   MaterialResource,
@@ -56,7 +59,10 @@ const world = new World(settings as any);
 world.registerModule(createFruityEcsModule());
 world.registerModule(createEditorModule());
 world.registerModule(createFruityEditorEguiModule());
+world.registerModule(createFruityEditorGraphicModule());
+world.registerModule(createFruityEditorGraphic2DModule());
 world.registerModule(createFruityEditorHierarchyModule());
+world.registerModule(createFruityEditorPhysic2DModule());
 world.registerModule(createFruityGraphicModule());
 world.registerModule(createFruityGraphic2DModule());
 world.registerModule(createFruityGraphicWgpuModule());

@@ -17,7 +17,7 @@ pub mod systems;
 
 /// Returns the module, ready to be registered into the fruity_game_engine
 #[export_function]
-pub fn create_fruity_editor_hierarchy_module() -> Module {
+pub fn create_fruity_editor_graphic_2d_module() -> Module {
     Module {
         name: "fruity_editor_graphic_2d".to_string(),
         dependencies: vec![

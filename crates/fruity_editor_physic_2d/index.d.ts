@@ -2,4 +2,8 @@ import {
   Module,
 } from "fruity_game_engine"
 
-export function createFruityEditorHierarchyModule(): Module
+export interface ColliderState {
+
+}
+
+export function createFruityEditorPhysic2DModule(): Module
