@@ -303,6 +303,8 @@ impl SystemService {
 
     /// Run all the stored systems
     pub fn run_frame(&self) -> FruityResult<()> {
+        profile_scope!("frame_systems");
+
         let is_paused = self.is_paused();
 
         self.iter_system_pools()
@@ -330,6 +332,8 @@ impl SystemService {
 
     /// Run all the startup systems
     pub(crate) fn run_start(&self) -> FruityResult<()> {
+        profile_scope!("start_systems");
+
         // Run the threaded systems
         let startup_dispose_callbacks = self.startup_dispose_callbacks.clone();
 
@@ -367,6 +371,8 @@ impl SystemService {
 
     /// Run all startup dispose callbacks
     pub(crate) fn run_end(&self) -> FruityResult<()> {
+        profile_scope!("end_systems");
+
         if !self.is_paused() {
             self.run_unpause_end()?;
         }
@@ -443,6 +449,7 @@ impl SystemService {
 
         #[cfg(not(target_arch = "wasm32"))]
         let handler = {
+            profile_scope!("parallel_systems");
             let execute_systems_closure = execute_systems_closure.clone();
             thread::spawn(move || {
                 parallel_systems
@@ -458,13 +465,19 @@ impl SystemService {
             .try_for_each(execute_systems_closure.clone())?;
 
         // Run the main thread systems
-        main_thread_systems
-            .into_iter()
-            .try_for_each(execute_systems_closure)?;
+        {
+            profile_scope!("main_thread_systems");
+            main_thread_systems
+                .into_iter()
+                .try_for_each(execute_systems_closure)?;
+        }
 
         // Wait all the threaded systems
         #[cfg(not(target_arch = "wasm32"))]
-        handler.join().unwrap()?;
+        {
+            profile_scope!("join_parallel_systems");
+            handler.join().unwrap()?;
+        }
 
         Ok(())
     }

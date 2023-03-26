@@ -154,6 +154,10 @@ impl<T> IntrospectFields for Signal<T>
 where
     T: TryFromScriptValue + TryIntoScriptValue,
 {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(true)
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("Signal".to_string())
     }
@@ -344,6 +348,10 @@ impl<T> IntrospectFields for SignalProperty<T>
 where
     T: TryIntoScriptValue + TryFromScriptValue + Send + Sync + Clone + Debug,
 {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(true)
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("SignalProperty".to_string())
     }
@@ -443,6 +451,10 @@ impl<T> IntrospectFields for ObserverHandler<T>
 where
     T: TryFromScriptValue + TryIntoScriptValue,
 {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(true)
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("ObserverHandler".to_string())
     }

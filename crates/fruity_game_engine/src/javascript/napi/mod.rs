@@ -1,5 +1,7 @@
 use crate::{
     introspect::{IntrospectFields, IntrospectMethods},
+    javascript::napi::class_constructors::NapiClassConstructors,
+    profile_scope,
     script_value::convert::TryIntoScriptValue,
     script_value::ScriptObject,
     script_value::ScriptValue,
@@ -8,24 +10,29 @@ use crate::{
 use convert_case::{Case, Casing};
 use fruity_game_engine_macro::FruityAny;
 use futures::{executor::block_on, future::Shared, FutureExt};
+use lazy_static::lazy_static;
+use napi::NapiValue;
 use napi::{
-    bindgen_prelude::{CallbackInfo, FromNapiValue, Promise, ToNapiValue},
-    sys::{napi_env, napi_value},
+    bindgen_prelude::{FromNapiValue, Promise, ToNapiValue},
     threadsafe_function::{ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction},
-    Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, PropertyAttributes, Ref,
-    Task, ValueType,
+    Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, Ref, Task, ValueType,
 };
-use napi::{check_status, NapiValue};
-use napi::{JsError, NapiRaw};
+use napi::{check_status, NapiRaw};
 use send_wrapper::SendWrapper;
-use std::{ffi::CString, future::Future, marker::PhantomData, ops::Deref, pin::Pin, thread};
 use std::{fmt::Debug, vec};
+use std::{future::Future, marker::PhantomData, ops::Deref, pin::Pin, thread};
 use std::{rc::Rc, sync::Arc};
 use tokio::runtime::Builder;
 
+mod class_constructors;
+
+lazy_static! {
+    static ref NAPI_CLASS_CONSTRUCTORS: NapiClassConstructors = NapiClassConstructors::default();
+}
+
 /// Create a napi js value from a script value
 pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<JsUnknown> {
-    puffin::profile_scope!("script_value_to_js_value");
+    profile_scope!("script_value_to_js_value");
 
     Ok(match value.into_script_value()? {
         ScriptValue::I8(value) => env
@@ -86,6 +93,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             .map_err(|e| FruityError::from_napi(e))?
             .into_unknown(),
         ScriptValue::Array(value) => {
+            profile_scope!("script_value_to_js_value_array");
             let mut js_array = env
                 .create_empty_array()
                 .map_err(|e| FruityError::from_napi(e))?;
@@ -107,6 +115,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
             .map_err(|e| FruityError::from_napi(e))?
             .into_unknown(),
         ScriptValue::Future(future) => {
+            profile_scope!("script_value_to_js_value_future");
             let (js_deferred, js_promise) = env
                 .create_deferred()
                 .map_err(|e| FruityError::from_napi(e))?;
@@ -124,8 +133,9 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
 
             js_promise.into_unknown()
         }
-        ScriptValue::Callback(callback) => env
-            .create_function_from_closure("unknown", move |ctx| {
+        ScriptValue::Callback(callback) => {
+            profile_scope!("script_value_to_js_value_closure");
+            env.create_function_from_closure("unknown", move |ctx| {
                 let args = ctx
                     .get_all()
                     .into_iter()
@@ -137,8 +147,10 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
                 script_value_to_js_value(ctx.env, result).map_err(|e| e.into_napi())
             })
             .map_err(|e| FruityError::from_napi(e))?
-            .into_unknown(),
+            .into_unknown()
+        }
         ScriptValue::Object(value) => {
+            profile_scope!("script_value_to_js_value_object");
             match value.downcast::<JsIntrospectObject>() {
                 // First case, it's a native js value
                 Ok(value) => {
@@ -146,136 +158,13 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
                     js_object.into_unknown()
                 }
                 // Second case, we wrap the object into a js object
-                Err(value) => {
-                    let mut js_object =
-                        env.create_object().map_err(|e| FruityError::from_napi(e))?;
-
-                    // Defined property accessors
-                    let field_names = value
-                        .get_field_names()?
-                        .into_iter()
-                        .map(|field_name| CString::new(field_name.to_case(Case::Camel)).unwrap())
-                        .collect::<Vec<_>>();
-
-                    let properties = field_names
-                        .iter()
-                        .map(|field_name| napi_sys::napi_property_descriptor {
-                            utf8name: field_name.as_ptr(),
-                            name: std::ptr::null_mut(),
-                            method: None,
-                            getter: Some(generic_getter),
-                            setter: Some(generic_setter),
-                            value: std::ptr::null_mut(),
-                            attributes: (PropertyAttributes::Default
-                                | PropertyAttributes::Writable
-                                | PropertyAttributes::Enumerable)
-                                .bits(),
-                            data: field_name.as_ptr() as *mut std::ffi::c_void,
-                        })
-                        .collect::<Vec<napi_sys::napi_property_descriptor>>();
-
-                    js_object
-                        .add_finalizer((), (), |_| {
-                            std::mem::drop(field_names);
-                        })
-                        .map_err(|e| FruityError::from_napi(e))?;
-
-                    unsafe {
-                        check_status!(napi_sys::napi_define_properties(
-                            env.raw(),
-                            js_object.raw(),
-                            properties.len(),
-                            properties.as_ptr(),
-                        ))
-                        .map_err(|e| FruityError::from_napi(e))?;
-                    }
-
-                    // Define const method accessors
-                    value
-                        .get_const_method_names()?
-                        .into_iter()
-                        .try_for_each(|method_name| {
-                            js_object
-                                .set_named_property(
-                                    method_name.clone().to_case(Case::Camel).as_str(),
-                                    env.create_function_from_closure(
-                                        &method_name.clone(),
-                                        move |ctx| {
-                                            // Get args as script value
-                                            let args = ctx
-                                                .get_all()
-                                                .into_iter()
-                                                .map(|elem| js_value_to_script_value(ctx.env, elem))
-                                                .try_collect::<Vec<_>>()
-                                                .map_err(|e| e.into_napi())?;
-
-                                            // Get the native value wrapped in the javascript object
-                                            let wrapped = ctx
-                                                .env
-                                                .unwrap::<Box<dyn ScriptObject>>(&ctx.this()?)?;
-
-                                            // Call the function
-                                            let result = wrapped
-                                                .call_const_method(&method_name, args)
-                                                .map_err(|e| e.into_napi())?;
-
-                                            // Returns the result
-                                            script_value_to_js_value(ctx.env, result)
-                                                .map_err(|e| e.into_napi())
-                                        },
-                                    )
-                                    .map_err(|e| FruityError::from_napi(e))?,
-                                )
-                                .map_err(|e| FruityError::from_napi(e))?;
-
-                            FruityResult::Ok(())
-                        })?;
-
-                    // Define mut method accessors
-                    value
-                        .get_mut_method_names()?
-                        .into_iter()
-                        .try_for_each(|method_name| {
-                            js_object
-                                .set_named_property(
-                                    method_name.clone().to_case(Case::Camel).as_str(),
-                                    env.create_function_from_closure(
-                                        &method_name.clone(),
-                                        move |ctx| {
-                                            // Get args as script value
-                                            let args = ctx
-                                                .get_all()
-                                                .into_iter()
-                                                .map(|elem| js_value_to_script_value(ctx.env, elem))
-                                                .try_collect::<Vec<_>>()
-                                                .map_err(|e| e.into_napi())?;
-
-                                            // Get the native value wrapped in the javascript object
-                                            let wrapped = ctx
-                                                .env
-                                                .unwrap::<Box<dyn ScriptObject>>(&ctx.this()?)?;
-
-                                            // Call the function
-                                            let result = wrapped
-                                                .call_mut_method(&method_name, args)
-                                                .map_err(|e| e.into_napi())?;
-
-                                            // Returns the result
-                                            script_value_to_js_value(ctx.env, result)
-                                                .map_err(|e| e.into_napi())
-                                        },
-                                    )
-                                    .map_err(|e| FruityError::from_napi(e))?,
-                                )
-                                .map_err(|e| FruityError::from_napi(e))?;
-
-                            FruityResult::Ok(())
-                        })?;
-
-                    env.wrap(&mut js_object, value)
-                        .map_err(|e| FruityError::from_napi(e))?;
-                    js_object.into_unknown()
-                }
+                Err(value) => unsafe {
+                    let raw = NAPI_CLASS_CONSTRUCTORS
+                        .instantiate(env.raw(), value)
+                        .map_err(|err| FruityError::from_napi(err))?;
+                    JsUnknown::from_raw(env.raw(), raw)
+                        .map_err(|err| FruityError::from_napi(err))?
+                },
             }
         }
     })
@@ -283,7 +172,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
 
 /// Create a script value from a napi js value
 pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<ScriptValue> {
-    puffin::profile_scope!("js_value_to_script_value");
+    profile_scope!("js_value_to_script_value");
 
     Ok(
         match value.get_type().map_err(|e| FruityError::from_napi(e))? {
@@ -323,6 +212,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                     .is_array()
                     .map_err(|e| FruityError::from_napi(e))?
                 {
+                    profile_scope!("js_value_to_script_value_array");
                     // First case, the object is a plain javascript array
                     ScriptValue::Array(
                         (0..js_object
@@ -342,6 +232,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                     .is_promise()
                     .map_err(|e| FruityError::from_napi(e))?
                 {
+                    profile_scope!("js_value_to_script_value_array");
                     // Convert js value to promise
                     let promise = Promise::<ScriptValue>::from_unknown(js_object.into_unknown())
                         .map_err(|e| FruityError::from_napi(e))?;
@@ -355,8 +246,21 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
 
                     ScriptValue::Future(future.shared())
                 } else {
-                    match env.unwrap::<Box<dyn ScriptObject>>(&js_object) {
-                        Ok(wrapped) => {
+                    profile_scope!("js_value_to_script_value_object");
+
+                    // Get the wrapped object
+                    let mut wrapped = std::ptr::null_mut();
+                    let unwrap_result = check_status!(
+                        unsafe { napi_sys::napi_unwrap(env.raw(), js_object.raw(), &mut wrapped) },
+                        "Unwrap value [{}] from class failed",
+                        std::any::type_name::<Box<dyn ScriptObject>>(),
+                    );
+
+                    match unwrap_result {
+                        Ok(_) => {
+                            let wrapped = wrapped as *mut Box<dyn ScriptObject>;
+                            let wrapped = unsafe { wrapped.as_mut() }.unwrap();
+
                             // Second case, a value is wrapped into the object
                             ScriptValue::Object(wrapped.deref().duplicate())
                         }
@@ -370,6 +274,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                 }
             }
             ValueType::Function => {
+                profile_scope!("js_value_to_script_value_function");
                 let js_func = JsFunction::try_from(value).map_err(|e| FruityError::from_napi(e))?;
                 let js_func = JsSharedRef::new(env, js_func)?;
 
@@ -511,6 +416,10 @@ impl Debug for JsIntrospectObject {
 }
 
 impl IntrospectFields for JsIntrospectObject {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(false)
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         // Get the js func object the reference
         let js_object = self.reference.inner();
@@ -636,112 +545,6 @@ impl Task for FutureTask {
     fn finally(&mut self, _env: Env) -> napi::Result<()> {
         Ok(())
     }
-}
-
-unsafe extern "C" fn generic_getter(
-    raw_env: napi_env,
-    callback_info: napi_sys::napi_callback_info,
-) -> napi_value {
-    unsafe fn generic_getter(
-        raw_env: napi_env,
-        callback_info: napi_sys::napi_callback_info,
-    ) -> napi::Result<napi_value> {
-        // Get the field name passed as data
-        let field_name = {
-            let mut this = std::ptr::null_mut();
-            let mut args = [std::ptr::null_mut(); 1];
-            let mut argc = 1;
-            let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-
-            check_status!(napi_sys::napi_get_cb_info(
-                raw_env,
-                callback_info,
-                &mut argc,
-                args.as_mut_ptr(),
-                &mut this,
-                &mut data_ptr,
-            ))?;
-
-            let data_ptr = std::ffi::CStr::from_ptr(data_ptr as *mut std::ffi::c_char);
-            data_ptr.to_str().unwrap().to_string()
-        };
-
-        // Initialize javascript utils
-        let env = Env::from_raw(raw_env);
-        let callback_info = CallbackInfo::<3>::new(raw_env, callback_info, None)?;
-
-        // Get the wrapped object
-        let this = JsObject::from_raw(raw_env, callback_info.this())?;
-        let wrapped = env.unwrap::<Box<dyn ScriptObject>>(&this)?;
-
-        // Execute the getter
-        let result = wrapped
-            .get_field_value(&field_name.to_case(Case::Snake))
-            .map_err(|e| e.into_napi())?;
-
-        // Returns the result
-        let result = script_value_to_js_value(&env, result).map_err(|e| e.into_napi())?;
-        Ok(result.raw())
-    }
-
-    generic_getter(raw_env, callback_info).unwrap_or_else(|e| {
-        unsafe { JsError::from(e).throw_into(raw_env) };
-        std::ptr::null_mut()
-    })
-}
-
-unsafe extern "C" fn generic_setter(
-    raw_env: napi_env,
-    callback_info: napi_sys::napi_callback_info,
-) -> napi_value {
-    unsafe fn generic_setter(
-        raw_env: napi_env,
-        callback_info: napi_sys::napi_callback_info,
-    ) -> napi::Result<napi_value> {
-        // Get the field name passed as data
-        let field_name = {
-            let mut this = std::ptr::null_mut();
-            let mut args = [std::ptr::null_mut(); 1];
-            let mut argc = 1;
-            let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-
-            check_status!(napi_sys::napi_get_cb_info(
-                raw_env,
-                callback_info,
-                &mut argc,
-                args.as_mut_ptr(),
-                &mut this,
-                &mut data_ptr,
-            ))?;
-
-            let data_ptr = std::ffi::CStr::from_ptr(data_ptr as *mut std::ffi::c_char);
-            data_ptr.to_str().unwrap().to_string()
-        };
-
-        // Initialize javascript utils
-        let env = Env::from_raw(raw_env);
-        let callback_info = CallbackInfo::<3>::new(raw_env, callback_info, None)?;
-
-        // Get the wrapped object
-        let this = JsObject::from_raw(raw_env, callback_info.this())?;
-        let wrapped = env.unwrap::<Box<dyn ScriptObject>>(&this)?;
-
-        // Execute the setter
-        let arg = JsUnknown::from_raw(raw_env, callback_info.get_arg(0))?;
-        let arg = js_value_to_script_value(&env, arg).map_err(|e| e.into_napi())?;
-        wrapped
-            .set_field_value(&field_name.to_case(Case::Snake), arg)
-            .map_err(|e| e.into_napi())?;
-
-        // Returns the result
-        let result = env.get_undefined()?;
-        Ok(result.raw())
-    }
-
-    generic_setter(raw_env, callback_info).unwrap_or_else(|e| {
-        unsafe { JsError::from(e).throw_into(raw_env) };
-        std::ptr::null_mut()
-    })
 }
 
 impl FruityError {

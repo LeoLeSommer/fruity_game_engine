@@ -76,9 +76,6 @@ pub fn run_world_middleware(
 
     let resource_container = world.get_resource_container();
 
-    // Read settings
-    let window_settings = read_window_settings(&settings);
-
     // Get the windows events
     let (
         event_loop,
@@ -118,14 +115,16 @@ pub fn run_world_middleware(
     let loop_closure = move |event: Event<'_, ()>,
                              _: &EventLoopWindowTarget<()>,
                              control_flow: &mut ControlFlow| {
+        profile_new_frame();
+        profile_scope!("main_loop");
+
         // Update FrameService current tick
         {
+            profile_scope!("frame_service_begin_frame");
             let mut frame_service = frame_service.write();
             frame_service.begin_frame();
         }
 
-        profile_new_frame();
-        profile_scope!("main_loop");
         *control_flow = ControlFlow::Wait;
 
         // Handle events
@@ -137,64 +136,64 @@ pub fn run_world_middleware(
             let event = event as *const Event<'static, ()>;
             let event = unsafe { &*event as &Event<'static, ()> };
             let event = unsafe { &*(&event as *const _) } as &Event<'static, ()>;
-            let event = event.clone();
-            on_event.notify(event).unwrap();
-        }
 
-        match event {
-            // Check if the user has closed the window from the OS
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                window_id: event_window_id,
-                ..
-            } => {
-                if event_window_id == window_id {
-                    // Run the end systems a the end
-                    world.end().unwrap();
+            on_event.notify(event.clone()).unwrap();
 
-                    // Transmit to the loop that it should end
-                    *control_flow = ControlFlow::Exit;
+            match event {
+                // Check if the user has closed the window from the OS
+                Event::WindowEvent {
+                    event: WindowEvent::CloseRequested,
+                    window_id: event_window_id,
+                    ..
+                } => {
+                    if *event_window_id == window_id {
+                        // Run the end systems a the end
+                        world.end().unwrap();
+
+                        // Transmit to the loop that it should end
+                        *control_flow = ControlFlow::Exit;
+                    }
                 }
-            }
-            // Check if the user has resized the window from the OS
-            Event::WindowEvent {
-                event: WindowEvent::Resized(physical_size),
-                ..
-            } => {
-                on_resize
-                    .notify((physical_size.width, physical_size.height))
-                    .unwrap();
-            }
-            // Check if the user has moved the cursor
-            Event::WindowEvent {
-                event: WindowEvent::CursorMoved { position, .. },
-                ..
-            } => {
-                let mut window_service = window_service.write();
-                let mut window_service = window_service
-                    .as_any_mut()
-                    .downcast_mut::<WinitWindowService>()
-                    .unwrap();
+                // Check if the user has resized the window from the OS
+                Event::WindowEvent {
+                    event: WindowEvent::Resized(physical_size),
+                    ..
+                } => {
+                    on_resize
+                        .notify((physical_size.width, physical_size.height))
+                        .unwrap();
+                }
+                // Check if the user has moved the cursor
+                Event::WindowEvent {
+                    event: WindowEvent::CursorMoved { position, .. },
+                    ..
+                } => {
+                    let mut window_service = window_service.write();
+                    let mut window_service = window_service
+                        .as_any_mut()
+                        .downcast_mut::<WinitWindowService>()
+                        .unwrap();
 
-                window_service.cursor_position = (position.x as u32, position.y as u32);
-                std::mem::drop(window_service);
+                    window_service.cursor_position = (position.x as u32, position.y as u32);
+                    std::mem::drop(window_service);
 
-                on_cursor_moved
-                    .notify((position.x as u32, position.y as u32))
-                    .unwrap();
+                    on_cursor_moved
+                        .notify((position.x as u32, position.y as u32))
+                        .unwrap();
+                }
+                Event::WindowEvent {
+                    event: WindowEvent::ScaleFactorChanged { new_inner_size, .. },
+                    ..
+                } => {
+                    on_resize
+                        .notify((new_inner_size.width, new_inner_size.height))
+                        .unwrap();
+                }
+                Event::MainEventsCleared => {
+                    on_events_cleared.notify(()).unwrap();
+                }
+                _ => (),
             }
-            Event::WindowEvent {
-                event: WindowEvent::ScaleFactorChanged { new_inner_size, .. },
-                ..
-            } => {
-                on_resize
-                    .notify((new_inner_size.width, new_inner_size.height))
-                    .unwrap();
-            }
-            Event::MainEventsCleared => {
-                on_events_cleared.notify(()).unwrap();
-            }
-            _ => (),
         }
 
         // Start updating
@@ -205,7 +204,6 @@ pub fn run_world_middleware(
 
         // Run the systems
         {
-            profile_scope!("frame");
             world.frame().unwrap();
         }
 
@@ -213,14 +211,6 @@ pub fn run_world_middleware(
         {
             profile_scope!("end_update");
             on_end_update.notify(()).unwrap();
-        }
-
-        // Update title with FPS
-        {
-            let frame_service_reader = frame_service.read();
-            let fps = 1.0 / frame_service_reader.get_delta();
-            let window_service = window_service.read();
-            window_service.set_title(&format!("{} ({} FPS)", window_settings.title, fps));
         }
     };
 

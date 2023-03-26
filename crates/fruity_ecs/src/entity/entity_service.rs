@@ -15,6 +15,7 @@ use crate::entity::EntityTypeIdentifier;
 use crate::ExtensionComponentService;
 use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
+use fruity_game_engine::profile_scope;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::signal::Signal;
@@ -430,6 +431,8 @@ impl EntityService {
     /// It is unsafe cause apply mutations is the only operation that mutate the archetypes vec witch is widely
     /// read in an unsafe way everywhere in the ecs code
     pub unsafe fn apply_pending_mutations(&mut self) -> FruityResult<()> {
+        profile_scope!("apply_pending_mutations");
+
         // Apply add entity mutations
         let mutations = {
             let mut mutations = self.pending_mutations.lock();

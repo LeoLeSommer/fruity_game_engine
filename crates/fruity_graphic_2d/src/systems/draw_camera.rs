@@ -28,7 +28,6 @@ pub fn draw_camera(
 
         // Render the scene
         {
-            profile_scope!("render_scene");
             let graphic_service = graphic_service.read();
             graphic_service.render_scene(view_proj, camera.background_color, camera.target.clone());
         }

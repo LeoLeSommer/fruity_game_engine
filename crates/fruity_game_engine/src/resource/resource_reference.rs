@@ -62,6 +62,10 @@ impl Clone for AnyResourceReference {
 }
 
 impl IntrospectFields for AnyResourceReference {
+    fn is_static(&self) -> FruityResult<bool> {
+        self.resource.is_static()
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         self.resource.get_class_name()
     }
@@ -174,6 +178,10 @@ impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Clone
 impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> IntrospectFields
     for ResourceReference<T>
 {
+    fn is_static(&self) -> FruityResult<bool> {
+        self.resource.is_static()
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         self.resource.get_class_name()
     }

@@ -14,6 +14,8 @@ use wasm_bindgen_futures::{future_to_promise, JsFuture};
 
 /// Create a wasm js value from a script value
 pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
+    puffin::profile_scope!("script_value_to_js_value");
+
     Ok(match value {
         ScriptValue::I8(value) => JsValue::from(value),
         ScriptValue::I16(value) => JsValue::from(value),
@@ -250,6 +252,8 @@ pub fn script_value_to_js_value(value: ScriptValue) -> FruityResult<JsValue> {
 
 /// Create a script value from a wasm js value
 pub fn js_value_to_script_value(value: JsValue) -> FruityResult<ScriptValue> {
+    puffin::profile_scope!("js_value_to_script_value");
+
     Ok(if value.is_null() {
         ScriptValue::Null
     } else if value.is_undefined() {
@@ -382,6 +386,10 @@ impl Debug for JsIntrospectObject {
 }
 
 impl IntrospectFields for JsIntrospectObject {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(false)
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         // Get the js func object the reference
         let constructor: js_sys::Function =

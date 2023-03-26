@@ -140,6 +140,10 @@ pub fn intern_export_struct(item: ItemStruct) -> TokenStream2 {
     quote! {
         impl #fruity_crate::introspect::IntrospectFields for #struct_name
         {
+            fn is_static(&self) -> #fruity_crate::FruityResult<bool> {
+                Ok(true)
+            }
+        
             #impl_get_class_name
             #impl_get_field_names
             #impl_set_field_value

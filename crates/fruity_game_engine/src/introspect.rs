@@ -17,6 +17,9 @@ use std::sync::Arc;
 
 /// Trait to implement fields introspection to a struct
 pub trait IntrospectFields: Debug + FruityAny {
+    /// Is the list of fields and methods supposed to change
+    fn is_static(&self) -> FruityResult<bool>;
+
     /// Return the class type name
     fn get_class_name(&self) -> FruityResult<String>;
 
@@ -59,6 +62,10 @@ pub trait IntrospectMethods: Debug + FruityAny {
 }
 
 impl<T: IntrospectFields + ?Sized> IntrospectFields for Box<T> {
+    fn is_static(&self) -> FruityResult<bool> {
+        self.deref().is_static()
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         self.deref().get_class_name()
     }
@@ -95,6 +102,10 @@ impl<T: IntrospectMethods + ?Sized> IntrospectMethods for Box<T> {
 }
 
 impl<T: IntrospectFields + ?Sized> IntrospectFields for Arc<T> {
+    fn is_static(&self) -> FruityResult<bool> {
+        self.deref().is_static()
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         self.deref().get_class_name()
     }
@@ -135,6 +146,10 @@ impl<T: IntrospectMethods + ?Sized> IntrospectMethods for Arc<T> {
 }
 
 impl<T: IntrospectFields> IntrospectFields for RwLock<T> {
+    fn is_static(&self) -> FruityResult<bool> {
+        self.read().is_static()
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         self.read().get_class_name()
     }

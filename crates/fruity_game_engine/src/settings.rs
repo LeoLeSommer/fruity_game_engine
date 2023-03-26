@@ -249,6 +249,10 @@ impl TryFromScriptValue for Settings {
 struct SettingsHashMap(HashMap<String, Settings>);
 
 impl IntrospectFields for SettingsHashMap {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(false)
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         Ok("Settings".to_string())
     }

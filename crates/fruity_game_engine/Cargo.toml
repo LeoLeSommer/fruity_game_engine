@@ -18,12 +18,14 @@ send_wrapper = { version = "0.6.0", features = ["futures"] }
 futures = "0.3.26"
 tokio = { version = "1.12", features = ["rt", "time"] }
 fruity_game_engine_macro = { path = "../fruity_game_engine_macro" }
+puffin = "0.14.3"
 
 [build-dependencies]
 fruity_game_engine_build = { path = "../fruity_game_engine_build" }
 napi-build = "2.0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+puffin = { version = "0.14.3", features = ["web"] }
 wasm-bindgen = "0.2.83"
 wasm-bindgen-futures = "0.4.34"
 console_error_panic_hook = "0.1.7"
@@ -36,4 +38,3 @@ tokio = { version = "1.12", features = ["rt", "time", "rt-multi-thread"] }
 napi = { version = "2.11.2", default-features = false, features = ["napi4", "napi5", "napi6", "tokio_rt", "compat-mode", "async"] }
 napi-derive = "2.11.1"
 napi-sys = "2.2.3"
-puffin = "0.14.3"

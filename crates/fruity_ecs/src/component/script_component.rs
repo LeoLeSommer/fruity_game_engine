@@ -18,6 +18,10 @@ impl From<Box<dyn ScriptObject>> for ScriptComponent {
 }
 
 impl IntrospectFields for ScriptComponent {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(false)
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         self.0.get_class_name()
     }

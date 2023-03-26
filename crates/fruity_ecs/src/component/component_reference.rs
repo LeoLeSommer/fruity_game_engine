@@ -170,6 +170,10 @@ impl Debug for AnyComponentReference {
 }
 
 impl IntrospectFields for AnyComponentReference {
+    fn is_static(&self) -> FruityResult<bool> {
+        self.read()?.is_static()
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         self.read()?.get_class_name()
     }
@@ -370,6 +374,10 @@ impl<T: Component> Debug for ComponentReference<T> {
 }
 
 impl<T: Component> IntrospectFields for ComponentReference<T> {
+    fn is_static(&self) -> FruityResult<bool> {
+        self.read()?.is_static()
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         self.read()?.get_class_name()
     }

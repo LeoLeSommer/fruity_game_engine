@@ -173,6 +173,10 @@ pub struct ScriptValueHashMap {
 }
 
 impl IntrospectFields for ScriptValueHashMap {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(false)
+    }
+
     fn get_class_name(&self) -> FruityResult<String> {
         Ok(self.class_name.clone())
     }

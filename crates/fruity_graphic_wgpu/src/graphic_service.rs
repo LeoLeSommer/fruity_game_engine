@@ -859,12 +859,12 @@ impl GraphicService for WgpuGraphicService {
 
     #[export]
     fn resize(&mut self, width: u32, height: u32) {
-        let mut state = self.state.as_mut().unwrap();
+        if let Some(mut state) = self.state.as_mut() {
+            state.config.width = width;
+            state.config.height = height;
 
-        state.config.width = width;
-        state.config.height = height;
-
-        self.surface.configure(&state.device, &state.config);
+            self.surface.configure(&state.device, &state.config);
+        }
     }
 
     fn draw_mesh(

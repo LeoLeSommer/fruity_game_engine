@@ -1999,6 +1999,7 @@ dependencies = [
  "bincode",
  "byteorder",
  "instant",
+ "js-sys",
  "once_cell",
  "parking_lot",
  "ruzstd",
