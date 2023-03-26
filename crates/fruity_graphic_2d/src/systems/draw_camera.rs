@@ -3,7 +3,6 @@ use crate::Transform2D;
 use fruity_ecs::entity::entity_query::with::With;
 use fruity_ecs::entity::entity_query::Query;
 use fruity_game_engine::inject::Ref;
-use fruity_game_engine::profile_scope;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::graphic_service::GraphicService;
 use fruity_graphic::math::matrix4::Matrix4;

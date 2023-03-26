@@ -3,14 +3,14 @@ use crate::Matrix4;
 use cgmath::Angle;
 use cgmath::Rad;
 use cgmath::SquareMatrix;
-use fruity_ecs::deserialize::Deserialize;
+use fruity_ecs::serializable::Serializable;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
 use std::ops::Mul;
 
-#[derive(Debug, FruityAny, Deserialize, Clone, Copy)]
+#[derive(Debug, FruityAny, Serializable, Clone, Copy)]
 #[export_struct]
 pub struct Matrix3(pub [[f32; 3]; 3]);
 

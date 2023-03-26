@@ -1,6 +1,6 @@
 use crate::math::matrix3::Matrix3;
 use crate::math::matrix4::Matrix4;
-use fruity_ecs::deserialize::Deserialize;
+use fruity_ecs::serializable::Serializable;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
 use fruity_game_engine::export_constructor;
@@ -24,7 +24,7 @@ use std::ops::SubAssign;
     Default,
     PartialEq,
     FruityAny,
-    Deserialize,
+    Serializable,
     bytemuck::Pod,
     bytemuck::Zeroable,
 )]

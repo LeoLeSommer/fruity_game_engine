@@ -8,7 +8,7 @@ use crate::graphic_2d_service::Graphic2dService;
 use crate::systems::draw_camera::draw_camera;
 use crate::systems::draw_sprite::draw_sprite;
 use crate::systems::update_transform_2d::update_transform_2d;
-use fruity_ecs::deserialize_service::DeserializeService;
+use fruity_ecs::serialization_service::SerializationService;
 use fruity_ecs::system_service::{SystemParams, SystemService};
 use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
@@ -38,15 +38,15 @@ pub fn create_fruity_graphic_2d_module() -> Module {
             resource_container
                 .add::<Graphic2dService>("graphic_2d_service", Box::new(graphic_2d_service));
 
-            let deserialize_service = resource_container.require::<DeserializeService>();
-            let mut deserialize_service = deserialize_service.write();
+            let serialization_service = resource_container.require::<SerializationService>();
+            let mut serialization_service = serialization_service.write();
 
-            deserialize_service.register_component::<Transform2D>();
-            deserialize_service.register_component::<Translate2D>();
-            deserialize_service.register_component::<Rotate2D>();
-            deserialize_service.register_component::<Scale2D>();
-            deserialize_service.register_component::<Sprite>();
-            deserialize_service.register_component::<Camera>();
+            serialization_service.register_component::<Transform2D>();
+            serialization_service.register_component::<Translate2D>();
+            serialization_service.register_component::<Rotate2D>();
+            serialization_service.register_component::<Scale2D>();
+            serialization_service.register_component::<Sprite>();
+            serialization_service.register_component::<Camera>();
 
             let system_service = resource_container.require::<SystemService>();
             let mut system_service = system_service.write();

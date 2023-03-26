@@ -317,3 +317,243 @@ impl Debug for World {
         this.resource_container.fmt(formatter)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::module::Module;
+    use crate::settings::Settings;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_module_run_world_middleware() {
+        let settings = Settings::default();
+        let world = World::new(settings);
+
+        // Create modules that will be called
+        let called_modules = Arc::new(RwLock::new(Vec::new()));
+        let module1 = {
+            let called_modules = called_modules.clone();
+            Module {
+                name: "test_module_1".to_string(),
+                run_world_middleware: Some(Arc::new(move |_world, _settings, _next| {
+                    called_modules
+                        .write()
+                        .push("run_world_middleware".to_string());
+
+                    Ok(())
+                })),
+                ..Default::default()
+            }
+        };
+
+        let module2 = {
+            let called_modules = called_modules.clone();
+            Module {
+                name: "test_module_2".to_string(),
+                setup_world_middleware: Some(Arc::new(move |_world, _settings, _next| {
+                    called_modules
+                        .write()
+                        .push("setup_world_middleware".to_string());
+
+                    Ok(())
+                })),
+                ..Default::default()
+            }
+        };
+
+        // Register modules
+        world.register_module(module1).unwrap();
+        world.register_module(module2).unwrap();
+
+        // Run world
+        world.run().unwrap();
+
+        // Check if middleware was called in correct order
+        assert_eq!(
+            called_modules.read().clone(),
+            vec![
+                "setup_world_middleware".to_string(),
+                "run_world_middleware".to_string()
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_world_setup_modules_async() {
+        let settings = Settings::default();
+        let world = World::new(settings);
+
+        // Create modules that will be called
+        let called_modules = Arc::new(RwLock::new(Vec::new()));
+        let dependent_module = {
+            let called_modules = called_modules.clone();
+            Module {
+                name: "dependent_module".to_string(),
+                dependencies: vec!["first_module".to_string()],
+                setup_async: Some(Arc::new(move |_world, _settings| {
+                    let called_modules = called_modules.clone();
+                    Box::pin(async move {
+                        called_modules.write().push("dependent_module".to_string());
+
+                        Ok(())
+                    })
+                })),
+                ..Default::default()
+            }
+        };
+
+        let first_module = {
+            let called_modules = called_modules.clone();
+            Module {
+                name: "first_module".to_string(),
+                dependencies: vec![],
+                setup: Some(Arc::new(move |_world, _settings| {
+                    called_modules.write().push("first_module".to_string());
+
+                    Ok(())
+                })),
+                ..Default::default()
+            }
+        };
+
+        // Register modules
+        world.register_module(dependent_module).unwrap();
+        world.register_module(first_module).unwrap();
+
+        // Setup modules
+        world.setup_modules_async().await.unwrap();
+
+        // Check if modules were called in correct order
+        let expected = vec!["first_module".to_string(), "dependent_module".to_string()];
+        assert!(called_modules.read().clone() == expected);
+    }
+
+    #[tokio::test]
+    async fn test_world_load_resources_async() {
+        let settings = Settings::default();
+        let world = World::new(settings);
+
+        // Create modules that will be called
+        let called_modules = Arc::new(RwLock::new(Vec::new()));
+        let dependent_module = {
+            let called_modules = called_modules.clone();
+            Module {
+                name: "dependent_module".to_string(),
+                dependencies: vec!["first_module".to_string()],
+                load_resources_async: Some(Arc::new(move |_world, _settings| {
+                    let called_modules = called_modules.clone();
+                    Box::pin(async move {
+                        called_modules.write().push("dependent_module".to_string());
+
+                        Ok(())
+                    })
+                })),
+                ..Default::default()
+            }
+        };
+
+        let first_module = {
+            let called_modules = called_modules.clone();
+            Module {
+                name: "first_module".to_string(),
+                dependencies: vec![],
+                load_resources: Some(Arc::new(move |_world, _settings| {
+                    called_modules.write().push("first_module".to_string());
+
+                    Ok(())
+                })),
+                ..Default::default()
+            }
+        };
+
+        // Register modules
+        world.register_module(dependent_module).unwrap();
+        world.register_module(first_module).unwrap();
+
+        // Load resources
+        world.load_resources_async().await.unwrap();
+
+        // Check if modules were called in correct order
+        let expected = vec!["first_module".to_string(), "dependent_module".to_string()];
+        assert!(called_modules.read().clone() == expected);
+    }
+
+    #[test]
+    fn test_world_add_start_middleware() {
+        let settings = Settings::default();
+        let world = World::new(settings);
+
+        // Create middleware that will be called
+        let middleware_has_been_called = Arc::new(RwLock::new(false));
+        let middleware = {
+            let middleware_has_been_called = middleware_has_been_called.clone();
+            move |_, _| {
+                *middleware_has_been_called.write() = true;
+
+                Ok(())
+            }
+        };
+
+        // Add middleware
+        world.add_run_start_middleware(middleware);
+
+        // Run world start
+        world.start().unwrap();
+
+        // Check if middleware was called
+        assert!(*middleware_has_been_called.read());
+    }
+
+    #[test]
+    fn test_world_add_frame_middleware() {
+        let settings = Settings::default();
+        let world = World::new(settings);
+
+        // Create middleware that will be called
+        let middleware_has_been_called = Arc::new(RwLock::new(false));
+        let middleware = {
+            let middleware_has_been_called = middleware_has_been_called.clone();
+            move |_, _| {
+                *middleware_has_been_called.write() = true;
+
+                Ok(())
+            }
+        };
+
+        // Add middleware
+        world.add_run_frame_middleware(middleware);
+
+        // Run world frame
+        world.frame().unwrap();
+
+        // Check if middleware was called
+        assert!(*middleware_has_been_called.read());
+    }
+
+    #[test]
+    fn test_add_run_end_middleware() {
+        let settings = Settings::default();
+        let world = World::new(settings);
+
+        // Create middleware that will be called
+        let middleware_has_been_called = Arc::new(RwLock::new(false));
+        let middleware = {
+            let middleware_has_been_called = middleware_has_been_called.clone();
+            move |_, _| {
+                *middleware_has_been_called.write() = true;
+
+                Ok(())
+            }
+        };
+
+        // Add middleware
+        world.add_run_end_middleware(middleware);
+
+        // Run world end
+        world.end().unwrap();
+
+        // Check if middleware was called
+        assert!(*middleware_has_been_called.read());
+    }
+}

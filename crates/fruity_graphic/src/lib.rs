@@ -6,7 +6,7 @@ use crate::resources::default_resources::load_default_resources;
 use crate::resources::material_resource::load_material;
 use crate::resources::shader_resource::load_shader;
 use crate::resources::texture_resource::load_texture;
-use fruity_ecs::deserialize_service::DeserializeService;
+use fruity_ecs::serialization_service::SerializationService;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
 use std::sync::Arc;
@@ -30,13 +30,13 @@ pub fn create_fruity_graphic_module() -> Module {
         setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
-            let deserialize_service = resource_container.require::<DeserializeService>();
-            let mut deserialize_service = deserialize_service.write();
+            let serialization_service = resource_container.require::<SerializationService>();
+            let mut serialization_service = serialization_service.write();
 
-            deserialize_service.register::<Color>();
-            deserialize_service.register::<Vector2D>();
-            deserialize_service.register::<Matrix3>();
-            deserialize_service.register::<Matrix4>();
+            serialization_service.register::<Color>();
+            serialization_service.register::<Vector2D>();
+            serialization_service.register::<Matrix3>();
+            serialization_service.register::<Matrix4>();
 
             resource_container.add_resource_loader("material", load_material);
             resource_container.add_resource_loader("shader", load_shader);

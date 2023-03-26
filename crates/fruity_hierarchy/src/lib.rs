@@ -10,7 +10,7 @@
 use crate::components::parent::Parent;
 use crate::systems::delete_cascade::delete_cascade;
 use crate::systems::update_nested_level::update_nested_level;
-use fruity_ecs::deserialize_service::DeserializeService;
+use fruity_ecs::serialization_service::SerializationService;
 use fruity_ecs::system_service::{StartupSystemParams, SystemService};
 use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
@@ -34,10 +34,10 @@ pub fn create_fruity_hierarchy_module() -> Module {
         setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
-            let deserialize_service = resource_container.require::<DeserializeService>();
-            let mut deserialize_service = deserialize_service.write();
+            let serialization_service = resource_container.require::<SerializationService>();
+            let mut serialization_service = serialization_service.write();
 
-            deserialize_service.register_component::<Parent>();
+            serialization_service.register_component::<Parent>();
 
             let system_service = resource_container.require::<SystemService>();
             let mut system_service = system_service.write();

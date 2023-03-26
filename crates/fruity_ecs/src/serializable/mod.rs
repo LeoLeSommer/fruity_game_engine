@@ -4,7 +4,7 @@ use fruity_game_engine::{
 };
 use std::collections::HashMap;
 
-pub use fruity_ecs_macro::Deserialize;
+pub use fruity_ecs_macro::Serializable;
 
 /// Implementation of script value conversions for primitives
 pub mod impl_primitives;
@@ -19,12 +19,12 @@ pub mod impl_containers;
 pub mod impl_tuples;
 
 /// Trait to implement a generic constructor from a ScriptValue
-pub trait Deserialize: Sized {
+pub trait Serializable: Sized {
     /// Identifier of the deserialize object
     /// in the js, it correspond to the class name
     fn get_identifier() -> String;
 
-    /// Deserialize an object
+    /// Serializable an object
     fn deserialize(
         script_value: ScriptValue,
         resource_container: ResourceContainer,

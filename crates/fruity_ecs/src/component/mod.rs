@@ -1,7 +1,7 @@
 use self::script_component::ScriptComponent;
-use crate::deserialize_service::DeserializeService;
 use crate::entity::archetype::component_storage::ComponentStorage;
 use crate::entity::EntityId;
+use crate::serialization_service::SerializationService;
 pub use fruity_ecs_macro::Component;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::{IntrospectFields, IntrospectMethods};
@@ -25,7 +25,7 @@ pub mod script_component;
 /// A module for the engine
 #[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
 pub struct SerializedAnyComponent {
-    /// The class identifier, is used to create the component trough DeserializeService
+    /// The class identifier, is used to create the component trough SerializationService
     pub class_name: String,
 
     /// The field values
@@ -95,15 +95,15 @@ impl AnyComponent {
         })
     }
 
-    /// Deserialize an AnyComponent
+    /// Serializable an AnyComponent
     pub fn deserialize(
         value: ScriptValue,
-        deserialize_service: &DeserializeService,
+        serialization_service: &SerializationService,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self> {
         let serialized_component = SerializedAnyComponent::from_script_value(value)?;
 
-        let new_object = deserialize_service
+        let new_object = serialization_service
             .instantiate(
                 serialized_component.fields.clone().into_script_value()?,
                 serialized_component.class_name.clone(),

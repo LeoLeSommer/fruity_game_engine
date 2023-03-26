@@ -18,12 +18,6 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
-use rayon::iter::ParallelBridge;
-
-#[cfg(not(target_arch = "wasm32"))]
-use rayon::iter::ParallelIterator;
-
 /// Queries for scripting languages
 pub mod script;
 
@@ -376,10 +370,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
         let mut iterator = archetypes_reader.iter();
 
         #[cfg(not(target_arch = "wasm32"))]
-        let iterator = archetypes_reader.iter();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let iterator = iterator.par_bridge();
+        let mut iterator = archetypes_reader.iter();
 
         iterator.try_for_each(|archetype| {
             let archetype = unsafe { archetype.0.as_ref() };

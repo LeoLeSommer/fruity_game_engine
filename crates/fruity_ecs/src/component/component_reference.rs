@@ -222,7 +222,7 @@ unsafe impl<T: Component> Sync for InnerShareableComponentReference<T> {}
 
 /// A reference over an entity stored into an Archetype
 /// The pointer are updated with an observer over the EntityService to catch memory updates
-#[derive(FruityAny)]
+#[derive(FruityAny, Clone)]
 pub struct ComponentReference<T: Component> {
     inner: Arc<RwLock<InnerShareableComponentReference<T>>>,
     _on_entity_lock_address_moved_handle: ObserverHandler<OnEntityLockAddressMoved>,

@@ -6,12 +6,12 @@ use super::EntityId;
 use super::SerializedEntity;
 use crate::component::AnyComponent;
 use crate::component::Component;
-use crate::deserialize_service::DeserializeService;
 use crate::entity::archetype::Archetype;
 use crate::entity::entity_reference::EntityReference;
 use crate::entity::get_type_identifier_by_any;
 use crate::entity::EntityLocation;
 use crate::entity::EntityTypeIdentifier;
+use crate::serialization_service::SerializationService;
 use crate::ExtensionComponentService;
 use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
@@ -104,7 +104,7 @@ pub struct EntityService {
     entity_locations: HashMap<EntityId, EntityLocation>,
     pub(crate) archetypes: Vec<Archetype>,
     resource_container: ResourceContainer,
-    deserialize_service: ResourceReference<DeserializeService>,
+    serialization_service: ResourceReference<SerializationService>,
     extension_component_service: ResourceReference<ExtensionComponentService>,
     pending_mutations: Mutex<VecDeque<Mutation>>,
 
@@ -145,7 +145,7 @@ impl EntityService {
             entity_locations: HashMap::new(),
             archetypes: Vec::new(),
             resource_container: resource_container.clone(),
-            deserialize_service: resource_container.require::<DeserializeService>(),
+            serialization_service: resource_container.require::<SerializationService>(),
             extension_component_service: resource_container.require::<ExtensionComponentService>(),
             on_created: Signal::new(),
             on_deleted: Signal::new(),
@@ -390,12 +390,12 @@ impl EntityService {
         }
 
         let mut local_id_to_entity_id = HashMap::<u64, EntityId>::new();
-        let deserialize_service = self.deserialize_service.read();
+        let serialization_service = self.serialization_service.read();
         snapshot.iter().try_for_each(|serialized_entity| {
             self.restore_entity(
                 serialized_entity,
                 &mut local_id_to_entity_id,
-                &deserialize_service,
+                &serialization_service,
             )
         })
     }
@@ -404,7 +404,7 @@ impl EntityService {
         &self,
         serialized_entity: &SerializedEntity,
         local_id_to_entity_id: &mut HashMap<u64, EntityId>,
-        deserialize_service: &DeserializeService,
+        serialization_service: &SerializationService,
     ) -> FruityResult<()> {
         let entity_id = self.create(
             serialized_entity.name.clone(),
@@ -416,7 +416,7 @@ impl EntityService {
                 .map(|serialized_component| {
                     AnyComponent::deserialize(
                         serialized_component,
-                        &deserialize_service,
+                        &serialization_service,
                         &local_id_to_entity_id,
                     )
                 })

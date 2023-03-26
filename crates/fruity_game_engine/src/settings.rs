@@ -21,7 +21,7 @@ use std::collections::HashMap;
   | null"
 )]
 #[typescript("type Settings = { [key: string]: SettingsElem }")]
-#[derive(Debug, Clone, FruityAny)]
+#[derive(Debug, Clone, FruityAny, PartialEq)]
 pub enum Settings {
     /// f64 value
     F64(f64),
@@ -296,5 +296,28 @@ impl IntrospectMethods for SettingsHashMap {
         _args: Vec<ScriptValue>,
     ) -> FruityResult<ScriptValue> {
         unreachable!()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_settings() {
+        let settings = Settings::Object(
+            vec![
+                ("a".to_string(), Settings::F64(1.0)),
+                ("b".to_string(), Settings::F64(2.0)),
+                ("c".to_string(), Settings::F64(3.0)),
+            ]
+            .into_iter()
+            .collect(),
+        );
+
+        let script_value = settings.clone().into_script_value().unwrap();
+        let settings2 = Settings::from_script_value(script_value).unwrap();
+
+        assert_eq!(settings, settings2);
     }
 }

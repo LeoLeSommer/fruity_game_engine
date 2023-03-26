@@ -7,6 +7,8 @@ use crate::ui::elements::layout::RowItem;
 use crate::ui::elements::UIElement;
 use crate::ui::elements::UISize;
 use crate::ui::elements::UIWidget;
+use fruity_game_engine::introspect::IntrospectFields;
+use fruity_game_engine::introspect::IntrospectMethods;
 use fruity_game_engine::resource::resource_reference::AnyResourceReference;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
@@ -15,7 +17,7 @@ use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::FruityResult;
 use std::sync::Arc;
 
-pub fn draw_editor_resource_reference<T: ScriptObject + ?Sized>(
+pub fn draw_editor_resource_reference<T: IntrospectFields + IntrospectMethods + ?Sized>(
     name: &str,
     value: Box<dyn ScriptObject>,
     on_update: Box<

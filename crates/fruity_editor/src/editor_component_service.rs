@@ -3,7 +3,7 @@ use crate::ui::context::UIContext;
 use crate::ui::elements::UIElement;
 use fruity_ecs::component::component_reference::AnyComponentReference;
 use fruity_ecs::component::AnyComponent;
-use fruity_ecs::deserialize_service::DeserializeService;
+use fruity_ecs::serialization_service::SerializationService;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::IntrospectFields;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
@@ -40,7 +40,7 @@ impl Default for RegisterComponentParams {
 #[export_struct]
 pub struct EditorComponentService {
     components: HashMap<String, RegisterComponentParams>,
-    deserialize_service: ResourceReference<DeserializeService>,
+    serialization_service: ResourceReference<SerializationService>,
 }
 
 #[export_impl]
@@ -48,7 +48,7 @@ impl EditorComponentService {
     pub fn new(resource_container: ResourceContainer) -> Self {
         Self {
             components: HashMap::new(),
-            deserialize_service: resource_container.require::<DeserializeService>(),
+            serialization_service: resource_container.require::<SerializationService>(),
         }
     }
 
@@ -78,7 +78,7 @@ impl EditorComponentService {
         &self,
         component_identifier: &str,
     ) -> FruityResult<Option<Vec<AnyComponent>>> {
-        let deserialize_service = self.deserialize_service.read();
+        let serialization_service = self.serialization_service.read();
         let component_params =
             if let Some(component_params) = self.components.get(component_identifier) {
                 component_params
@@ -86,7 +86,7 @@ impl EditorComponentService {
                 return Ok(None);
             };
 
-        let instance = deserialize_service.instantiate(
+        let instance = serialization_service.instantiate(
             HashMap::<String, ScriptValue>::new().into_script_value()?,
             component_identifier.to_string(),
             &HashMap::new(),

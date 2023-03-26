@@ -4,8 +4,8 @@ use crate::components::rigid_body::RigidBody;
 use crate::systems::update_circle_collider::update_circle_collider;
 use crate::systems::update_rect_collider::update_rect_collider;
 use crate::systems::update_rigid_body::update_rigid_body;
-use fruity_ecs::deserialize_service::DeserializeService;
 use fruity_ecs::extension_component_service::ExtensionComponentService;
+use fruity_ecs::serialization_service::SerializationService;
 use fruity_ecs::system_service::{SystemParams, SystemService};
 use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
@@ -32,10 +32,10 @@ pub fn create_fruity_physic_parry_2d_module() -> Module {
         setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
-            let deserialize_service = resource_container.require::<DeserializeService>();
-            let mut deserialize_service = deserialize_service.write();
+            let serialization_service = resource_container.require::<SerializationService>();
+            let mut serialization_service = serialization_service.write();
 
-            deserialize_service.register_component::<RigidBody>();
+            serialization_service.register_component::<RigidBody>();
 
             let extension_component_service =
                 resource_container.require::<ExtensionComponentService>();

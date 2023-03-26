@@ -721,6 +721,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "fruity_editor_graphic"
+version = "0.1.0"
+dependencies = [
+ "fruity_ecs",
+ "fruity_editor",
+ "fruity_game_engine",
+ "fruity_game_engine_build",
+ "fruity_graphic",
+ "fruity_graphic_2d",
+ "fruity_physic_2d",
+ "maplit",
+ "napi-build",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "fruity_editor_graphic_2d"
+version = "0.1.0"
+dependencies = [
+ "fruity_ecs",
+ "fruity_editor",
+ "fruity_game_engine",
+ "fruity_game_engine_build",
+ "fruity_graphic",
+ "fruity_graphic_2d",
+ "fruity_input",
+ "napi-build",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "fruity_editor_hierarchy"
 version = "0.1.0"
 dependencies = [
@@ -732,6 +763,23 @@ dependencies = [
  "nalgebra",
  "napi-build",
  "parry2d",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "fruity_editor_physic_2d"
+version = "0.1.0"
+dependencies = [
+ "fruity_ecs",
+ "fruity_editor",
+ "fruity_editor_graphic_2d",
+ "fruity_game_engine",
+ "fruity_game_engine_build",
+ "fruity_graphic",
+ "fruity_graphic_2d",
+ "fruity_input",
+ "fruity_physic_2d",
+ "napi-build",
  "wasm-bindgen",
 ]
 
@@ -2437,7 +2485,19 @@ dependencies = [
  "autocfg",
  "num_cpus",
  "pin-project-lite",
+ "tokio-macros",
  "windows-sys 0.42.0",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "1.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d266c00fde287f55d3f1c3e96c500c362a2b8c695076ec180f27918820bc6df8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

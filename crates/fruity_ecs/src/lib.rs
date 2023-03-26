@@ -16,13 +16,13 @@
 use crate::entity::entity_service::EntityService;
 use crate::extension_component_service::ExtensionComponentService;
 use crate::system_service::SystemService;
-use deserialize_service::DeserializeService;
 use entity::EntityId;
 pub use fruity_ecs_macro::Component;
 use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::typescript_import;
+use serialization_service::SerializationService;
 use std::sync::Arc;
 
 /// All related with components
@@ -39,10 +39,10 @@ pub mod extension_component_service;
 
 /// Provides a factory for the introspect object
 /// This will be used by to do the snapshots
-pub mod deserialize_service;
+pub mod serialization_service;
 
-/// A trait to deserialize script values with the DeserializeService
-pub mod deserialize;
+/// A trait to serialize/deserialize script values with the SerializationService
+pub mod serializable;
 
 #[typescript_import({Signal, ObserverHandler, Module, ScriptValue} from "fruity_game_engine")]
 
@@ -55,9 +55,11 @@ pub fn create_fruity_ecs_module() -> Module {
         setup: Some(Arc::new(|world, _settings| {
             let resource_container = world.get_resource_container();
 
-            let deserialize_service = DeserializeService::new(resource_container.clone());
-            resource_container
-                .add::<DeserializeService>("deserialize_service", Box::new(deserialize_service));
+            let serialization_service = SerializationService::new(resource_container.clone());
+            resource_container.add::<SerializationService>(
+                "serialization_service",
+                Box::new(serialization_service),
+            );
 
             let system_service = SystemService::new(resource_container.clone());
             resource_container.add::<SystemService>("system_service", Box::new(system_service));
@@ -72,10 +74,10 @@ pub fn create_fruity_ecs_module() -> Module {
             let entity_service = EntityService::new(resource_container.clone());
             resource_container.add::<EntityService>("entity_service", Box::new(entity_service));
 
-            let deserialize_service = resource_container.require::<DeserializeService>();
-            let mut deserialize_service = deserialize_service.write();
+            let serialization_service = resource_container.require::<SerializationService>();
+            let mut serialization_service = serialization_service.write();
 
-            deserialize_service.register::<EntityId>();
+            serialization_service.register::<EntityId>();
 
             // Register system middleware
             let system_service = resource_container.require::<SystemService>();

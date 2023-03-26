@@ -1,6 +1,6 @@
 use crate::component::Component;
-use crate::deserialize::Deserialize;
 use crate::entity::EntityId;
+use crate::serializable::Serializable;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::{
     any::FruityAny, resource::resource_container::ResourceContainer, script_value::ScriptValue,
@@ -12,7 +12,7 @@ use std::collections::HashMap;
 /// Utility used to deserialize objects, mostly used to restore snapshot
 #[derive(FruityAny)]
 #[export_struct]
-pub struct DeserializeService {
+pub struct SerializationService {
     resource_container: ResourceContainer,
     factories: HashMap<
         String,
@@ -29,10 +29,10 @@ pub struct DeserializeService {
 }
 
 #[export_impl]
-impl DeserializeService {
-    /// Returns an DeserializeService
-    pub fn new(resource_container: ResourceContainer) -> DeserializeService {
-        DeserializeService {
+impl SerializationService {
+    /// Returns an SerializationService
+    pub fn new(resource_container: ResourceContainer) -> SerializationService {
+        SerializationService {
             resource_container,
             factories: HashMap::new(),
         }
@@ -48,7 +48,7 @@ impl DeserializeService {
     ///
     pub fn register<T>(&mut self)
     where
-        T: Deserialize + TryIntoScriptValue,
+        T: Serializable + TryIntoScriptValue,
     {
         self.factories.insert(
             T::get_identifier(),
@@ -71,7 +71,7 @@ impl DeserializeService {
     ///
     pub fn register_component<T>(&mut self)
     where
-        T: Deserialize + Component + TryIntoScriptValue,
+        T: Serializable + Component + TryIntoScriptValue,
     {
         self.factories.insert(
             T::get_identifier(),
@@ -129,7 +129,7 @@ impl DeserializeService {
     }
 }
 
-impl std::fmt::Debug for DeserializeService {
+impl std::fmt::Debug for SerializationService {
     fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
         Ok(())
     }

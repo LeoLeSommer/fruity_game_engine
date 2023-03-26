@@ -24,7 +24,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-#[proc_macro_derive(Deserialize)]
+#[proc_macro_derive(Serializable)]
 pub fn derive_deserialize(input: TokenStream) -> TokenStream {
     intern_derive_deserialize(input)
 }
@@ -72,7 +72,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                                 let name_as_string = name.to_string();
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                        result.#name = <#ty as fruity_ecs::serializable::Serializable>::deserialize(
                                             script_object.get_field_value(#name_as_string)?,
                                             resource_container.clone(),
                                             local_id_to_entity_id,
@@ -85,7 +85,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                                 let name = syn::Index::from(name);
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                        result.#name = <#ty as fruity_ecs::serializable::Serializable>::deserialize(
                                             script_object.get_field_value(#name_as_string)?,
                                             resource_container.clone(),
                                             local_id_to_entity_id,
@@ -108,7 +108,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
-        impl fruity_ecs::deserialize::Deserialize for #ident {
+        impl fruity_ecs::serializable::Serializable for #ident {
             fn get_identifier() -> String {
                 #ident_as_string.to_string()
             }
@@ -159,7 +159,7 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
                                 let name_as_string = name.to_string();
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                        result.#name = <#ty as fruity_ecs::serializable::Serializable>::deserialize(
                                             script_object.get_field_value(#name_as_string)?,
                                             resource_container.clone(),
                                             local_id_to_entity_id,
@@ -172,7 +172,7 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
                                 let name = syn::Index::from(name);
                                 quote! {
                                     if script_object_field_names.contains(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as fruity_ecs::deserialize::Deserialize>::deserialize(
+                                        result.#name = <#ty as fruity_ecs::serializable::Serializable>::deserialize(
                                             script_object.get_field_value(#name_as_string)?,
                                             resource_container.clone(),
                                             local_id_to_entity_id,
@@ -195,7 +195,7 @@ fn intern_derive_deserialize_component_factory(input: TokenStream) -> TokenStrea
     };
 
     let output = quote! {
-        impl fruity_ecs::deserialize::Deserialize for #ident {
+        impl fruity_ecs::serializable::Serializable for #ident {
             fn get_identifier() -> String {
                 #ident_as_string.to_string()
             }

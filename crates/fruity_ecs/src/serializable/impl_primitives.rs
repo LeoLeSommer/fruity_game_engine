@@ -1,4 +1,4 @@
-use super::Deserialize;
+use super::Serializable;
 use crate::entity::EntityId;
 use fruity_game_engine::{
     resource::resource_container::ResourceContainer,
@@ -10,7 +10,7 @@ use fruity_game_engine::{
 };
 use std::collections::HashMap;
 
-impl Deserialize for ScriptValue {
+impl Serializable for ScriptValue {
     fn get_identifier() -> String {
         "ScriptValue".to_string()
     }
@@ -26,7 +26,7 @@ impl Deserialize for ScriptValue {
 
 macro_rules! impl_fruity_try_from_fruity_any_for_numeric {
     ( $type:ident, $name:literal ) => {
-        impl Deserialize for $type {
+        impl Serializable for $type {
             fn get_identifier() -> String {
                 $name.to_string()
             }
@@ -55,7 +55,7 @@ impl_fruity_try_from_fruity_any_for_numeric!(usize, "usize");
 impl_fruity_try_from_fruity_any_for_numeric!(f32, "f32");
 impl_fruity_try_from_fruity_any_for_numeric!(f64, "f64");
 
-impl Deserialize for bool {
+impl Serializable for bool {
     fn get_identifier() -> String {
         "bool".to_string()
     }
@@ -69,7 +69,7 @@ impl Deserialize for bool {
     }
 }
 
-impl Deserialize for String {
+impl Serializable for String {
     fn get_identifier() -> String {
         "String".to_string()
     }
@@ -83,7 +83,7 @@ impl Deserialize for String {
     }
 }
 
-impl<T: Deserialize> Deserialize for [T; 3] {
+impl<T: Serializable> Serializable for [T; 3] {
     fn get_identifier() -> String {
         format!(
             "[{}, {}, {}]",
@@ -124,7 +124,7 @@ impl<T: Deserialize> Deserialize for [T; 3] {
     }
 }
 
-impl<T: Deserialize> Deserialize for [T; 4] {
+impl<T: Serializable> Serializable for [T; 4] {
     fn get_identifier() -> String {
         format!(
             "[{}, {}, {}, {}]",

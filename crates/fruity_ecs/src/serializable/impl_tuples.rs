@@ -1,5 +1,5 @@
-use super::Deserialize;
 use super::ScriptValue;
+use super::Serializable;
 use crate::entity::EntityId;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
@@ -7,7 +7,7 @@ use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use std::collections::HashMap;
 
-impl Deserialize for () {
+impl Serializable for () {
     fn get_identifier() -> String {
         "()".to_string()
     }
@@ -21,7 +21,7 @@ impl Deserialize for () {
     }
 }
 
-impl<T1: Deserialize, T2: Deserialize> Deserialize for (T1, T2) {
+impl<T1: Serializable, T2: Serializable> Serializable for (T1, T2) {
     fn get_identifier() -> String {
         format!("({}, {})", T1::get_identifier(), T2::get_identifier())
     }

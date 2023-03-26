@@ -1,4 +1,4 @@
-use super::Deserialize;
+use super::Serializable;
 use crate::entity::EntityId;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::ops::Range;
 
-impl<T: Deserialize> Deserialize for Vec<T> {
+impl<T: Serializable> Serializable for Vec<T> {
     fn get_identifier() -> String {
         format!("Vec<{}>", T::get_identifier())
     }
@@ -33,7 +33,7 @@ impl<T: Deserialize> Deserialize for Vec<T> {
     }
 }
 
-impl<T: Deserialize + Eq + Hash> Deserialize for HashSet<T> {
+impl<T: Serializable + Eq + Hash> Serializable for HashSet<T> {
     fn get_identifier() -> String {
         format!("HashSet<{}>", T::get_identifier())
     }
@@ -56,7 +56,7 @@ impl<T: Deserialize + Eq + Hash> Deserialize for HashSet<T> {
     }
 }
 
-impl<T: Deserialize> Deserialize for HashMap<String, T> {
+impl<T: Serializable> Serializable for HashMap<String, T> {
     fn get_identifier() -> String {
         format!("HashMap<String, {}>", T::get_identifier())
     }
@@ -96,7 +96,7 @@ impl<T: Deserialize> Deserialize for HashMap<String, T> {
     }
 }
 
-impl<T: Deserialize> Deserialize for Option<T> {
+impl<T: Serializable> Serializable for Option<T> {
     fn get_identifier() -> String {
         format!("Option<{}>", T::get_identifier())
     }
@@ -118,7 +118,7 @@ impl<T: Deserialize> Deserialize for Option<T> {
     }
 }
 
-impl<T: Deserialize> Deserialize for Range<T> {
+impl<T: Serializable> Serializable for Range<T> {
     fn get_identifier() -> String {
         format!("Range<{}>", T::get_identifier())
     }

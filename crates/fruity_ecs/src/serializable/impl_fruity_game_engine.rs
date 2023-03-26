@@ -1,4 +1,4 @@
-use super::Deserialize;
+use super::Serializable;
 use crate::entity::{entity_reference::EntityReference, entity_service::EntityService, EntityId};
 use fruity_game_engine::{
     introspect::{IntrospectFields, IntrospectMethods},
@@ -15,7 +15,7 @@ use fruity_game_engine::{
 };
 use std::collections::HashMap;
 
-impl<T: Deserialize + TryFromScriptValue + TryIntoScriptValue + Clone + 'static> Deserialize
+impl<T: Serializable + TryFromScriptValue + TryIntoScriptValue + Clone + 'static> Serializable
     for Signal<T>
 {
     fn get_identifier() -> String {
@@ -31,7 +31,7 @@ impl<T: Deserialize + TryFromScriptValue + TryIntoScriptValue + Clone + 'static>
     }
 }
 
-impl<T: Deserialize + Send + Sync + Clone + 'static> Deserialize for SignalProperty<T> {
+impl<T: Serializable + Send + Sync + Clone + 'static> Serializable for SignalProperty<T> {
     fn get_identifier() -> String {
         format!("SignalProperty<{}>", T::get_identifier())
     }
@@ -49,7 +49,7 @@ impl<T: Deserialize + Send + Sync + Clone + 'static> Deserialize for SignalPrope
     }
 }
 
-impl Deserialize for EntityReference {
+impl Serializable for EntityReference {
     fn get_identifier() -> String {
         "EntityReference".to_string()
     }
@@ -80,7 +80,7 @@ impl Deserialize for EntityReference {
     }
 }
 
-impl Deserialize for AnyResourceReference {
+impl Serializable for AnyResourceReference {
     fn get_identifier() -> String {
         "AnyResourceReference".to_string()
     }
@@ -107,7 +107,7 @@ impl Deserialize for AnyResourceReference {
     }
 }
 
-impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Deserialize
+impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Serializable
     for ResourceReference<T>
 {
     fn get_identifier() -> String {
@@ -137,7 +137,7 @@ impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> Deserialize
     }
 }
 
-impl Deserialize for EntityId {
+impl Serializable for EntityId {
     fn get_identifier() -> String {
         "EntityId".to_string()
     }

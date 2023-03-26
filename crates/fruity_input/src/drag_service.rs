@@ -6,14 +6,15 @@ use fruity_game_engine::profile_scope;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::signal::ObserverHandler;
+use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
 use fruity_windows::window_service::WindowService;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
-pub type DragCallback = Box<dyn Fn(&DragAction) + Send + Sync + 'static>;
-pub type DragEndCallback = Box<dyn Fn(&DragAction) + Send + Sync + 'static>;
+pub type DragCallback = Box<dyn Fn(&DragAction) -> FruityResult<()> + Send + Sync + 'static>;
+pub type DragEndCallback = Box<dyn Fn(&DragAction) -> FruityResult<()> + Send + Sync + 'static>;
 
 pub struct DragAction {
     pub start_pos: (u32, u32),
@@ -59,7 +60,7 @@ impl DragService {
                 let drag_service = resource_container_2.require::<DragService>();
                 let drag_service_reader = drag_service.read();
 
-                drag_service_reader.update_drag();
+                drag_service_reader.update_drag()?;
 
                 Ok(())
             });
@@ -72,13 +73,16 @@ impl DragService {
         }
     }
 
-    pub fn start_drag(&self, start_callback: impl Fn() -> (DragCallback, DragEndCallback)) {
+    pub fn start_drag(
+        &self,
+        start_callback: impl Fn() -> FruityResult<(DragCallback, DragEndCallback)>,
+    ) -> FruityResult<()> {
         let start_pos = {
             let window_service_reader = self.window_service.read();
             window_service_reader.get_cursor_position()
         };
 
-        let start_callback_result = start_callback();
+        let start_callback_result = start_callback()?;
 
         let drag_action = DragAction {
             start_pos,
@@ -89,9 +93,11 @@ impl DragService {
 
         let mut current_drag_action_writer = self.current_drag_action.write();
         *current_drag_action_writer = Some(drag_action);
+
+        Ok(())
     }
 
-    pub fn update_drag(&self) {
+    pub fn update_drag(&self) -> FruityResult<()> {
         // If the left mouse button is released, we stop dragging
         if !self.is_dragging_button_pressed() && self.is_dragging() {
             // Call the end action
@@ -103,7 +109,7 @@ impl DragService {
                     window_service_reader.get_cursor_position()
                 };
 
-                (current_drag_action.end_callback)(&current_drag_action);
+                (current_drag_action.end_callback)(&current_drag_action)?;
 
                 // Clear the current action
                 *current_drag_action_writer = None;
@@ -119,8 +125,10 @@ impl DragService {
                 window_service_reader.get_cursor_position()
             };
 
-            (current_drag_action.callback)(&current_drag_action);
+            (current_drag_action.callback)(&current_drag_action)?;
         }
+
+        Ok(())
     }
 
     fn is_dragging_button_pressed(&self) -> bool {

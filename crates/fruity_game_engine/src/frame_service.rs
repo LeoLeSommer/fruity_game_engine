@@ -63,3 +63,19 @@ impl FrameService {
         now_in_seconds() - self.first_frame_instant
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_frame_service() {
+        let mut frame_service = FrameService::new(ResourceContainer::new());
+
+        frame_service.begin_frame();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        frame_service.begin_frame();
+
+        assert!(frame_service.get_delta() > 0.1);
+    }
+}
