@@ -1,7 +1,8 @@
 use crate::component::Component;
 use crate::entity::EntityId;
-use crate::serializable::Serializable;
+use crate::serializable::Deserialize;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
+use fruity_game_engine::settings::Settings;
 use fruity_game_engine::{
     any::FruityAny, resource::resource_container::ResourceContainer, script_value::ScriptValue,
     FruityResult,
@@ -18,8 +19,8 @@ pub struct SerializationService {
         String,
         Box<
             dyn Fn(
-                    ScriptValue,
-                    ResourceContainer,
+                    &Settings,
+                    &ResourceContainer,
                     &HashMap<u64, EntityId>,
                 ) -> FruityResult<ScriptValue>
                 + Send
@@ -48,13 +49,13 @@ impl SerializationService {
     ///
     pub fn register<T>(&mut self)
     where
-        T: Serializable + TryIntoScriptValue,
+        T: Deserialize + TryIntoScriptValue,
     {
         self.factories.insert(
             T::get_identifier(),
             Box::new(|script_value, resource_container, local_id_to_entity_id| {
                 let result =
-                    T::deserialize(script_value, resource_container, local_id_to_entity_id)?;
+                    T::deserialize(script_value, &resource_container, local_id_to_entity_id)?;
 
                 result.into_script_value()
             }),
@@ -71,7 +72,7 @@ impl SerializationService {
     ///
     pub fn register_component<T>(&mut self)
     where
-        T: Serializable + Component + TryIntoScriptValue,
+        T: Deserialize + Component + TryIntoScriptValue,
     {
         self.factories.insert(
             T::get_identifier(),
@@ -97,8 +98,8 @@ impl SerializationService {
         &mut self,
         object_type: &str,
         instantiate: fn(
-            ScriptValue,
-            ResourceContainer,
+            &Settings,
+            &ResourceContainer,
             &HashMap<u64, EntityId>,
         ) -> FruityResult<ScriptValue>,
     ) {
@@ -114,14 +115,14 @@ impl SerializationService {
     ///
     pub fn instantiate(
         &self,
-        value: ScriptValue,
+        value: &Settings,
         object_type: String,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Option<ScriptValue>> {
         Ok(match self.factories.get(&object_type) {
             Some(factory) => Some(factory(
                 value,
-                self.resource_container.clone(),
+                &self.resource_container,
                 local_id_to_entity_id,
             )?),
             None => None,

@@ -5,6 +5,7 @@ use parry2d::shape::Ball;
 #[derive(Debug, Clone, Component, FruityAny)]
 #[export_struct]
 pub struct ParryCircleCollider {
+    #[serialize_skip]
     pub(crate) shape: Ball,
 }
 

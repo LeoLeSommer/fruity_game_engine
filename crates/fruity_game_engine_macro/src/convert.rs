@@ -15,7 +15,7 @@ pub fn intern_derive_try_from_script_value(input: TokenStream) -> TokenStream {
 
             let convert_args = fields
                 .iter()
-                .map(|FruityExportClassField { name, ty, public }| {
+                .map(|FruityExportClassField { name, ty, public, .. }| {
                     if *public {
                         Some(match name {
                             FruityExportClassFieldName::Named(name) => {
@@ -77,7 +77,7 @@ pub fn intern_derive_try_into_script_value(input: TokenStream) -> TokenStream {
             // Create a list with all field names,
             let fields: Vec<_> = parse_struct_fields(&data.fields);
 
-            let convert_args = fields.iter().map(|FruityExportClassField { name, ty, public }| {
+            let convert_args = fields.iter().map(|FruityExportClassField { name, ty, public, .. }| {
                 if *public {
                     Some(match name {
                         FruityExportClassFieldName::Named(name) => {

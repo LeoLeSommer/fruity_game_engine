@@ -8,8 +8,8 @@ use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::IntrospectFields;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::settings::Settings;
 use fruity_game_engine::{export_impl, export_struct, lazy_static, FruityError, FruityResult};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -87,7 +87,7 @@ impl EditorComponentService {
             };
 
         let instance = serialization_service.instantiate(
-            HashMap::<String, ScriptValue>::new().into_script_value()?,
+            &Settings::Object(HashMap::new()),
             component_identifier.to_string(),
             &HashMap::new(),
         )?;

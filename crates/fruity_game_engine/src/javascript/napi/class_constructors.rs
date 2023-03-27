@@ -395,7 +395,7 @@ pub unsafe extern "C" fn raw_finalize_member_names_unchecked(
     finalize_data: *mut std::ffi::c_void,
     _finalize_hint: *mut std::ffi::c_void,
 ) {
-    let data = *unsafe { Box::from_raw(finalize_data as *mut Box<FinalizeMemberNamesData>) };
+    let data = *unsafe { Box::from_raw(finalize_data as *mut FinalizeMemberNamesData) };
     drop(data);
 }
 

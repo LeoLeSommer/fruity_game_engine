@@ -105,6 +105,8 @@ pub struct FruityExportClassField {
     pub name: FruityExportClassFieldName,
     /// Type
     pub ty: syn::Type,
+    /// Attributes
+    pub attrs: Vec<String>,
 }
 
 /// A class method
@@ -606,16 +608,6 @@ pub fn parse_struct_fields(fields: &syn::Fields) -> Vec<FruityExportClassField> 
         syn::Fields::Named(ref fields) => fields
             .named
             .iter()
-            .filter(|field| {
-                matches!(
-                    field.attrs.iter().find(|attr| {
-                        matches!(attr.style, syn::AttrStyle::Outer)
-                            && attr.path.segments.len() == 1
-                            && attr.path.segments[0].ident.to_string() == "native_only"
-                    }),
-                    None
-                )
-            })
             .map(|field| match &field.ident {
                 Some(ident) => FruityExportClassField {
                     public: if let syn::Visibility::Public(_) = field.vis {
@@ -625,6 +617,17 @@ pub fn parse_struct_fields(fields: &syn::Fields) -> Vec<FruityExportClassField> 
                     },
                     name: FruityExportClassFieldName::Named(ident.clone()),
                     ty: field.ty.clone(),
+                    attrs: field
+                        .attrs
+                        .iter()
+                        .filter_map(|attr| {
+                            if attr.path.segments.len() == 1 {
+                                Some(attr.path.segments[0].ident.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
                 },
                 None => unimplemented!(),
             })
@@ -643,6 +646,17 @@ pub fn parse_struct_fields(fields: &syn::Fields) -> Vec<FruityExportClassField> 
                     },
                     name: FruityExportClassFieldName::Unnamed(index),
                     ty: field.ty.clone(),
+                    attrs: field
+                        .attrs
+                        .iter()
+                        .filter_map(|attr| {
+                            if attr.path.segments.len() == 1 {
+                                Some(attr.path.segments[0].ident.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect(),
                 })
                 .collect()
         }

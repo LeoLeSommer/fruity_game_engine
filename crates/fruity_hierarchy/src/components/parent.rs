@@ -14,6 +14,7 @@ pub struct Parent {
     /// The nested level of a hierarchy component
     /// It's mainly used to update the position in cascade cause the position of
     /// a child must be updated after the parent
+    #[serialize_skip]
     pub nested_level: usize,
 }
 

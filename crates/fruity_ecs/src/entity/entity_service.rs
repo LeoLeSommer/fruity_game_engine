@@ -11,13 +11,13 @@ use crate::entity::entity_reference::EntityReference;
 use crate::entity::get_type_identifier_by_any;
 use crate::entity::EntityLocation;
 use crate::entity::EntityTypeIdentifier;
-use crate::serialization_service::SerializationService;
+use crate::serializable::{Deserialize, Serialize};
 use crate::ExtensionComponentService;
 use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::profile_scope;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::script_value::convert::TryIntoScriptValue;
+use fruity_game_engine::settings::Settings;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::typescript;
 use fruity_game_engine::FruityError;
@@ -35,7 +35,7 @@ use std::sync::Arc;
 
 /// A save for the entities stored in an [’EntityService’]
 #[typescript("type EntityServiceSnapshot = SerializedEntity[]")]
-pub type EntityServiceSnapshot = Vec<SerializedEntity>;
+pub type EntityServiceSnapshot = Settings;
 
 pub(crate) struct OnEntityAddressAdded {
     pub(crate) entity_reference: EntityReference,
@@ -104,7 +104,6 @@ pub struct EntityService {
     entity_locations: HashMap<EntityId, EntityLocation>,
     pub(crate) archetypes: Vec<Archetype>,
     resource_container: ResourceContainer,
-    serialization_service: ResourceReference<SerializationService>,
     extension_component_service: ResourceReference<ExtensionComponentService>,
     pending_mutations: Mutex<VecDeque<Mutation>>,
 
@@ -145,7 +144,6 @@ impl EntityService {
             entity_locations: HashMap::new(),
             archetypes: Vec::new(),
             resource_container: resource_container.clone(),
-            serialization_service: resource_container.require::<SerializationService>(),
             extension_component_service: resource_container.require::<ExtensionComponentService>(),
             on_created: Signal::new(),
             on_deleted: Signal::new(),
@@ -360,11 +358,8 @@ impl EntityService {
                     .read_all_components()
                     .into_iter()
                     .map(|component| {
-                        let script_value = AnyComponent::from_box(component.deref().duplicate())
-                            .serialize()
-                            .map(|component| component.into_script_value())?;
-
-                        script_value
+                        AnyComponent::from_box(component.deref().duplicate())
+                            .serialize(&self.resource_container)
                     })
                     .try_collect::<Vec<_>>()?;
 
@@ -375,7 +370,8 @@ impl EntityService {
                     components,
                 })
             })
-            .try_collect::<Vec<_>>()
+            .try_collect::<Vec<_>>()?
+            .serialize(&self.resource_container)
     }
 
     /// Restore an entity snapshot
@@ -390,13 +386,14 @@ impl EntityService {
         }
 
         let mut local_id_to_entity_id = HashMap::<u64, EntityId>::new();
-        let serialization_service = self.serialization_service.read();
-        snapshot.iter().try_for_each(|serialized_entity| {
-            self.restore_entity(
-                serialized_entity,
-                &mut local_id_to_entity_id,
-                &serialization_service,
-            )
+        <Vec<SerializedEntity>>::deserialize(
+            &snapshot,
+            &self.resource_container,
+            &local_id_to_entity_id,
+        )?
+        .iter()
+        .try_for_each(|serialized_entity| {
+            self.restore_entity(serialized_entity, &mut local_id_to_entity_id)
         })
     }
 
@@ -404,23 +401,21 @@ impl EntityService {
         &self,
         serialized_entity: &SerializedEntity,
         local_id_to_entity_id: &mut HashMap<u64, EntityId>,
-        serialization_service: &SerializationService,
     ) -> FruityResult<()> {
         let entity_id = self.create(
             serialized_entity.name.clone(),
             serialized_entity.enabled,
             serialized_entity
                 .components
-                .clone()
-                .into_iter()
+                .iter()
                 .map(|serialized_component| {
                     AnyComponent::deserialize(
                         serialized_component,
-                        &serialization_service,
-                        &local_id_to_entity_id,
+                        &self.resource_container,
+                        local_id_to_entity_id,
                     )
                 })
-                .try_collect::<Vec<_>>()?,
+                .try_collect()?,
         )?;
 
         local_id_to_entity_id.insert(serialized_entity.local_id, entity_id);

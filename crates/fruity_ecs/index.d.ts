@@ -13,10 +13,6 @@ export type EntityServiceSnapshot = SerializedEntity[]
 
 export type EntityId = number
 
-export interface DeserializeService {
-
-}
-
 export interface EntityProperties {
   entityId: EntityId
   name: string
@@ -70,16 +66,15 @@ export interface ScriptQueryBuilder<Args extends any[] = []> {
   ): ScriptQueryBuilder<[...Args, null]>;
   build(): ScriptQuery<[...Args]>
 }
-export interface SerializedAnyComponent {
-  className: string
-  fields: {[key: string]: ScriptValue}
+export interface SerializationService {
+
 }
 
 export interface SerializedEntity {
   localId: number
   name: string
   enabled: boolean
-  components: ScriptValue[]
+  components: AnyComponent[]
 }
 
 export interface StartupSystemParams {

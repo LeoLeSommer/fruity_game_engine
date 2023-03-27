@@ -1,42 +1,49 @@
-use super::Serializable;
+use super::{Deserialize, Serialize};
 use crate::entity::EntityId;
 use fruity_game_engine::{
-    resource::resource_container::ResourceContainer,
-    script_value::{
-        convert::{TryFromScriptValue, TryIntoScriptValue},
-        ScriptValue,
-    },
-    FruityError, FruityResult,
+    resource::resource_container::ResourceContainer, settings::Settings, FruityError, FruityResult,
 };
 use std::collections::HashMap;
 
-impl Serializable for ScriptValue {
+impl Serialize for Settings {
+    fn serialize(&self, _resource_container: &ResourceContainer) -> FruityResult<Settings> {
+        Ok(self.clone())
+    }
+}
+
+impl Deserialize for Settings {
     fn get_identifier() -> String {
-        "ScriptValue".to_string()
+        "Settings".to_string()
     }
 
     fn deserialize(
-        script_value: ScriptValue,
-        _resource_container: ResourceContainer,
+        serialized: &Settings,
+        _resource_container: &ResourceContainer,
         _local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self> {
-        Ok(script_value)
+        Ok(serialized.clone())
     }
 }
 
 macro_rules! impl_fruity_try_from_fruity_any_for_numeric {
     ( $type:ident, $name:literal ) => {
-        impl Serializable for $type {
+        impl Serialize for $type {
+            fn serialize(&self, _resource_container: &ResourceContainer) -> FruityResult<Settings> {
+                Ok(Settings::F64(*self as f64))
+            }
+        }
+
+        impl Deserialize for $type {
             fn get_identifier() -> String {
                 $name.to_string()
             }
 
             fn deserialize(
-                script_value: ScriptValue,
-                _resource_container: ResourceContainer,
+                serialized: &Settings,
+                _resource_container: &ResourceContainer,
                 _local_id_to_entity_id: &HashMap<u64, EntityId>,
             ) -> FruityResult<Self> {
-                $type::from_script_value(script_value)
+                $type::try_from(serialized.clone())
             }
         }
     };
@@ -55,35 +62,57 @@ impl_fruity_try_from_fruity_any_for_numeric!(usize, "usize");
 impl_fruity_try_from_fruity_any_for_numeric!(f32, "f32");
 impl_fruity_try_from_fruity_any_for_numeric!(f64, "f64");
 
-impl Serializable for bool {
+impl Serialize for bool {
+    fn serialize(&self, _resource_container: &ResourceContainer) -> FruityResult<Settings> {
+        Ok(Settings::Bool(*self))
+    }
+}
+
+impl Deserialize for bool {
     fn get_identifier() -> String {
         "bool".to_string()
     }
 
     fn deserialize(
-        script_value: ScriptValue,
-        _resource_container: ResourceContainer,
+        serialized: &Settings,
+        _resource_container: &ResourceContainer,
         _local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self> {
-        bool::from_script_value(script_value)
+        bool::try_from(serialized.clone())
     }
 }
 
-impl Serializable for String {
+impl Serialize for String {
+    fn serialize(&self, _resource_container: &ResourceContainer) -> FruityResult<Settings> {
+        Ok(Settings::String(self.clone()))
+    }
+}
+
+impl Deserialize for String {
     fn get_identifier() -> String {
         "String".to_string()
     }
 
     fn deserialize(
-        script_value: ScriptValue,
-        _resource_container: ResourceContainer,
+        serialized: &Settings,
+        _resource_container: &ResourceContainer,
         _local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self> {
-        String::from_script_value(script_value)
+        String::try_from(serialized.clone())
     }
 }
 
-impl<T: Serializable> Serializable for [T; 3] {
+impl<T: Serialize> Serialize for [T; 3] {
+    fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings> {
+        Ok(Settings::Array(vec![
+            self[0].serialize(resource_container)?,
+            self[1].serialize(resource_container)?,
+            self[2].serialize(resource_container)?,
+        ]))
+    }
+}
+
+impl<T: Deserialize> Deserialize for [T; 3] {
     fn get_identifier() -> String {
         format!(
             "[{}, {}, {}]",
@@ -94,25 +123,25 @@ impl<T: Serializable> Serializable for [T; 3] {
     }
 
     fn deserialize(
-        script_value: ScriptValue,
-        resource_container: ResourceContainer,
+        serialized: &Settings,
+        resource_container: &ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self> {
-        match script_value {
-            ScriptValue::Array(mut args) => Ok([
+        match serialized {
+            Settings::Array(args) => Ok([
                 T::deserialize(
-                    args.remove(0).into_script_value()?,
-                    resource_container.clone(),
+                    &args[0].serialize(resource_container)?,
+                    resource_container,
                     local_id_to_entity_id,
                 )?,
                 T::deserialize(
-                    args.remove(0).into_script_value()?,
-                    resource_container.clone(),
+                    &args[1].serialize(resource_container)?,
+                    resource_container,
                     local_id_to_entity_id,
                 )?,
                 T::deserialize(
-                    args.remove(0).into_script_value()?,
-                    resource_container.clone(),
+                    &args[2].serialize(resource_container)?,
+                    resource_container,
                     local_id_to_entity_id,
                 )?,
             ]),
@@ -124,7 +153,18 @@ impl<T: Serializable> Serializable for [T; 3] {
     }
 }
 
-impl<T: Serializable> Serializable for [T; 4] {
+impl<T: Serialize> Serialize for [T; 4] {
+    fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings> {
+        Ok(Settings::Array(vec![
+            self[0].serialize(resource_container)?,
+            self[1].serialize(resource_container)?,
+            self[2].serialize(resource_container)?,
+            self[3].serialize(resource_container)?,
+        ]))
+    }
+}
+
+impl<T: Deserialize> Deserialize for [T; 4] {
     fn get_identifier() -> String {
         format!(
             "[{}, {}, {}, {}]",
@@ -136,30 +176,30 @@ impl<T: Serializable> Serializable for [T; 4] {
     }
 
     fn deserialize(
-        script_value: ScriptValue,
-        resource_container: ResourceContainer,
+        serialized: &Settings,
+        resource_container: &ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self> {
-        match script_value {
-            ScriptValue::Array(mut args) => Ok([
+        match serialized {
+            Settings::Array(args) => Ok([
                 T::deserialize(
-                    args.remove(0).into_script_value()?,
-                    resource_container.clone(),
+                    &args[0].serialize(resource_container)?,
+                    resource_container,
                     local_id_to_entity_id,
                 )?,
                 T::deserialize(
-                    args.remove(0).into_script_value()?,
-                    resource_container.clone(),
+                    &args[1].serialize(resource_container)?,
+                    resource_container,
                     local_id_to_entity_id,
                 )?,
                 T::deserialize(
-                    args.remove(0).into_script_value()?,
-                    resource_container.clone(),
+                    &args[2].serialize(resource_container)?,
+                    resource_container,
                     local_id_to_entity_id,
                 )?,
                 T::deserialize(
-                    args.remove(0).into_script_value()?,
-                    resource_container.clone(),
+                    &args[3].serialize(resource_container)?,
+                    resource_container,
                     local_id_to_entity_id,
                 )?,
             ]),

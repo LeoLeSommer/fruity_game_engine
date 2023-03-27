@@ -33,7 +33,7 @@ pub trait IntrospectFields: Debug + FruityAny {
 }
 
 impl dyn IntrospectFields {
-    /// Get all field values as an hasmap of ScriptValue
+    /// Get all field values
     pub fn get_field_values(&self) -> FruityResult<Vec<(String, ScriptValue)>> {
         self.get_field_names()?
             .into_iter()

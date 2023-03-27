@@ -1,8 +1,10 @@
 use crate::component::AnyComponent;
 use crate::component::Component;
+use fruity_ecs_macro::{Deserialize, Serialize};
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::settings::Settings;
 use fruity_game_engine::typescript;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
@@ -25,7 +27,7 @@ pub mod entity_service;
 pub mod archetype;
 
 /// A module for the engine
-#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default, Debug)]
+#[derive(Clone, Serialize, Deserialize, Default, Debug)]
 pub struct SerializedEntity {
     /// Entity id, it will not be the definitively used id but is internal to the serialization
     /// so the same id can be found in different serializations
@@ -35,7 +37,7 @@ pub struct SerializedEntity {
     /// Enabled
     pub enabled: bool,
     /// Components
-    pub components: Vec<ScriptValue>,
+    pub components: Vec<Settings>,
 }
 
 /// An identifier to an entity type, is composed be the identifier of the contained components

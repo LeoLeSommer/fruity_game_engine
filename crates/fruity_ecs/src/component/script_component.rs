@@ -1,11 +1,17 @@
 use super::Component;
-use crate::entity::archetype::component_storage::{ComponentStorage, VecComponentStorage};
+use crate::{
+    entity::archetype::component_storage::{ComponentStorage, VecComponentStorage},
+    serializable::Serialize,
+};
 use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
+    resource::resource_container::ResourceContainer,
     script_value::{ScriptObject, ScriptValue},
+    settings::Settings,
     FruityResult,
 };
+use std::ops::Deref;
 
 /// Provide a component that contains a script value
 #[derive(FruityAny, Debug)]
@@ -64,5 +70,22 @@ impl Component for ScriptComponent {
 
     fn get_storage(&self) -> Box<dyn ComponentStorage> {
         Box::new(VecComponentStorage::<Self>::new())
+    }
+}
+
+impl Serialize for ScriptComponent {
+    fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings> {
+        Ok(Settings::Object(
+            self.0
+                .deref()
+                .get_field_values()?
+                .into_iter()
+                .map(|(key, value)| {
+                    value
+                        .serialize(resource_container)
+                        .map(|serialized| (key, serialized))
+                })
+                .try_collect()?,
+        ))
     }
 }

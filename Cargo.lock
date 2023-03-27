@@ -666,6 +666,7 @@ dependencies = [
  "fruity_game_engine_build",
  "itertools",
  "log",
+ "maplit",
  "napi-build",
  "rayon",
  "wasm-bindgen",

@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use css_color_parser::Color as CssColor;
-use fruity_ecs::serializable::Serializable;
+use fruity_ecs::serializable::{Deserialize, Serialize};
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::{export_constructor, export_impl, export_struct};
 use std::str::FromStr;
@@ -11,7 +11,7 @@ pub mod vector2d;
 pub mod vector3d;
 
 #[repr(C)]
-#[derive(Debug, FruityAny, Serializable, Copy, Clone, Pod, Zeroable)]
+#[derive(Debug, FruityAny, Serialize, Deserialize, Copy, Clone, Pod, Zeroable)]
 #[export_struct]
 pub struct Color {
     pub r: f32,

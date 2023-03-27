@@ -4,12 +4,6 @@ import {
   Signal,
 } from "fruity_game_engine"
 
-export interface DialogService {
-
-  save(defaultFilename: string, fileTypes: string[]): string | null
-  open(fileTypes: string[]): string | null
-}
-
 export interface EditorComponentService {
 
 }
@@ -19,10 +13,6 @@ export interface EditorMenuService {
 }
 
 export interface EditorPanelsService {
-
-}
-
-export interface FileExplorerService {
 
 }
 
@@ -59,10 +49,9 @@ export interface SceneState {
 
   run(): void
   pause(): void
-  stop(): void
   isRunning(): boolean
+  stop(): void
   canStop(): boolean
-  open(): void
 }
 
 export function createEditorModule(): Module

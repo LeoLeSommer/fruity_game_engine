@@ -1,10 +1,11 @@
 use crate::entity::EntityId;
 use fruity_game_engine::{
-    resource::resource_container::ResourceContainer, script_value::ScriptValue, FruityResult,
+    resource::resource_container::ResourceContainer, settings::Settings, FruityResult,
 };
 use std::collections::HashMap;
 
-pub use fruity_ecs_macro::Serializable;
+pub use fruity_ecs_macro::Deserialize;
+pub use fruity_ecs_macro::Serialize;
 
 /// Implementation of script value conversions for primitives
 pub mod impl_primitives;
@@ -19,15 +20,21 @@ pub mod impl_containers;
 pub mod impl_tuples;
 
 /// Trait to implement a generic constructor from a ScriptValue
-pub trait Serializable: Sized {
+pub trait Serialize {
+    /// Serialize an object
+    fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings>;
+}
+
+/// Trait to implement a generic constructor from a ScriptValue
+pub trait Deserialize: Sized {
     /// Identifier of the deserialize object
     /// in the js, it correspond to the class name
     fn get_identifier() -> String;
 
-    /// Serializable an object
+    /// Deserialize an object
     fn deserialize(
-        script_value: ScriptValue,
-        resource_container: ResourceContainer,
+        serialized: &Settings,
+        resource_container: &ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self>;
 }

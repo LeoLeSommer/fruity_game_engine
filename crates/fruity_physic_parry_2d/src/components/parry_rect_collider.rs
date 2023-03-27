@@ -6,6 +6,7 @@ use parry2d::shape::Cuboid;
 #[derive(Debug, Clone, Component, FruityAny)]
 #[export_struct]
 pub struct ParryRectCollider {
+    #[serialize_skip]
     pub(crate) shape: Cuboid,
 }
 

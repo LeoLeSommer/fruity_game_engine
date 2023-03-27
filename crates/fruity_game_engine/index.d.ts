@@ -47,6 +47,7 @@ export type RunWorldMiddleware = (world: World, settings: Settings, next: RunWor
 export interface FrameService {
 
   getDelta(): number
+  getElapsed(): number
 }
 
 export interface Module {

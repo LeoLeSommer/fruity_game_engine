@@ -1,10 +1,10 @@
 use cgmath::SquareMatrix;
-use fruity_ecs::serializable::Serializable;
+use fruity_ecs::serializable::{Deserialize, Serialize};
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::{export, export_impl, export_struct};
 use std::ops::Mul;
 
-#[derive(Debug, FruityAny, Serializable, Clone, Copy)]
+#[derive(Debug, FruityAny, Serialize, Deserialize, Clone, Copy)]
 #[export_struct]
 pub struct Matrix4(pub [[f32; 4]; 4]);
 

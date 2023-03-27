@@ -10,6 +10,7 @@ crate-type = ["rlib", "cdylib"]
 either = "1.8.1"
 log = "0.4.14"
 itertools = "0.10.1"
+maplit = "1.0.2"
 fruity_ecs_macro = { path = "../fruity_ecs_macro" }
 fruity_game_engine = { path = "../fruity_game_engine" }
 

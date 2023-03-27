@@ -124,6 +124,17 @@ pub trait ScriptObject: IntrospectFields + IntrospectMethods + Send + Sync {
 }
 
 impl dyn ScriptObject {
+    /// Get all field values
+    pub fn get_field_values(&self) -> FruityResult<Vec<(String, ScriptValue)>> {
+        self.get_field_names()?
+            .into_iter()
+            .map(|field_name| {
+                self.get_field_value(&field_name)
+                    .map(|field_value| (field_name, field_value))
+            })
+            .try_collect::<Vec<_>>()
+    }
+
     /// Downcast a script object like an Any could do, the only difference is the err returns
     pub fn downcast<T: Any>(self: Box<Self>) -> Result<Box<T>, Box<Self>> {
         let any = self.deref().as_any_ref();
