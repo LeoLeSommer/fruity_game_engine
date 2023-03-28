@@ -965,6 +965,7 @@ dependencies = [
  "fruity_editor_hierarchy",
  "fruity_editor_physic_2d",
  "fruity_game_engine",
+ "fruity_game_engine_build",
  "fruity_graphic",
  "fruity_graphic_2d",
  "fruity_graphic_wgpu",

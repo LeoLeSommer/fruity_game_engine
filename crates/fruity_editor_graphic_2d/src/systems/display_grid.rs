@@ -1,4 +1,4 @@
-use fruity_ecs::system_service::SystemService;
+use fruity_ecs::system::SystemService;
 use fruity_game_engine::inject::Const;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::graphic_service::GraphicService;

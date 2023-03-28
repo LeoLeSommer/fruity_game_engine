@@ -3,7 +3,7 @@ use fruity_ecs::entity::entity_query::with::With;
 use fruity_ecs::entity::entity_query::with::WithId;
 use fruity_ecs::entity::entity_query::Query;
 use fruity_ecs::entity::entity_service::EntityService;
-use fruity_ecs::system_service::StartupDisposeSystemCallback;
+use fruity_ecs::system::StartupDisposeSystemCallback;
 use fruity_game_engine::inject::Ref;
 use fruity_game_engine::FruityResult;
 use std::ops::Deref;

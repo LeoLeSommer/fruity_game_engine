@@ -1,7 +1,8 @@
 use crate::state::inspector::InspectorState;
+use crate::utils::file::settings_to_json_value;
 use fruity_ecs::entity::entity_service::EntityService;
 use fruity_ecs::entity::entity_service::EntityServiceSnapshot;
-use fruity_ecs::system_service::SystemService;
+use fruity_ecs::system::SystemService;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
@@ -36,6 +37,11 @@ impl SceneState {
 
         let entity_service = self.entity_service.read();
         self.snapshot = Some(entity_service.snapshot()?);
+
+        // TODO: Remove
+        let json = settings_to_json_value(self.snapshot.as_ref().unwrap().clone())?;
+        println!("{}", json.to_string());
+
         inspector_state.unselect()?;
         entity_service.restore(true, self.snapshot.as_ref().unwrap().clone())?;
         std::mem::drop(entity_service);

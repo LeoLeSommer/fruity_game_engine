@@ -1,5 +1,5 @@
 use fruity_ecs::entity::entity_service::EntityServiceSnapshot;
-use fruity_game_engine::{ settings::Settings, FruityError, FruityResult};
+use fruity_game_engine::{settings::Settings, FruityError, FruityResult};
 use json::JsonValue;
 use std::{collections::HashMap, io::Read, io::Write, path::Path};
 
@@ -24,7 +24,7 @@ pub fn read_snapshot_from_json(reader: &mut dyn Read) -> FruityResult<EntityServ
     json_value_to_settings(json_value)
 }
 
-fn json_value_to_settings(json_value: JsonValue) -> FruityResult<Settings> {
+pub fn json_value_to_settings(json_value: JsonValue) -> FruityResult<Settings> {
     Ok(match json_value {
         JsonValue::Null => Settings::Null,
         JsonValue::Short(value) => Settings::String(value.to_string()),
@@ -65,7 +65,7 @@ pub fn write_snapshot_to_json<T: Write>(
         .map_err(|err| FruityError::GenericFailure(err.to_string()))
 }
 
-fn settings_to_json_value(settings: Settings) -> FruityResult<JsonValue> {
+pub fn settings_to_json_value(settings: Settings) -> FruityResult<JsonValue> {
     Ok(match settings {
         Settings::F64(value) => JsonValue::Number(value.into()),
         Settings::Bool(value) => JsonValue::Boolean(value),

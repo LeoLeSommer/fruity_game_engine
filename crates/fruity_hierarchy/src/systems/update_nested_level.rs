@@ -2,7 +2,7 @@ use crate::Parent;
 use fruity_ecs::entity::entity_query::with::WithEntityReference;
 use fruity_ecs::entity::entity_query::with::WithMut;
 use fruity_ecs::entity::entity_query::Query;
-use fruity_ecs::system_service::StartupDisposeSystemCallback;
+use fruity_ecs::system::StartupDisposeSystemCallback;
 use fruity_game_engine::FruityResult;
 use std::ops::Deref;
 

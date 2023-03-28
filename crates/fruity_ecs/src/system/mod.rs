@@ -18,6 +18,10 @@ use std::thread;
 #[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 
+mod system_pool;
+
+pub use system_pool::*;
+
 /// A callback for a system called every frame
 pub type SystemCallback = dyn Fn() -> FruityResult<()> + Send + Sync + 'static;
 
@@ -52,36 +56,10 @@ pub struct StartupSystemParams {
     pub execute_in_main_thread: Option<bool>,
 }
 
-#[derive(Clone)]
-struct StartupSystem {
-    identifier: String,
-    callback: Arc<StartupSystemCallback>,
-    ignore_pause: bool,
-    execute_in_main_thread: bool,
-}
-
 struct StartupDisposeSystem {
     identifier: String,
     callback: Box<dyn FnOnce() -> FruityResult<()> + Send + Sync + 'static>,
     execute_in_main_thread: bool,
-}
-
-#[derive(Clone)]
-struct FrameSystem {
-    identifier: String,
-    callback: Arc<SystemCallback>,
-    ignore_pause: bool,
-    execute_in_main_thread: bool,
-}
-
-/// A system pool, see [‘SystemService‘] for more informations
-#[derive(Clone)]
-pub struct FrameSystemPool {
-    /// Systems of the pool
-    systems: Vec<FrameSystem>,
-
-    /// Is the pool enabled
-    enabled: bool,
 }
 
 /// A systems collection
@@ -100,11 +78,12 @@ pub struct FrameSystemPool {
 #[derive(FruityAny)]
 #[export_struct]
 pub struct SystemService {
-    pause: AtomicBool,
+    pause: Arc<AtomicBool>,
     system_pools: BTreeMap<usize, FrameSystemPool>,
-    startup_systems: Vec<StartupSystem>,
-    startup_dispose_callbacks: Arc<Mutex<Vec<StartupDisposeSystem>>>,
-    startup_pause_dispose_callbacks: Arc<Mutex<Vec<StartupDisposeSystem>>>,
+    startup_systems: StartupSystemPool,
+    startup_pause_systems: StartupSystemPool,
+    startup_dispose_callbacks: Arc<Mutex<StartupDisposeSystemPool>>,
+    startup_pause_dispose_callbacks: Arc<Mutex<StartupDisposeSystemPool>>,
     resource_container: ResourceContainer,
 }
 
@@ -118,12 +97,27 @@ impl Debug for SystemService {
 impl SystemService {
     /// Returns a SystemService
     pub fn new(resource_container: ResourceContainer) -> SystemService {
+        let pause = Arc::new(AtomicBool::new(false));
+        let startup_dispose_callbacks = Arc::new(Mutex::new(StartupDisposeSystemPool {
+            systems: Vec::new(),
+        }));
+        let startup_pause_dispose_callbacks = Arc::new(Mutex::new(StartupDisposeSystemPool {
+            systems: Vec::new(),
+        }));
+
         SystemService {
-            pause: AtomicBool::new(false),
+            pause,
             system_pools: BTreeMap::new(),
-            startup_systems: Vec::new(),
-            startup_dispose_callbacks: Arc::new(Mutex::new(Vec::new())),
-            startup_pause_dispose_callbacks: Arc::new(Mutex::new(Vec::new())),
+            startup_systems: StartupSystemPool {
+                systems: Default::default(),
+                dispose_callbacks: startup_dispose_callbacks.clone(),
+            },
+            startup_pause_systems: StartupSystemPool {
+                systems: Default::default(),
+                dispose_callbacks: startup_pause_dispose_callbacks.clone(),
+            },
+            startup_dispose_callbacks,
+            startup_pause_dispose_callbacks,
             resource_container,
         }
     }
@@ -186,25 +180,26 @@ impl SystemService {
     pub fn add_arc_system(
         &mut self,
         identifier: &str,
-        callback: Arc<dyn Send + Sync + Fn() -> FruityResult<()>>,
+        system: Arc<dyn Send + Sync + Fn() -> FruityResult<()>>,
         params: Option<SystemParams>,
     ) {
         let params = params.unwrap_or_default();
         let system = FrameSystem {
             identifier: identifier.to_string(),
-            callback,
+            system,
             ignore_pause: params.ignore_pause.unwrap_or(false),
             execute_in_main_thread: params.execute_in_main_thread.unwrap_or(false),
         };
 
         if let Some(pool) = self.system_pools.get_mut(&params.pool_index.unwrap_or(50)) {
-            pool.systems.push(system)
+            pool.add_system(system)
         } else {
             // If the pool not exists, we create it
             let systems = vec![system];
             self.system_pools.insert(
                 params.pool_index.unwrap_or(50),
                 FrameSystemPool {
+                    pause: self.pause.clone(),
                     systems,
                     enabled: true,
                 },
@@ -286,84 +281,56 @@ impl SystemService {
         params: Option<StartupSystemParams>,
     ) {
         let params = params.unwrap_or_default();
-        let system = StartupSystem {
-            identifier: identifier.to_string(),
-            callback,
-            ignore_pause: params.ignore_pause.unwrap_or(false),
-            execute_in_main_thread: params.execute_in_main_thread.unwrap_or(false),
-        };
 
-        self.startup_systems.push(system);
-    }
-
-    /// Iter over all the systems pools
-    fn iter_system_pools(&self) -> impl Iterator<Item = &FrameSystemPool> {
-        self.system_pools.iter().map(|pool| pool.1)
+        if params.ignore_pause.unwrap_or(false) {
+            self.startup_systems.add_system(StartupSystem {
+                identifier: identifier.to_string(),
+                system: callback,
+                execute_in_main_thread: params.execute_in_main_thread.unwrap_or(false),
+            });
+        } else {
+            self.startup_pause_systems.add_system(StartupSystem {
+                identifier: identifier.to_string(),
+                system: callback,
+                execute_in_main_thread: params.execute_in_main_thread.unwrap_or(false),
+            });
+        }
     }
 
     /// Run all the stored systems
     pub fn run_frame(&self) -> FruityResult<()> {
         profile_scope!("frame_systems");
 
-        let is_paused = self.is_paused();
+        let was_paused = self.is_paused();
 
-        self.iter_system_pools()
-            .map(|pool| pool.clone())
-            .try_for_each(|pool| {
-                if pool.enabled {
-                    // Run the threaded systems
-                    Self::run_systems_collection(
-                        pool.systems.clone(),
-                        |system| system.execute_in_main_thread,
-                        move |system| {
-                            if !is_paused || system.ignore_pause {
-                                profile_scope!(&system.identifier);
-                                (system.callback)()
-                            } else {
-                                Ok(())
-                            }
-                        },
-                    )?;
-                }
+        self.system_pools.iter().try_for_each(|(_, pool)| {
+            if pool.enabled {
+                (pool as &dyn SystemPool<FrameSystem>).run_systems()?;
+            }
 
-                FruityResult::Ok(())
-            })
+            FruityResult::Ok(())
+        })?;
+
+        // Run pause/unpause systems if needed
+        if !was_paused && self.is_paused() {
+            self.run_unpause_start()?;
+        }
+
+        if was_paused && !self.is_paused() {
+            self.run_unpause_end()?;
+        }
+
+        Ok(())
     }
 
     /// Run all the startup systems
     pub(crate) fn run_start(&self) -> FruityResult<()> {
         profile_scope!("start_systems");
 
-        // Run the threaded systems
-        let startup_dispose_callbacks = self.startup_dispose_callbacks.clone();
-
-        Self::run_systems_collection(
-            self.startup_systems
-                .clone()
-                .into_iter()
-                .filter(|system| system.ignore_pause)
-                .collect::<Vec<_>>(),
-            |system| system.execute_in_main_thread,
-            move |system| {
-                profile_scope!(&system.identifier);
-
-                let dispose_callback = (system.callback)()?;
-
-                if let Some(dispose_callback) = dispose_callback {
-                    let mut startup_dispose_callbacks = startup_dispose_callbacks.lock();
-                    startup_dispose_callbacks.push(StartupDisposeSystem {
-                        identifier: system.identifier.clone(),
-                        callback: dispose_callback,
-                        execute_in_main_thread: system.execute_in_main_thread,
-                    });
-                }
-
-                FruityResult::Ok(())
-            },
-        )?;
+        (&self.startup_systems as &dyn SystemPool<StartupSystem>).run_systems()?;
 
         if !self.is_paused() {
-            self.run_unpause_start()?;
+            (&self.startup_pause_systems as &dyn SystemPool<StartupSystem>).run_systems()?;
         }
 
         Result::Ok(())
@@ -378,108 +345,18 @@ impl SystemService {
         }
 
         let mut startup_dispose_callbacks = self.startup_dispose_callbacks.lock();
-        Self::run_systems_collection(
-            startup_dispose_callbacks.drain(..).collect::<Vec<_>>(),
-            |system| system.execute_in_main_thread,
-            move |system| {
-                profile_scope!(&system.identifier);
-                (system.callback)()
-            },
-        )?;
-
-        Ok(())
+        startup_dispose_callbacks.run_systems()
     }
 
     /// Run all the startup systems that start when pause is stopped
     fn run_unpause_start(&self) -> FruityResult<()> {
-        let startup_pause_dispose_callbacks = self.startup_pause_dispose_callbacks.clone();
-
-        Self::run_systems_collection(
-            self.startup_systems
-                .clone()
-                .into_iter()
-                .filter(|system| !system.ignore_pause)
-                .collect::<Vec<_>>(),
-            |system| system.execute_in_main_thread,
-            move |system| {
-                profile_scope!(&system.identifier);
-
-                let dispose_callback = (system.callback)()?;
-
-                if let Some(dispose_callback) = dispose_callback {
-                    let mut startup_dispose_callbacks = startup_pause_dispose_callbacks.lock();
-                    startup_dispose_callbacks.push(StartupDisposeSystem {
-                        identifier: system.identifier.clone(),
-                        callback: dispose_callback,
-                        execute_in_main_thread: system.execute_in_main_thread,
-                    });
-                }
-
-                FruityResult::Ok(())
-            },
-        )
+        (&self.startup_pause_systems as &dyn SystemPool<StartupSystem>).run_systems()
     }
 
     /// Run all the startup dispose callbacks of systems that start when pause is stopped
     fn run_unpause_end(&self) -> FruityResult<()> {
         let mut startup_dispose_callbacks = self.startup_pause_dispose_callbacks.lock();
-        Self::run_systems_collection(
-            startup_dispose_callbacks.drain(..).collect::<Vec<_>>(),
-            |system| system.execute_in_main_thread,
-            move |system| {
-                profile_scope!(&system.identifier);
-                (system.callback)()
-            },
-        )?;
-
-        Ok(())
-    }
-
-    fn run_systems_collection<'a, T: Sync + Send + 'static>(
-        mut systems: Vec<T>,
-        is_execute_in_main_thread_closure: impl Fn(&T) -> bool,
-        execute_systems_closure: impl Fn(T) -> FruityResult<()> + Clone + Send + Sync + 'static,
-    ) -> FruityResult<()> {
-        // Separate main thread and parallel systems
-        let main_thread_systems = systems
-            .drain_filter(|system| is_execute_in_main_thread_closure(system))
-            .collect::<Vec<_>>();
-
-        let parallel_systems = systems;
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let handler = {
-            profile_scope!("parallel_systems");
-            let execute_systems_closure = execute_systems_closure.clone();
-            thread::spawn(move || {
-                parallel_systems
-                    .into_iter()
-                    .par_bridge()
-                    .try_for_each(execute_systems_closure)
-            })
-        };
-
-        #[cfg(target_arch = "wasm32")]
-        parallel_systems
-            .into_iter()
-            .try_for_each(execute_systems_closure.clone())?;
-
-        // Run the main thread systems
-        {
-            profile_scope!("main_thread_systems");
-            main_thread_systems
-                .into_iter()
-                .try_for_each(execute_systems_closure)?;
-        }
-
-        // Wait all the threaded systems
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            profile_scope!("join_parallel_systems");
-            handler.join().unwrap()?;
-        }
-
-        Ok(())
+        startup_dispose_callbacks.run_systems()
     }
 
     /// Enable a pool
@@ -509,15 +386,148 @@ impl SystemService {
     ///
     #[export]
     pub fn set_paused(&self, paused: bool) -> FruityResult<()> {
-        if !paused && self.is_paused() {
-            self.run_unpause_start()?;
-        }
-
-        if paused && !self.is_paused() {
-            self.run_unpause_end()?;
-        }
-
         self.pause.store(paused, Ordering::Relaxed);
         Ok(())
+    }
+}
+
+struct FrameSystem {
+    identifier: String,
+    system: Arc<SystemCallback>,
+    ignore_pause: bool,
+    execute_in_main_thread: bool,
+}
+
+/// A system pool, see [‘SystemService‘] for more informations
+struct FrameSystemPool {
+    pause: Arc<AtomicBool>,
+
+    /// Systems of the pool
+    systems: Vec<FrameSystem>,
+
+    /// Is the pool enabled
+    enabled: bool,
+}
+
+impl SystemPool<FrameSystem> for FrameSystemPool {
+    fn add_system(&mut self, system: FrameSystem) {
+        self.systems.push(system)
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = &FrameSystem> + '_> {
+        if self.pause.load(Ordering::Relaxed) {
+            Box::new(self.systems.iter().filter(|system| system.ignore_pause))
+        } else {
+            Box::new(self.systems.iter())
+        }
+    }
+
+    fn is_main_thread_system(&self, system: &FrameSystem) -> bool {
+        system.execute_in_main_thread
+    }
+
+    fn execute_system(&self, system: &FrameSystem) -> FruityResult<()> {
+        profile_scope!(&system.identifier);
+        (system.system)()
+    }
+}
+
+struct StartupSystem {
+    identifier: String,
+    system: Arc<StartupSystemCallback>,
+    execute_in_main_thread: bool,
+}
+
+struct StartupSystemPool {
+    systems: Vec<StartupSystem>,
+    dispose_callbacks: Arc<Mutex<StartupDisposeSystemPool>>,
+}
+
+impl SystemPool<StartupSystem> for StartupSystemPool {
+    fn add_system(&mut self, system: StartupSystem) {
+        self.systems.push(system)
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = &StartupSystem> + '_> {
+        Box::new(self.systems.iter())
+    }
+
+    fn is_main_thread_system(&self, system: &StartupSystem) -> bool {
+        system.execute_in_main_thread
+    }
+
+    fn execute_system(&self, system: &StartupSystem) -> FruityResult<()> {
+        profile_scope!(&system.identifier);
+        let dispose = (system.system)()?;
+
+        if let Some(dispose) = dispose {
+            let mut dispose_callbacks = self.dispose_callbacks.lock();
+            dispose_callbacks.add_system(StartupDisposeSystem {
+                identifier: system.identifier.clone(),
+                callback: dispose,
+                execute_in_main_thread: system.execute_in_main_thread,
+            });
+        }
+
+        Ok(())
+    }
+}
+
+struct StartupDisposeSystemPool {
+    systems: Vec<StartupDisposeSystem>,
+}
+
+impl StartupDisposeSystemPool {
+    fn add_system(&mut self, system: StartupDisposeSystem) {
+        self.systems.push(system)
+    }
+
+    fn execute_system(system: StartupDisposeSystem) -> FruityResult<()> {
+        profile_scope!(&system.identifier);
+        (system.callback)()
+    }
+
+    /// Run all the systems in the system pool
+    pub fn run_systems(&mut self) -> FruityResult<()> {
+        let (main_thread_systems, parallel_systems): (Vec<_>, Vec<_>) = self
+            .systems
+            .drain(..)
+            .partition(|system| system.execute_in_main_thread);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            profile_scope!("parallel_systems");
+
+            thread::scope(|s| {
+                let handler = s.spawn(move || {
+                    parallel_systems
+                        .into_iter()
+                        .par_bridge()
+                        .try_for_each(|system| Self::execute_system(system))
+                });
+
+                #[cfg(target_arch = "wasm32")]
+                parallel_systems
+                    .into_iter()
+                    .try_for_each(execute_system.clone())?;
+
+                // Run the main thread systems
+                {
+                    profile_scope!("main_thread_systems");
+                    main_thread_systems
+                        .into_iter()
+                        .try_for_each(|system| Self::execute_system(system))?;
+                }
+
+                // Wait all the threaded systems
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    profile_scope!("join_parallel_systems");
+                    handler.join().unwrap()?;
+                }
+
+                Ok(())
+            })
+        }
     }
 }

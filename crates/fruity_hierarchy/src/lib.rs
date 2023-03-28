@@ -11,7 +11,7 @@ use crate::components::parent::Parent;
 use crate::systems::delete_cascade::delete_cascade;
 use crate::systems::update_nested_level::update_nested_level;
 use fruity_ecs::serialization_service::SerializationService;
-use fruity_ecs::system_service::{StartupSystemParams, SystemService};
+use fruity_ecs::system::{StartupSystemParams, SystemService};
 use fruity_game_engine::module::Module;
 use fruity_game_engine::{export_function, typescript_import};
 use std::sync::Arc;

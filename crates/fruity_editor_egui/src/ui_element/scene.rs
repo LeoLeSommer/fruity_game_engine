@@ -1,5 +1,5 @@
 use crate::ui_element::DrawContext;
-use fruity_ecs::system_service::SystemService;
+use fruity_ecs::system::SystemService;
 use fruity_editor::ui::context::UIContext;
 use fruity_editor::ui::hooks::use_memo;
 use fruity_editor::ui::hooks::use_read_service;

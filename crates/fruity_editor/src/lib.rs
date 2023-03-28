@@ -4,7 +4,7 @@ use components::{inspector::inspector_component, scene::scene_component};
 use editor_component_service::EditorComponentService;
 use editor_menu_service::{EditorMenuService, MenuItemOptions};
 use editor_panels_service::EditorPanelsService;
-use fruity_ecs::system_service::SystemService;
+use fruity_ecs::system::SystemService;
 use fruity_game_engine::{export_function, module::Module, typescript_import};
 use inspect::inspect_entity::inspect_entity;
 use inspector_service::InspectorService;
@@ -87,12 +87,12 @@ pub fn create_editor_module() -> Module {
             let system_service = resource_container.require::<SystemService>();
             let mut system_service = system_service.write();
 
-            /*system_service.add_startup_system(
+            system_service.add_startup_system(
                 "pause_at_startup",
                 &pause_at_startup as &'static (dyn Fn(_) -> _ + Send + Sync),
                 None,
             );
-            system_service.disable_pool(99);*/
+            /* system_service.disable_pool(99); */
 
             let inspector_service = resource_container.require::<InspectorService>();
             let mut inspector_service = inspector_service.write();

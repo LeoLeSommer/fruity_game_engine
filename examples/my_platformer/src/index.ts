@@ -1,4 +1,6 @@
-import initFruityBundle from "fruity_native_bundle";
+import initFruityBundle, {
+  createFruityNativeBundleModule,
+} from "fruity_native_bundle";
 import { FrameService, Settings, World } from "fruity_game_engine";
 import {
   createFruityEcsModule,
@@ -56,6 +58,7 @@ class Velocity {
 
 const world = new World(settings as any);
 
+world.registerModule(createFruityNativeBundleModule());
 world.registerModule(createFruityEcsModule());
 world.registerModule(createEditorModule());
 world.registerModule(createFruityEditorEguiModule());

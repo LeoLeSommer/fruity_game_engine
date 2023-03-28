@@ -1,4 +1,4 @@
-use fruity_ecs::system_service::{StartupDisposeSystemCallback, SystemService};
+use fruity_ecs::system::{StartupDisposeSystemCallback, SystemService};
 use fruity_game_engine::{inject::Const, FruityResult};
 
 pub fn pause_at_startup(

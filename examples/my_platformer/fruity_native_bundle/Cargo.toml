@@ -28,6 +28,7 @@ fruity_windows = { path = "../../../crates/fruity_windows" }
 fruity_windows_winit = { path = "../../../crates/fruity_windows_winit" }
 
 [build-dependencies]
+fruity_game_engine_build = { path = "../../../crates/fruity_game_engine_build" }
 napi-build = "2.0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

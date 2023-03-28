@@ -1,6 +1,6 @@
 const { existsSync, readFileSync } = require('fs')
 const { join } = require('path')
-const { setBundle } = require('fruity_game_engine')
+const { setBundle, getBundle } = require('fruity_game_engine')
 
 const { platform, arch } = process
 
@@ -249,4 +249,8 @@ if (!nativeBinding) {
 
 module.exports = function initFruityBundle() {
   setBundle(nativeBinding)
+}
+
+module.exports.createFruityNativeBundleModule = function(...args) {
+  return getBundle().createFruityNativeBundleModule(...args)
 }

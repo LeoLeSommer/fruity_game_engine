@@ -15,7 +15,7 @@
 
 use crate::entity::entity_service::EntityService;
 use crate::extension_component_service::ExtensionComponentService;
-use crate::system_service::SystemService;
+use crate::system::SystemService;
 use entity::EntityId;
 pub use fruity_ecs_macro::Component;
 use fruity_game_engine::export_function;
@@ -31,8 +31,8 @@ pub mod component;
 /// All related with entities
 pub mod entity;
 
-/// Provides collection for systems
-pub mod system_service;
+/// Provides systems
+pub mod system;
 
 /// A service to store components extensions
 pub mod extension_component_service;
