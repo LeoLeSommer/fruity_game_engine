@@ -1,5 +1,5 @@
-use super::archetype::Entity;
-use super::archetype::EntityMut;
+use super::Entity;
+use super::EntityMut;
 use fruity_game_engine::RwLockReadGuard;
 use fruity_game_engine::RwLockWriteGuard;
 use std::fmt::Debug;

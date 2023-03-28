@@ -7,10 +7,9 @@ use super::SerializedEntity;
 use crate::component::AnyComponent;
 use crate::component::Component;
 use crate::entity::archetype::Archetype;
+use crate::entity::archetype::ArchetypeIdentifier;
 use crate::entity::entity_reference::EntityReference;
-use crate::entity::get_type_identifier_by_any;
 use crate::entity::EntityLocation;
-use crate::entity::EntityTypeIdentifier;
 use crate::serializable::{Deserialize, Serialize};
 use crate::ExtensionComponentService;
 use crate::ResourceContainer;
@@ -25,6 +24,7 @@ use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
 use fruity_game_engine::RwLock;
 use fruity_game_engine::{export, export_impl, export_struct};
+use sorted_vec::SortedVec;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -102,7 +102,7 @@ enum Mutation {
 pub struct EntityService {
     id_incrementer: Mutex<u64>,
     entity_locations: HashMap<EntityId, EntityLocation>,
-    pub(crate) archetypes: Vec<Archetype>,
+    pub(crate) archetypes: SortedVec<Archetype>,
     resource_container: ResourceContainer,
     extension_component_service: ResourceReference<ExtensionComponentService>,
     pending_mutations: Mutex<VecDeque<Mutation>>,
@@ -142,7 +142,7 @@ impl EntityService {
         EntityService {
             id_incrementer: Mutex::new(0),
             entity_locations: HashMap::new(),
-            archetypes: Vec::new(),
+            archetypes: SortedVec::new(),
             resource_container: resource_container.clone(),
             extension_component_service: resource_container.require::<ExtensionComponentService>(),
             on_created: Signal::new(),
@@ -479,7 +479,7 @@ impl EntityService {
                 .unwrap()
                 .cmp(&b.get_class_name().unwrap())
         });
-        let archetype_identifier = get_type_identifier_by_any(&components)?;
+        let archetype_identifier = ArchetypeIdentifier::new(&components)?;
 
         // Insert the entity into the archetype, create the archetype if needed
         let location = match self.archetype_by_identifier_mut(archetype_identifier) {
@@ -493,7 +493,6 @@ impl EntityService {
                 }
             }
             None => {
-                let archetype_index = self.archetypes.len();
                 let archetype = Archetype::new(
                     self,
                     self.extension_component_service.clone(),
@@ -508,7 +507,7 @@ impl EntityService {
                     self.archetypes.len() + 1 > self.archetypes.capacity();
                 let archetypes_old_ptr = self.archetypes.as_ptr();
 
-                self.archetypes.push(archetype);
+                let archetype_index = self.archetypes.push(archetype);
 
                 // Notify memory operation
                 let archetype = &self.archetypes[archetype_index];
@@ -520,13 +519,32 @@ impl EntityService {
                     let archetypes_new_ptr = self.archetypes.as_ptr();
                     let addr_diff = archetypes_old_ptr.byte_offset_from(archetypes_new_ptr);
 
-                    self.archetypes.iter().try_for_each(|archetype| {
-                        let new = archetype as *const Archetype as *mut Archetype;
-                        let old = unsafe { NonNull::new_unchecked(new.byte_offset(addr_diff)) };
+                    self.archetypes
+                        .iter()
+                        .enumerate()
+                        .filter(|(index, _)| *index != archetype_index)
+                        .try_for_each(|(index, archetype)| {
+                            let new = archetype as *const Archetype as *mut Archetype;
+                            let old = if index > archetype_index {
+                                unsafe { NonNull::new_unchecked(new.sub(1).byte_offset(addr_diff)) }
+                            } else {
+                                unsafe { NonNull::new_unchecked(new.byte_offset(addr_diff)) }
+                            };
 
-                        self.on_archetype_address_moved
-                            .notify(OnArchetypeAddressMoved { old, new })
-                    })?;
+                            self.on_archetype_address_moved
+                                .notify(OnArchetypeAddressMoved { old, new })
+                        })?;
+                } else {
+                    self.archetypes
+                        .iter()
+                        .skip(archetype_index + 1)
+                        .try_for_each(|archetype| {
+                            let new = archetype as *const Archetype as *mut Archetype;
+                            let old = unsafe { NonNull::new_unchecked(new.sub(1)) };
+
+                            self.on_archetype_address_moved
+                                .notify(OnArchetypeAddressMoved { old, new })
+                        })?;
                 }
 
                 EntityLocation {
@@ -563,9 +581,15 @@ impl EntityService {
                     entity_id
                 )))?;
 
-        let archetype = self.archetypes.get_mut(location.archetype_index).ok_or(
-            FruityError::GenericFailure(format!("Entity with the id {:?} not found", entity_id)),
-        )?;
+        let archetype = unsafe {
+            self.archetypes
+                .get_unchecked_mut_vec()
+                .get_mut(location.archetype_index)
+                .ok_or(FruityError::GenericFailure(format!(
+                    "Entity with the id {:?} not found",
+                    entity_id
+                )))?
+        };
 
         archetype.remove(location.entity_index, true)?;
 
@@ -599,13 +623,15 @@ impl EntityService {
                 )))?;
 
         let (old_entity, mut old_components, old_lock_ptr, old_component_storages_ptr) = {
-            let archetype = self
-                .archetypes
-                .get_mut(old_location.archetype_index)
-                .ok_or(FruityError::GenericFailure(format!(
-                    "Entity with the id {:?} not found",
-                    entity_id
-                )))?;
+            let archetype = unsafe {
+                self.archetypes
+                    .get_unchecked_mut_vec()
+                    .get_mut(old_location.archetype_index)
+                    .ok_or(FruityError::GenericFailure(format!(
+                        "Entity with the id {:?} not found",
+                        entity_id
+                    )))?
+            };
 
             let old_lock_ptr = &archetype.lock_array[old_location.entity_index] as *const RwLock<()>
                 as *mut RwLock<()>;
@@ -728,6 +754,7 @@ impl EntityService {
         let (old_entity, mut old_components, old_lock_ptr, old_component_storages_ptr) = {
             let archetype = self
                 .archetypes
+                .get_unchecked_mut_vec()
                 .get_mut(old_location.archetype_index)
                 .ok_or(FruityError::GenericFailure(format!(
                     "Entity with the id {:?} not found",
@@ -859,39 +886,6 @@ impl EntityService {
                     })
             })?;
 
-        self.archetypes.iter().try_for_each(|archetype| {
-            archetype.lock_array.iter().try_for_each(|lock| {
-                let old = lock as *const RwLock<()> as *mut RwLock<()>;
-                self.on_entity_lock_address_moved
-                    .notify(OnEntityLockAddressMoved {
-                        old: unsafe { NonNull::new_unchecked(old) },
-                        new: null_mut(),
-                    })
-            })?;
-
-            archetype
-                .component_storages
-                .iter()
-                .map(|(_, component_storage)| {
-                    (0..component_storage.components_per_entity * archetype.len())
-                        .into_iter()
-                        .map(|index| {
-                            component_storage.component_storage.get(index) as *const dyn Component
-                                as *mut dyn Component
-                        })
-                })
-                .flatten()
-                .try_for_each(|old_component_ptr| {
-                    self.on_component_address_moved
-                        .notify(OnComponentAddressMoved {
-                            old: unsafe { NonNull::new_unchecked(old_component_ptr) },
-                            new: None,
-                        })
-                })?;
-
-            FruityResult::Ok(())
-        })?;
-
         self.entity_locations
             .iter()
             .try_for_each(|(_entity_id, location)| {
@@ -922,16 +916,18 @@ impl EntityService {
         // Clear all entities
         self.entity_locations.clear();
         *id_incrementer = 0;
-        self.archetypes.clear();
-
-        Ok(())
+        self.archetypes
+            .get_unchecked_mut_vec()
+            .iter_mut()
+            .try_for_each(|archetype| archetype.clear())
     }
 
     unsafe fn archetype_by_identifier_mut(
         &mut self,
-        entity_identifier: EntityTypeIdentifier,
+        entity_identifier: ArchetypeIdentifier,
     ) -> Option<(usize, &mut Archetype)> {
         self.archetypes
+            .get_unchecked_mut_vec()
             .iter_mut()
             .enumerate()
             .find(|(_, archetype)| *archetype.get_type_identifier() == entity_identifier)

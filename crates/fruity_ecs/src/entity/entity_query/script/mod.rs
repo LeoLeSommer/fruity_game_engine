@@ -15,6 +15,7 @@ use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
 use fruity_game_engine::{export, export_impl, export_struct};
+use sorted_vec::SortedVec;
 use std::fmt::Debug;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -64,7 +65,7 @@ pub struct ScriptQuery {
     /// A signal raised when an entity that match the query is deleted
     pub on_entity_deleted: Signal<EntityId>,
 
-    archetypes: Arc<RwLock<Vec<ArchetypePtr>>>,
+    archetypes: Arc<RwLock<SortedVec<ArchetypePtr>>>,
     on_archetype_address_added_handle: ObserverHandler<NonNull<Archetype>>,
     on_archetype_address_moved_handle: ObserverHandler<OnArchetypeAddressMoved>,
     on_entity_address_added_handle: ObserverHandler<OnEntityAddressAdded>,
@@ -86,7 +87,7 @@ impl ScriptQuery {
     /// Create the entity query
     pub fn new(entity_service: &EntityService, params: Box<dyn ScriptQueryParam>) -> Self {
         // Filter existing archetypes
-        let archetypes = Arc::new(RwLock::new(
+        let archetypes = Arc::new(RwLock::new(SortedVec::from(
             entity_service
                 .archetypes
                 .iter()
@@ -96,7 +97,7 @@ impl ScriptQuery {
                     ))
                 })
                 .collect::<Vec<_>>(),
-        ));
+        )));
 
         // Listen to entity service archetypes vec reallocations
         // Register memory move observers to update the entity reference inner pointers when the memory is moved
@@ -126,24 +127,26 @@ impl ScriptQuery {
                 .on_archetype_address_moved
                 .add_observer(move |event| {
                     let mut archetypes_writer = archetypes_3.write();
-                    *archetypes_writer = archetypes_writer
-                        .drain(..)
-                        .filter_map(|archetype| {
-                            if archetype.0 == event.old {
-                                if let Some(new_archetype) = unsafe { event.new.as_mut() } {
-                                    Some(unsafe {
-                                        ArchetypePtr(NonNull::new_unchecked(
-                                            new_archetype as *mut Archetype,
-                                        ))
-                                    })
+                    *archetypes_writer = SortedVec::from(
+                        archetypes_writer
+                            .drain(..)
+                            .filter_map(|archetype| {
+                                if archetype.0 == event.old {
+                                    if let Some(new_archetype) = unsafe { event.new.as_mut() } {
+                                        Some(unsafe {
+                                            ArchetypePtr(NonNull::new_unchecked(
+                                                new_archetype as *mut Archetype,
+                                            ))
+                                        })
+                                    } else {
+                                        None
+                                    }
                                 } else {
-                                    None
+                                    Some(archetype)
                                 }
-                            } else {
-                                Some(archetype)
-                            }
-                        })
-                        .collect::<Vec<_>>();
+                            })
+                            .collect::<Vec<_>>(),
+                    );
 
                     Ok(())
                 });

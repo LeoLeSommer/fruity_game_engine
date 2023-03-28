@@ -39,6 +39,12 @@ pub trait Component:
     /// Create a new component that is a clone of self
     fn duplicate(&self) -> Box<dyn Component>;
 
+    /// Always returns 0, if this is not 0, the same component with different order
+    /// will be stored in a different archetype ordered by this value
+    /// It used to implements hierarchical components
+    /// There is a limit of 256 components with different order
+    fn archetype_order(&self) -> FruityResult<u8>;
+
     /// Get a collection to store this component in the archetype
     fn get_storage(&self) -> Box<dyn ComponentStorage>;
 }

@@ -36,7 +36,7 @@ impl<System: Sync + Send + 'static> dyn SystemPool<System> {
                 let handler = s.spawn(move || {
                     parallel_systems
                         .into_iter()
-                        .par_bridge()
+                        // .par_bridge()
                         .try_for_each(|system| self.execute_system(system))
                 });
 

@@ -9,7 +9,6 @@
 
 use crate::components::parent::Parent;
 use crate::systems::delete_cascade::delete_cascade;
-use crate::systems::update_nested_level::update_nested_level;
 use fruity_ecs::serialization_service::SerializationService;
 use fruity_ecs::system::{StartupSystemParams, SystemService};
 use fruity_game_engine::module::Module;
@@ -45,14 +44,6 @@ pub fn create_fruity_hierarchy_module() -> Module {
             system_service.add_startup_system(
                 "delete_cascade",
                 &delete_cascade as &'static (dyn Fn(_, _) -> _ + Send + Sync),
-                Some(StartupSystemParams {
-                    ignore_pause: Some(true),
-                    ..Default::default()
-                }),
-            );
-            system_service.add_startup_system(
-                "update_nested_level",
-                &update_nested_level as &'static (dyn Fn(_) -> _ + Send + Sync),
                 Some(StartupSystemParams {
                     ignore_pause: Some(true),
                     ..Default::default()

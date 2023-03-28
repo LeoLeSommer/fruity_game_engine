@@ -47,6 +47,10 @@ fn derive_component_trait(input: TokenStream) -> TokenStream {
                 Box::new(fruity_ecs::entity::archetype::component_storage::VecComponentStorage::<Self>::new())
             }
 
+            fn archetype_order(&self) -> fruity_game_engine::FruityResult<u8> {
+                Ok(0)
+            }
+
             fn duplicate(&self) -> Box<dyn fruity_ecs::component::Component> {
                 Box::new(self.clone())
             }

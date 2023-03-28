@@ -7,6 +7,7 @@ version = "0.0.0"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
+sorted-vec = "0.8.2"
 either = "1.8.1"
 log = "0.4.14"
 itertools = "0.10.1"

@@ -7,31 +7,65 @@ use super::entity_service::OnEntityAddressAdded;
 use super::entity_service::OnEntityLocationMoved;
 use super::entity_service::OnEntityLockAddressMoved;
 use super::EntityId;
-use crate::component::component_guard::AnyComponentReadGuard;
-use crate::component::component_guard::AnyComponentWriteGuard;
-use crate::component::component_guard::ComponentReadGuard;
-use crate::component::component_guard::ComponentWriteGuard;
 use crate::component::AnyComponent;
 use crate::component::Component;
-use crate::component::StaticComponent;
 use crate::entity::archetype::component_storage::ComponentStorage;
 use crate::entity::archetype::entity_properties::EntityProperties;
-use crate::entity::get_type_identifier_by_any;
-use crate::entity::EntityTypeIdentifier;
 use crate::ExtensionComponentService;
-use either::Either;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
-use itertools::Itertools;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
+
+/// An identifier to an entity type, is composed be the identifier of the contained components
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ArchetypeIdentifier(pub Vec<(String, u8)>);
+
+impl ArchetypeIdentifier {
+    /// Get the entity type identifier from a list of components
+    pub fn new(components: &[AnyComponent]) -> FruityResult<Self> {
+        let mut identifier = components
+            .iter()
+            .map(|component| {
+                let class_name = component.get_class_name()?;
+                let archetype_order = component.archetype_order()?;
+
+                Ok((class_name, archetype_order))
+            })
+            .try_collect::<Vec<_>>()?;
+
+        identifier.sort();
+
+        Ok(ArchetypeIdentifier(identifier))
+    }
+}
+
+impl Hash for ArchetypeIdentifier {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
+        self.0.hash(state)
+    }
+}
+
+impl ArchetypeIdentifier {
+    /// Check if an entity identifier contains an other one
+    /// For example ["c1", "c2", "c3"] contains ["c3", "c2"]
+    pub fn contains(&self, other: &String) -> bool {
+        self.0
+            .iter()
+            .any(|component_identifier| &component_identifier.0 == other)
+    }
+}
 
 /// This store all the information that are common accross all entities
 pub mod entity_properties;
@@ -43,7 +77,7 @@ pub mod component_storage;
 /// Stored as a Struct Of Array
 pub struct Archetype {
     extension_component_service: ResourceReference<ExtensionComponentService>,
-    pub(crate) identifier: EntityTypeIdentifier,
+    pub(crate) identifier: ArchetypeIdentifier,
 
     // Store all the component properties into a index persisting storage
     pub(crate) lock_array: Vec<RwLock<()>>,
@@ -77,7 +111,7 @@ impl Archetype {
         mut components: Vec<AnyComponent>,
     ) -> FruityResult<Archetype> {
         // Deduce the archetype properties from the first components
-        let identifier = get_type_identifier_by_any(&components)?;
+        let identifier = ArchetypeIdentifier::new(&components)?;
 
         // Inject the extensions
         let mut extensions_component = {
@@ -120,13 +154,54 @@ impl Archetype {
     }
 
     /// Returns the entity type identifier of the archetype
-    pub fn get_type_identifier(&self) -> &EntityTypeIdentifier {
+    pub fn get_type_identifier(&self) -> &ArchetypeIdentifier {
         &self.identifier
     }
 
     /// Get entity count
     pub fn len(&self) -> usize {
         self.lock_array.len()
+    }
+
+    /// Clear the archetype
+    pub fn clear(&mut self) -> FruityResult<()> {
+        // Notify memory operation
+        self.lock_array.iter().try_for_each(|lock| {
+            let old = lock as *const RwLock<()> as *mut RwLock<()>;
+            self.on_entity_lock_address_moved
+                .notify(OnEntityLockAddressMoved {
+                    old: unsafe { NonNull::new_unchecked(old) },
+                    new: null_mut(),
+                })
+        })?;
+
+        self.component_storages
+            .iter()
+            .map(|(_, component_storage)| {
+                (0..component_storage.components_per_entity * self.len())
+                    .into_iter()
+                    .map(|index| {
+                        component_storage.component_storage.get(index) as *const dyn Component
+                            as *mut dyn Component
+                    })
+            })
+            .flatten()
+            .try_for_each(|old_component_ptr| {
+                self.on_component_address_moved
+                    .notify(OnComponentAddressMoved {
+                        old: unsafe { NonNull::new_unchecked(old_component_ptr) },
+                        new: None,
+                    })
+            })?;
+
+        // Clear data
+        self.lock_array.clear();
+        self.entity_id_array.clear();
+        self.name_array.clear();
+        self.enabled_array.clear();
+        self.component_storages.clear();
+
+        Ok(())
     }
 
     /// Add an entity into the archetype
@@ -413,6 +488,8 @@ impl Archetype {
     fn group_components_by_type(
         components: Vec<AnyComponent>,
     ) -> HashMap<String, Vec<AnyComponent>> {
+        use itertools::Itertools;
+
         components
             .into_iter()
             .group_by(|component| component.get_class_name().unwrap())
@@ -466,305 +543,26 @@ impl ArchetypeComponentStorage {
     }
 }
 
-/// A struct that allow you to read an entity
-#[derive(Clone)]
-pub struct Entity<'a> {
-    pub(crate) entity_index: usize,
-    pub(crate) archetype: &'a Archetype,
-}
-
-impl<'a> Debug for Entity<'a> {
-    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        Ok(())
+impl PartialEq for Archetype {
+    fn eq(&self, other: &Self) -> bool {
+        self.identifier == other.identifier
     }
 }
 
-impl<'a> Entity<'a> {
-    /// Get the entity id
-    pub fn get_entity_id(&self) -> EntityId {
-        self.archetype
-            .entity_id_array
-            .get(self.entity_index)
-            .map(|entity_id| *entity_id)
-            .unwrap()
-    }
-
-    /// Get the entity name
-    pub fn get_name(&self) -> String {
-        self.archetype
-            .name_array
-            .get(self.entity_index)
-            .map(|name| name.clone())
-            .unwrap()
-    }
-
-    /// Is the entity enabled
-    pub fn is_enabled(&self) -> bool {
-        self.archetype
-            .enabled_array
-            .get(self.entity_index)
-            .map(|name| name.clone())
-            .unwrap()
-    }
-
-    /// Read all components of the entity
-    pub fn read_all_components(&self) -> impl Iterator<Item = AnyComponentReadGuard<'_>> {
-        let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
-
-        self.archetype
-            .component_storages
-            .iter()
-            .map(|(_, storage)| storage.get(self.entity_index))
-            .flatten()
-            .map(|component| AnyComponentReadGuard {
-                entity_guard: lock.read(),
-                component_ptr: NonNull::from(component),
-            })
-    }
-
-    /// Read components with a given type
-    ///
-    /// # Arguments
-    /// * `component_identifier` - The component identifier
-    ///
-    pub fn iter_components_by_type<T: Component + StaticComponent>(
-        &self,
-    ) -> FruityResult<impl Iterator<Item = ComponentReadGuard<'_, T>>> {
-        Ok(self
-            .iter_components_by_type_identifier(T::get_component_name())?
-            .into_iter()
-            .map(|component_guard| component_guard.try_into())
-            .filter_map(|entity_guard| entity_guard.ok()))
-    }
-
-    /// Read components with a given type
-    ///
-    /// # Arguments
-    /// * `component_identifier` - The component identifier
-    ///
-    pub fn iter_components_by_type_identifier(
-        &self,
-        component_identifier: &str,
-    ) -> FruityResult<impl Iterator<Item = AnyComponentReadGuard<'_>>> {
-        let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
-
-        let storage =
-            if let Some(storage) = self.archetype.component_storages.get(component_identifier) {
-                storage
-            } else {
-                return Ok(Either::Left(vec![].into_iter()));
-            };
-
-        Ok(Either::Right(storage.get(self.entity_index).map(
-            |component| AnyComponentReadGuard {
-                entity_guard: lock.read(),
-                component_ptr: NonNull::from(component),
-            },
-        )))
-    }
-
-    /// Read a single component with a given type
-    pub fn get_component_by_type<T: Component + StaticComponent>(
-        &self,
-    ) -> FruityResult<Option<ComponentReadGuard<'_, T>>> {
-        Ok(self.iter_components_by_type()?.next())
+impl Eq for Archetype {
+    fn assert_receiver_is_total_eq(&self) {
+        self.identifier.assert_receiver_is_total_eq()
     }
 }
 
-/// A struct that allow you to write an entity
-#[derive(Clone)]
-pub struct EntityMut<'a> {
-    pub(crate) entity_index: usize,
-    pub(crate) archetype: &'a Archetype,
-}
-
-impl<'a> Debug for EntityMut<'a> {
-    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        Ok(())
+impl PartialOrd for Archetype {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.identifier.partial_cmp(&other.identifier)
     }
 }
 
-impl<'a> EntityMut<'a> {
-    /// Get the entity id
-    pub fn get_entity_id(&self) -> EntityId {
-        self.archetype
-            .entity_id_array
-            .get(self.entity_index)
-            .map(|entity_id| *entity_id)
-            .unwrap()
-    }
-
-    /// Get the entity name
-    pub fn get_name(&self) -> String {
-        self.archetype
-            .name_array
-            .get(self.entity_index)
-            .map(|name| name.clone())
-            .unwrap()
-    }
-
-    /// Set the entity name
-    ///
-    /// # Arguments
-    /// * `value` - The name value
-    ///
-    pub fn set_name(&self, value: &str) {
-        let name = &self.archetype.name_array[self.entity_index];
-
-        // Safe cause it is protected by self.entity_guard
-        #[allow(mutable_transmutes)]
-        let name = unsafe { std::mem::transmute::<&String, &mut String>(name) };
-
-        *name = value.to_string();
-    }
-
-    /// Is the entity enabled
-    pub fn is_enabled(&self) -> bool {
-        self.archetype
-            .enabled_array
-            .get(self.entity_index)
-            .map(|name| name.clone())
-            .unwrap()
-    }
-
-    /// Set the entity enabled state
-    ///
-    /// # Arguments
-    /// * `value` - Is the entity enabled
-    ///
-    pub fn set_enabled(&self, value: bool) {
-        let enabled = &self.archetype.enabled_array[self.entity_index];
-
-        // Safe cause it is protected by self.entity_guard
-        #[allow(mutable_transmutes)]
-        let enabled = unsafe { std::mem::transmute::<&bool, &mut bool>(enabled) };
-
-        *enabled = value;
-    }
-
-    /// Read all components of the entity
-    pub fn read_all_components(&self) -> impl Iterator<Item = AnyComponentReadGuard<'_>> {
-        let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
-
-        self.archetype
-            .component_storages
-            .iter()
-            .map(|(_, storage)| storage.get(self.entity_index))
-            .flatten()
-            .map(|component| AnyComponentReadGuard {
-                entity_guard: lock.read(),
-                component_ptr: NonNull::from(component),
-            })
-    }
-
-    /// Write all components of the entity
-    pub fn write_all_components(&self) -> impl Iterator<Item = AnyComponentWriteGuard<'_>> {
-        let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
-
-        self.archetype
-            .component_storages
-            .iter()
-            .map(|(_, storage)| storage.get(self.entity_index))
-            .flatten()
-            .map(|component| AnyComponentWriteGuard {
-                entity_guard: lock.write(),
-                component_ptr: NonNull::from(component),
-            })
-    }
-
-    /// Read components with a given type
-    ///
-    /// # Arguments
-    /// * `component_identifier` - The component identifier
-    ///
-    pub fn iter_components_by_type<T: Component + StaticComponent>(
-        &self,
-    ) -> FruityResult<impl Iterator<Item = ComponentReadGuard<'_, T>>> {
-        Ok(self
-            .iter_components_by_type_identifier(T::get_component_name())?
-            .into_iter()
-            .map(|component_guard| component_guard.try_into())
-            .filter_map(|entity_guard| entity_guard.ok()))
-    }
-
-    /// Write components with a given type
-    ///
-    /// # Arguments
-    /// * `component_identifier` - The component identifier
-    ///
-    pub fn iter_components_by_type_mut<T: Component + StaticComponent>(
-        &self,
-    ) -> FruityResult<impl Iterator<Item = ComponentWriteGuard<'_, T>>> {
-        Ok(self
-            .iter_components_by_type_identifier_mut(T::get_component_name())?
-            .into_iter()
-            .map(|component_guard| component_guard.try_into())
-            .filter_map(|entity_guard| entity_guard.ok()))
-    }
-
-    /// Read components with a given type
-    ///
-    /// # Arguments
-    /// * `component_identifier` - The component identifier
-    ///
-    pub fn iter_components_by_type_identifier(
-        &self,
-        component_identifier: &str,
-    ) -> FruityResult<impl Iterator<Item = AnyComponentReadGuard<'_>>> {
-        let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
-
-        let storage =
-            if let Some(storage) = self.archetype.component_storages.get(component_identifier) {
-                storage
-            } else {
-                return Ok(Either::Left(vec![].into_iter()));
-            };
-
-        Ok(Either::Right(storage.get(self.entity_index).map(
-            |component| AnyComponentReadGuard {
-                entity_guard: lock.read(),
-                component_ptr: NonNull::from(component),
-            },
-        )))
-    }
-
-    /// Write components with a given type
-    ///
-    /// # Arguments
-    /// * `component_identifier` - The component identifier
-    ///
-    pub fn iter_components_by_type_identifier_mut(
-        &self,
-        component_identifier: &str,
-    ) -> FruityResult<impl Iterator<Item = AnyComponentWriteGuard<'_>>> {
-        let lock = self.archetype.lock_array.get(self.entity_index).unwrap();
-
-        let storage =
-            if let Some(storage) = self.archetype.component_storages.get(component_identifier) {
-                storage
-            } else {
-                return Ok(Either::Left(vec![].into_iter()));
-            };
-
-        Ok(Either::Right(storage.get(self.entity_index).map(
-            |component| AnyComponentWriteGuard {
-                entity_guard: lock.write(),
-                component_ptr: NonNull::from(component),
-            },
-        )))
-    }
-
-    /// Read a single component with a given type
-    pub fn get_component_by_type<T: Component + StaticComponent>(
-        &self,
-    ) -> FruityResult<Option<ComponentReadGuard<'_, T>>> {
-        Ok(self.iter_components_by_type()?.next())
-    }
-
-    /// Write a single component with a given type
-    pub fn get_component_by_type_mut<T: Component + StaticComponent>(
-        &self,
-    ) -> FruityResult<Option<ComponentWriteGuard<'_, T>>> {
-        Ok(self.iter_components_by_type_mut()?.next())
+impl Ord for Archetype {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.identifier.cmp(&other.identifier)
     }
 }

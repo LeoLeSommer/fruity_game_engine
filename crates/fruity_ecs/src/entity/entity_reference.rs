@@ -1,6 +1,6 @@
 use super::archetype::Archetype;
-use super::archetype::Entity;
-use super::archetype::EntityMut;
+use super::Entity;
+use super::EntityMut;
 use super::entity_service::AddEntityMutation;
 use super::entity_service::OnArchetypeAddressMoved;
 use super::entity_service::OnComponentAddressMoved;
@@ -104,7 +104,7 @@ impl EntityReference {
 
                     if !archetype_ptr.is_null()
                         && event.old
-                            != unsafe { NonNull::new_unchecked(*archetype_ptr) }
+                            == unsafe { NonNull::new_unchecked(*archetype_ptr) }
                     {
                         if let Some(new) = unsafe { event.new.as_ref() } {
                             *archetype_ptr = new as *const Archetype as *mut Archetype;

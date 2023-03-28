@@ -14,6 +14,7 @@ use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
 use fruity_game_engine::RwLockReadGuard;
 use fruity_game_engine::RwLockWriteGuard;
+use sorted_vec::SortedVec;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -193,6 +194,30 @@ pub trait QueryParam<'a> {
 
 pub(crate) struct ArchetypePtr(NonNull<Archetype>);
 
+impl PartialEq for ArchetypePtr {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { self.0.as_ref() == other.0.as_ref() }
+    }
+}
+
+impl Eq for ArchetypePtr {
+    fn assert_receiver_is_total_eq(&self) {
+        unsafe { self.0.as_ref().assert_receiver_is_total_eq() }
+    }
+}
+
+impl PartialOrd for ArchetypePtr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        unsafe { self.0.as_ref().partial_cmp(&other.0.as_ref()) }
+    }
+}
+
+impl Ord for ArchetypePtr {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        unsafe { self.0.as_ref().cmp(&other.0.as_ref()) }
+    }
+}
+
 // Safe cause archetypes are updated when an archetype is moved trough memory
 unsafe impl Sync for ArchetypePtr {}
 
@@ -207,7 +232,7 @@ pub struct Query<T> {
     /// A signal raised when an entity that match the query is deleted
     pub on_entity_deleted: Signal<EntityId>,
 
-    archetypes: Arc<RwLock<Vec<ArchetypePtr>>>,
+    archetypes: Arc<RwLock<SortedVec<ArchetypePtr>>>,
     on_archetype_address_added_handle: ObserverHandler<NonNull<Archetype>>,
     on_archetype_address_moved_handle: ObserverHandler<OnArchetypeAddressMoved>,
     on_entity_address_added_handle: ObserverHandler<OnEntityAddressAdded>,
@@ -249,7 +274,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
     /// Create the entity query
     pub fn new(entity_service: &EntityService) -> Self {
         // Filter existing archetypes
-        let archetypes = Arc::new(RwLock::new(
+        let archetypes = Arc::new(RwLock::new(SortedVec::from(
             entity_service
                 .archetypes
                 .iter()
@@ -260,7 +285,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
                     ))
                 })
                 .collect::<Vec<_>>(),
-        ));
+        )));
 
         // Listen to entity service archetypes vec reallocations
         // Register memory move observers to update the entity reference inner pointers when the memory is moved
@@ -289,24 +314,26 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
                 .on_archetype_address_moved
                 .add_observer(move |event| {
                     let mut archetypes_writer = archetypes_3.write();
-                    *archetypes_writer = archetypes_writer
-                        .drain(..)
-                        .filter_map(|archetype| {
-                            if archetype.0 == event.old {
-                                if let Some(new_archetype) = unsafe { event.new.as_mut() } {
-                                    Some(unsafe {
-                                        ArchetypePtr(NonNull::new_unchecked(
-                                            new_archetype as *mut Archetype,
-                                        ))
-                                    })
+                    *archetypes_writer = SortedVec::from(
+                        archetypes_writer
+                            .drain(..)
+                            .filter_map(|archetype| {
+                                if archetype.0 == event.old {
+                                    if let Some(new_archetype) = unsafe { event.new.as_mut() } {
+                                        Some(unsafe {
+                                            ArchetypePtr(NonNull::new_unchecked(
+                                                new_archetype as *mut Archetype,
+                                            ))
+                                        })
+                                    } else {
+                                        None
+                                    }
                                 } else {
-                                    None
+                                    Some(archetype)
                                 }
-                            } else {
-                                Some(archetype)
-                            }
-                        })
-                        .collect::<Vec<_>>();
+                            })
+                            .collect::<Vec<_>>(),
+                    );
 
                     Ok(())
                 });

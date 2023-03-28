@@ -4,12 +4,12 @@ use super::SingleBidirectionalIterator;
 use crate::component::Component;
 use crate::component::StaticComponent;
 use crate::entity::archetype::Archetype;
-use crate::entity::archetype::Entity;
-use crate::entity::archetype::EntityMut;
 use crate::entity::entity_query::QueryParam;
 use crate::entity::entity_reference::EntityReference;
 use crate::entity::entity_reference::InnerShareableEntityReference;
+use crate::entity::Entity;
 use crate::entity::EntityId;
+use crate::entity::EntityMut;
 use either::Either;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -1192,6 +1192,10 @@ impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponen
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
+        let test = archetype.component_storages.keys().collect::<Vec<_>>();
+        println!("{:?}", T::get_component_name());
+        println!("{:?}", test);
+
         let component_storage =
             &archetype.component_storages[T::get_component_name()].component_storage;
         let begin = component_storage

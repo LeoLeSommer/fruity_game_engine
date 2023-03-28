@@ -68,6 +68,10 @@ impl Component for ScriptComponent {
         Box::new(ScriptComponent(self.0.duplicate()))
     }
 
+    fn archetype_order(&self) -> FruityResult<u8> {
+        Ok(0)
+    }
+
     fn get_storage(&self) -> Box<dyn ComponentStorage> {
         Box::new(VecComponentStorage::<Self>::new())
     }
