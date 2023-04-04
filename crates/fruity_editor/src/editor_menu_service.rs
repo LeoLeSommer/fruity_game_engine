@@ -1,10 +1,10 @@
 use crate::ui::context::UIContext;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_impl, export_struct, FruityResult};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::sync::Arc;
 
 #[derive(Default, Clone)]
 pub struct MenuItemOptions {

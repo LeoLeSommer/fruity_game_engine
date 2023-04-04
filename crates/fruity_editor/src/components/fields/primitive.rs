@@ -12,8 +12,8 @@ use crate::ui::elements::UIWidget;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::convert::TryIntoScriptValue;
 use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
-use std::sync::Arc;
 
 macro_rules! impl_int_for_editable_component {
     ( $fn_name:ident, $type:ident ) => {

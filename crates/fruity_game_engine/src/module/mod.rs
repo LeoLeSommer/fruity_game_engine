@@ -1,10 +1,10 @@
 use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::settings::Settings;
 use crate::world::{RunWorldMiddleware, SetupWorldMiddleware, World};
+use crate::Arc;
 use crate::FruityResult;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 
 /// A service to manage modules loading
 pub mod modules_service;

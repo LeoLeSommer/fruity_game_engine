@@ -1,5 +1,16 @@
 use std::ops::{Deref, DerefMut};
 
+/// A thread-safe reference-counting pointer. 'Arc' stands for 'Atomically
+/// Reference Counted'.
+///
+/// The type `Arc<T>` provides shared ownership of a value of type `T`,
+/// allocated in the heap. Invoking [`clone`][clone] on `Arc` produces
+/// a new `Arc` instance, which points to the same allocation on the heap as the
+/// source `Arc`, while increasing a reference count. When the last `Arc`
+/// pointer to a given allocation is destroyed, the value stored in that allocation (often
+/// referred to as "inner value") is also dropped.
+pub type Arc<T> = std::sync::Arc<T>;
+
 /// A reader-writer lock
 ///
 /// This type of lock allows a number of readers or at most one writer at any

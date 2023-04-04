@@ -13,6 +13,7 @@ use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::typescript;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
@@ -20,7 +21,6 @@ use fruity_game_engine::RwLockReadGuard;
 use std::fmt::Debug;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 struct InnerShareableAnyComponentReference {
     entity_lock_ptr: *mut RwLock<()>,

@@ -4,13 +4,13 @@ use crate::introspect::IntrospectMethods;
 use crate::script_value::ScriptObject;
 use crate::script_value::ScriptValue;
 use crate::typescript;
+use crate::Arc;
 use crate::FruityResult;
 use crate::RwLock;
 use crate::RwLockReadGuard;
 use crate::RwLockWriteGuard;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::sync::Arc;
 
 /// A reference over an any resource that is supposed to be used by components
 #[derive(Debug, FruityAny)]

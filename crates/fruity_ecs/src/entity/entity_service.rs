@@ -19,6 +19,7 @@ use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::settings::Settings;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::typescript;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
@@ -31,7 +32,6 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 /// A save for the entities stored in an [’EntityService’]
 #[typescript("type EntityServiceSnapshot = SerializedEntity[]")]

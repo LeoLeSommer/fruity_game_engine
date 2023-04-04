@@ -29,10 +29,10 @@ use fruity_game_engine::introspect::IntrospectFields;
 use fruity_game_engine::script_value::impl_containers::ScriptValueHashMap;
 use fruity_game_engine::script_value::ScriptObject;
 use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::Arc;
 
 pub mod primitive;
 

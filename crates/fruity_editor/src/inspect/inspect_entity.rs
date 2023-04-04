@@ -21,8 +21,8 @@ use crate::ui::hooks::use_read_service;
 use crate::ui::hooks::use_state;
 use fruity_ecs::entity::entity_reference::EntityReference;
 use fruity_ecs::entity::entity_service::EntityService;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
-use std::sync::Arc;
 
 pub fn inspect_entity(
     ctx: &mut UIContext,

@@ -10,6 +10,7 @@ use fruity_game_engine::inject::Injectable;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::signal::Signal;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
 use fruity_game_engine::RwLockReadGuard;
@@ -17,7 +18,6 @@ use fruity_game_engine::RwLockWriteGuard;
 use sorted_vec::SortedVec;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 /// Queries for scripting languages
 pub mod script;

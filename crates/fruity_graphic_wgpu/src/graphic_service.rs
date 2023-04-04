@@ -13,6 +13,7 @@ use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::signal::Signal;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
@@ -36,7 +37,6 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter;
-use std::sync::Arc;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]

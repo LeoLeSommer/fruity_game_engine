@@ -7,8 +7,8 @@ use fruity_editor::ui::elements::layout::Column;
 use fruity_editor::ui::elements::UIElement;
 use fruity_editor::ui::elements::UIWidget;
 use fruity_editor::ui::hooks::use_write_service;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
-use std::sync::Arc;
 
 pub fn rect_collider_inspector(
     ctx: &mut UIContext,

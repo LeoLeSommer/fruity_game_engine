@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use fruity_game_engine::Arc;
 
 use crate::editor_service::EditorService;
 use crate::state::secondary_action::SecondaryActionState;

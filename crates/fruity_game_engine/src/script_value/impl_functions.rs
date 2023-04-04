@@ -1,11 +1,11 @@
 use super::ScriptValue;
 use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::utils::introspect::ArgumentCaster;
+use crate::Arc;
 use crate::FruityError;
 use crate::FruityResult;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 
 impl<R: TryIntoScriptValue> TryIntoScriptValue for &'static (dyn Send + Sync + Fn() -> R) {
     fn into_script_value(self) -> FruityResult<ScriptValue> {

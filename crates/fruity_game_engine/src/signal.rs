@@ -8,6 +8,7 @@ use crate::script_value::ScriptObject;
 use crate::script_value::ScriptValue;
 use crate::typescript;
 use crate::utils::introspect::ArgumentCaster;
+use crate::Arc;
 use crate::FruityResult;
 use crate::Mutex;
 use crate::RwLock;
@@ -15,7 +16,6 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::sync::Arc;
 
 struct IdGenerator {
     incrementer: usize,

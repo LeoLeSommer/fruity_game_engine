@@ -5,6 +5,7 @@ use crate::frame_service::FrameService;
 use crate::module::Module;
 use crate::profile_scope;
 use crate::settings::Settings;
+use crate::Arc;
 use crate::FruityResult;
 use crate::ModulesService;
 use crate::ResourceContainer;
@@ -15,7 +16,6 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::ops::Deref;
 use std::pin::Pin;
-use std::sync::Arc;
 
 /// A middleware that occurs when entering into the loop
 #[typescript("type StartMiddleware = (world: World) => void")]
@@ -323,7 +323,7 @@ mod test {
     use super::*;
     use crate::module::Module;
     use crate::settings::Settings;
-    use std::sync::Arc;
+    use crate::Arc;
 
     #[test]
     fn test_module_run_world_middleware() {

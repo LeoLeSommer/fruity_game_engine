@@ -22,8 +22,8 @@ use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::typescript_import;
+use fruity_game_engine::Arc;
 use serialization_service::SerializationService;
-use std::sync::Arc;
 
 /// All related with components
 pub mod component;

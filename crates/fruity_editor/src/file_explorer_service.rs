@@ -3,11 +3,11 @@ use crate::utils::file::get_file_type_from_path;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_impl, export_struct};
 use fruity_graphic::resources::texture_resource::TextureResource;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
 
 struct FileTypeEntry {
     get_thumbnail: Arc<

@@ -6,12 +6,12 @@ use crate::resources::default_resources::load_default_resources_async;
 use fruity_editor::introspect_editor_service::IntrospectEditorService;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_function, typescript_import};
 use fruity_graphic::math::matrix3::Matrix3;
 use fruity_graphic::math::vector2d::Vector2D;
 use fruity_graphic::resources::shader_resource::ShaderResource;
 use fruity_graphic::resources::texture_resource::TextureResource;
-use std::sync::Arc;
 
 pub mod fields;
 pub mod resources;

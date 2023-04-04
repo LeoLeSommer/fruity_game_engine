@@ -9,9 +9,9 @@ use fruity_editor::ui::elements::UIWidget;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::ScriptObject;
 use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::math::vector2d::Vector2D;
-use std::sync::Arc;
 
 pub fn draw_editor_vector_2d(
     _ctx: &mut UIContext,

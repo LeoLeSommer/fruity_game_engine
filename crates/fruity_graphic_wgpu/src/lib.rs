@@ -1,12 +1,12 @@
 #![feature(async_closure)]
 
 use crate::graphic_service::WgpuGraphicService;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{
     export_function, module::Module, settings::Settings, typescript_import, world::World,
     FruityResult,
 };
 use fruity_graphic::graphic_service::GraphicService;
-use std::sync::Arc;
 
 pub mod graphic_service;
 pub mod resources;

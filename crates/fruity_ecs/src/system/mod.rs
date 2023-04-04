@@ -3,6 +3,7 @@ use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::inject::Inject;
 use fruity_game_engine::profile_scope;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
 use fruity_game_engine::{export, export_impl, export_struct};
@@ -10,7 +11,6 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::thread;
@@ -19,7 +19,6 @@ use std::thread;
 use rayon::prelude::*;
 
 mod system_pool;
-
 pub use system_pool::*;
 
 /// A callback for a system called every frame

@@ -1,11 +1,11 @@
 use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::Arc;
 use fruity_game_engine::RwLock;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::ops::Deref;
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct UIContext {

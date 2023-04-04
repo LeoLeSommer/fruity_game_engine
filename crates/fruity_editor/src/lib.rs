@@ -5,6 +5,7 @@ use editor_component_service::EditorComponentService;
 use editor_menu_service::{EditorMenuService, MenuItemOptions};
 use editor_panels_service::EditorPanelsService;
 use fruity_ecs::system::SystemService;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_function, module::Module, typescript_import};
 use inspect::inspect_entity::inspect_entity;
 use inspector_service::InspectorService;
@@ -13,7 +14,6 @@ use menu::{is_redo_enabled, is_undo_enabled, redo, undo};
 use mutations::mutation_service::MutationService;
 use resources::default_resources::load_default_resources_async;
 use state::{file_explorer::FileExplorerState, inspector::InspectorState, scene::SceneState};
-use std::sync::Arc;
 use systems::pause_at_startup::pause_at_startup;
 use ui::elements::{pane::UIPaneSide, profiling::Profiling, UIWidget};
 

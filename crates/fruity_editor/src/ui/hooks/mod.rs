@@ -3,10 +3,10 @@ use fruity_game_engine::introspect::{IntrospectFields, IntrospectMethods};
 use fruity_game_engine::resource::resource_reference::{
     ResourceReadGuard, ResourceReference, ResourceWriteGuard,
 };
+use fruity_game_engine::Arc;
 use fruity_game_engine::RwLock;
 use std::hash::Hash;
 use std::ops::DerefMut;
-use std::sync::Arc;
 
 pub fn use_service<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized>(
     ctx: &UIContext,

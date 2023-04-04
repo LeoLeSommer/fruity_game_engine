@@ -13,10 +13,10 @@ use fruity_editor::ui::hooks::use_read_service;
 use fruity_editor::ui::hooks::use_service;
 use fruity_editor::ui::hooks::use_write_service;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use fruity_hierarchy::components::parent::Parent;
 use std::ops::Deref;
-use std::sync::Arc;
 
 pub fn entity_list_component(ctx: &mut UIContext) -> FruityResult<UIElement> {
     let entity_service = use_service::<EntityService>(ctx);

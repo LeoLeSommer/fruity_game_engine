@@ -8,7 +8,7 @@ use fruity_editor::ui::elements::pane::UIPaneSide;
 use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::typescript_import;
-use std::sync::Arc;
+use fruity_game_engine::Arc;
 
 pub mod components;
 

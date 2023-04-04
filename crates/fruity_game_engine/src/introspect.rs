@@ -7,12 +7,12 @@
 
 use crate::any::FruityAny;
 use crate::script_value::ScriptValue;
+use crate::Arc;
 use crate::FruityResult;
 use crate::RwLock;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::sync::Arc;
 
 /// Trait to implement fields introspection to a struct
 pub trait IntrospectFields: Debug + FruityAny {

@@ -1,8 +1,8 @@
 use crate::systems::transform_2d_cascade::transform_2d_cascade;
 use fruity_ecs::system::{SystemParams, SystemService};
 use fruity_game_engine::module::Module;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_function, typescript_import};
-use std::sync::Arc;
 
 pub mod systems;
 

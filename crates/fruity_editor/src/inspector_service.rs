@@ -10,11 +10,11 @@ use crate::ui::context::UIContext;
 use crate::ui::elements::layout::Empty;
 use crate::ui::elements::UIElement;
 use crate::ui::elements::UIWidget;
+use fruity_game_engine::Arc;
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::DerefMut;
-use std::sync::Arc;
 
 #[derive(FruityAny)]
 #[export_struct]

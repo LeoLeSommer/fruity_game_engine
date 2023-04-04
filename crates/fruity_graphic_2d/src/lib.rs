@@ -11,8 +11,8 @@ use crate::systems::update_transform_2d::update_transform_2d;
 use fruity_ecs::serialization_service::SerializationService;
 use fruity_ecs::system::{SystemParams, SystemService};
 use fruity_game_engine::module::Module;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_function, typescript_import};
-use std::sync::Arc;
 
 pub mod components;
 pub mod graphic_2d_service;

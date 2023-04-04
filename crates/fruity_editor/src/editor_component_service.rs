@@ -10,10 +10,10 @@ use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::settings::Settings;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_impl, export_struct, lazy_static, FruityError, FruityResult};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
 
 lazy_static! {
     pub static ref DEFAULT_INSPECTOR: Arc<dyn Fn(&mut UIContext, AnyComponentReference) -> FruityResult<UIElement> + Send + Sync> =

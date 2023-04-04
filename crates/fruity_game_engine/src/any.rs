@@ -6,10 +6,10 @@
 //!
 //! The difference with the classic Any is that this Any needs to implement converter
 
+use crate::Arc;
 use crate::Mutex;
 use crate::RwLock;
 use std::any::Any;
-use std::sync::Arc;
 
 pub use fruity_game_engine_macro::FruityAny;
 

@@ -5,6 +5,7 @@ use fruity_editor::ui::hooks::use_memo;
 use fruity_editor::ui::hooks::use_read_service;
 use fruity_editor::ui::hooks::use_state;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::RwLock;
 use fruity_graphic::graphic_service::GraphicService;
@@ -14,7 +15,6 @@ use fruity_graphic::math::Color;
 use fruity_graphic::resources::texture_resource::TextureResource;
 use fruity_graphic_wgpu::graphic_service::WgpuGraphicService;
 use fruity_graphic_wgpu::resources::texture_resource::WgpuTextureResource;
-use std::sync::Arc;
 
 pub fn draw_scene(
     ctx: &mut UIContext,

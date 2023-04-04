@@ -7,6 +7,7 @@ use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::resources::material_resource::MaterialResource;
@@ -17,7 +18,6 @@ use fruity_graphic::resources::shader_resource::ShaderInstanceAttributeType;
 use fruity_graphic::resources::shader_resource::ShaderResource;
 use std::collections::HashMap;
 use std::mem::size_of;
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct BufferLocation {

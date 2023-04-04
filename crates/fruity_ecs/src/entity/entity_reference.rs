@@ -26,7 +26,7 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::ptr::NonNull;
-use std::sync::Arc;
+use fruity_game_engine::Arc;
 
 pub(crate) enum InnerShareableEntityReference {
     Archetype {

@@ -18,12 +18,12 @@ use fruity_editor::ui::elements::input::Input;
 use fruity_editor::ui::elements::input::IntegerInput;
 use fruity_editor::ui::hooks::use_state;
 use fruity_editor::ui::hooks::use_write_service;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use fruity_game_engine::Mutex;
 use fruity_graphic_wgpu::resources::texture_resource::WgpuTextureResource;
 use lazy_static::*;
 use std::any::Any;
-use std::sync::Arc;
 
 lazy_static! {
     static ref CURRENT_DRAGGED_ITEM: Mutex::<Option<Arc<dyn Any + Send + Sync>>> = Mutex::new(None);

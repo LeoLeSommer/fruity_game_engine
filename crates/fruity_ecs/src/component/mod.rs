@@ -1,21 +1,18 @@
-use self::script_component::ScriptComponent;
 use crate::entity::archetype::component_storage::ComponentStorage;
 use crate::entity::EntityId;
 use crate::serializable::{Deserialize, Serialize};
 use crate::serialization_service::SerializationService;
 pub use fruity_ecs_macro::Component;
-use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::{IntrospectFields, IntrospectMethods};
 use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use fruity_game_engine::script_value::impl_containers::ScriptValueHashMap;
-use fruity_game_engine::script_value::{ScriptObject, ScriptValue};
+use fruity_game_engine::script_value::ScriptValue;
 use fruity_game_engine::settings::Settings;
-use fruity_game_engine::{typescript, FruityError, FruityResult};
+use fruity_game_engine::{FruityError, FruityResult};
 use maplit::hashmap;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ops::Deref;
 
 /// Provides reference over a component
 pub mod component_reference;
@@ -68,66 +65,18 @@ impl Clone for Box<dyn Component> {
     }
 }
 
-/// An container for a component without knowing the instancied type
-#[derive(FruityAny, Debug, Clone)]
-#[typescript("type AnyComponent = { [key: string]: any }")]
-pub struct AnyComponent {
-    component: Box<dyn Component>,
-}
-
-impl AnyComponent {
-    /// Returns an AnyComponent
-    pub fn new(component: impl Component) -> AnyComponent {
-        AnyComponent {
-            component: Box::new(component),
-        }
-    }
-
-    /// Returns an AnyComponent
-    pub fn from_box(component: Box<dyn Component>) -> AnyComponent {
-        AnyComponent { component }
-    }
-
-    /// Returns an AnyComponent
-    pub fn into_box(self) -> Box<dyn Component> {
-        self.component
-    }
-}
-
-impl From<Box<dyn Component>> for AnyComponent {
-    fn from(component: Box<dyn Component>) -> Self {
-        Self { component }
-    }
-}
-
-impl From<Box<dyn ScriptObject>> for AnyComponent {
-    fn from(value: Box<dyn ScriptObject>) -> Self {
-        Self {
-            component: Box::new(ScriptComponent::from(value)),
-        }
-    }
-}
-
-impl Deref for AnyComponent {
-    type Target = dyn Component;
-
-    fn deref(&self) -> &<Self as std::ops::Deref>::Target {
-        self.component.as_ref()
-    }
-}
-
-impl TryIntoScriptValue for AnyComponent {
+impl TryIntoScriptValue for Box<dyn Component> {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Object(Box::new(self.component)))
     }
 }
 
-impl TryFromScriptValue for AnyComponent {
+impl TryFromScriptValue for Box<dyn Component> {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::Object(value) => match value.downcast::<Box<dyn Component>>() {
-                Ok(value) => Ok(AnyComponent::from(*value)),
-                Err(value) => Ok(AnyComponent::from(value)),
+                Ok(value) => Ok(<Box<dyn Component>>::from(*value)),
+                Err(value) => Ok(<Box<dyn Component>>::from(value)),
             },
             value => Err(FruityError::InvalidArg(format!(
                 "Couldn't convert {:?} to native object",
@@ -137,7 +86,7 @@ impl TryFromScriptValue for AnyComponent {
     }
 }
 
-impl Serialize for AnyComponent {
+impl Serialize for Box<dyn Component> {
     fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings> {
         Ok(Settings::Object(hashmap!(
             "class_name".to_string() => Settings::String(self.component.get_class_name()?),
@@ -146,7 +95,7 @@ impl Serialize for AnyComponent {
     }
 }
 
-impl Deserialize for AnyComponent {
+impl Deserialize for Box<dyn Component> {
     fn get_identifier() -> String {
         "AnyComponent".to_string()
     }
@@ -201,8 +150,8 @@ impl Deserialize for AnyComponent {
             };
 
             match instance.downcast::<Box<dyn Component>>() {
-                Ok(instance) => Ok(AnyComponent::from(*instance)),
-                Err(instance) => Ok(AnyComponent::from(instance)),
+                Ok(instance) => Ok(<Box<dyn Component>>::from(*instance)),
+                Err(instance) => Ok(<Box<dyn Component>>::from(instance)),
             }
         } else {
             Err(FruityError::InvalidArg(format!(

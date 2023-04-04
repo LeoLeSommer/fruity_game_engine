@@ -12,8 +12,8 @@ use crate::systems::delete_cascade::delete_cascade;
 use fruity_ecs::serialization_service::SerializationService;
 use fruity_ecs::system::{StartupSystemParams, SystemService};
 use fruity_game_engine::module::Module;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_function, typescript_import};
-use std::sync::Arc;
 
 /// Components of the module
 pub mod components;

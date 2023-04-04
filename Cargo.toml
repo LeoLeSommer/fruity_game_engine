@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "./crates/fruity_ecs",
+  "./crates/fruity_ecs_new",
   "./crates/fruity_ecs_macro",
   "./crates/fruity_editor",
   "./crates/fruity_editor_egui",

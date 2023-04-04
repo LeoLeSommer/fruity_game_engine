@@ -1,8 +1,8 @@
 use drag_service::DragService;
 use fruity_game_engine::module::Module;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_function, typescript_import};
 use input_service::InputService;
-use std::sync::Arc;
 
 pub mod drag_service;
 pub mod input_service;

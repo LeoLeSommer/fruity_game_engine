@@ -3,9 +3,9 @@ use crate::ui::elements::pane::UIPaneSide;
 use crate::ui::elements::UIElement;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::Arc;
 use fruity_game_engine::{export_impl, export_struct, FruityResult};
 use std::fmt::Debug;
-use std::sync::Arc;
 
 pub struct PanelItem {
     pub label: String,

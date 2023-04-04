@@ -9,6 +9,7 @@ use crate::introspect::IntrospectMethods;
 use crate::javascript::JsIntrospectObject;
 use crate::resource::resource_reference::ResourceReference;
 use crate::settings::Settings;
+use crate::Arc;
 use crate::FruityError;
 use crate::FruityResult;
 use crate::RwLock;
@@ -17,7 +18,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 
 /// A a function that is used to load a resource
 pub type ResourceLoader =

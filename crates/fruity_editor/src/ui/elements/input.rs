@@ -4,10 +4,10 @@ use crate::ui::elements::UIElement;
 use crate::ui::elements::UIWidget;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::resources::texture_resource::TextureResource;
 use std::any::Any;
-use std::sync::Arc;
 
 #[derive(FruityAny)]
 pub struct Button {

@@ -39,26 +39,24 @@ pub fn derive_deserialize(input: TokenStream) -> TokenStream {
 
 fn derive_component_trait(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, .. } = parse_macro_input!(input);
-    let struct_name = ident.to_string();
+    let fruity_ecs_crate = fruity_ecs_crate();
 
     let output = quote! {
-        impl fruity_ecs::component::Component for #ident {
-            fn get_storage(&self) -> Box<dyn fruity_ecs::entity::archetype::component_storage::ComponentStorage> {
-                Box::new(fruity_ecs::entity::archetype::component_storage::VecComponentStorage::<Self>::new())
+        impl #fruity_ecs_crate::component::Component for #ident {
+            fn duplicate(&self) -> Box<dyn #fruity_ecs_crate::component::Component> {
+                Box::new(self.clone())
+            }
+
+            fn get_component_type_id(&self) -> fruity_game_engine::FruityResult<#fruity_ecs_crate::component::ComponentTypeId> {
+                Ok(#fruity_ecs_crate::component::ComponentTypeId::Rust(std::any::TypeId::of::<Self>()))
             }
 
             fn archetype_order(&self) -> fruity_game_engine::FruityResult<u8> {
                 Ok(0)
             }
 
-            fn duplicate(&self) -> Box<dyn fruity_ecs::component::Component> {
-                Box::new(self.clone())
-            }
-        }
-
-        impl fruity_ecs::component::StaticComponent for #ident {
-            fn get_component_name() -> &'static str {
-                #struct_name
+            fn get_storage(&self) -> Box<dyn #fruity_ecs_crate::component::ComponentStorage> {
+                Box::new(#fruity_ecs_crate::component::VecComponentStorage::<Self>::new())
             }
         }
     };
@@ -108,7 +106,7 @@ fn intern_derive_serialize(input: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
-        impl #fruity_ecs_crate::serializable::Serialize for #ident {
+        impl #fruity_ecs_crate::serialization::Serialize for #ident {
             fn serialize(
                 &self,
                 resource_container: &fruity_game_engine::resource::resource_container::ResourceContainer
@@ -143,7 +141,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                                 let name_as_string = name.to_string();
                                 quote! {
                                     if serialized.contains_key(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as #fruity_ecs_crate::serializable::Deserialize>::deserialize(
+                                        result.#name = <#ty as #fruity_ecs_crate::serialization::Deserialize>::deserialize(
                                             serialized.get(#name_as_string).unwrap(),
                                             resource_container,
                                             local_id_to_entity_id,
@@ -156,7 +154,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
                                 let name = syn::Index::from(name);
                                 quote! {
                                     if serialized.contains_key(&#name_as_string.to_string()) {
-                                        result.#name = <#ty as #fruity_ecs_crate::serializable::Deserialize>::deserialize(
+                                        result.#name = <#ty as #fruity_ecs_crate::serialization::Deserialize>::deserialize(
                                             serialized.get(#name_as_string).unwrap(),
                                             resource_container,
                                             local_id_to_entity_id,
@@ -179,7 +177,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
-        impl #fruity_ecs_crate::serializable::Deserialize for #ident {
+        impl #fruity_ecs_crate::serialization::Deserialize for #ident {
             fn get_identifier() -> String {
                 #ident_as_string.to_string()
             }
@@ -214,7 +212,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
 fn fruity_ecs_crate() -> TokenStream2 {
     let crate_name = std::env::var("CARGO_PKG_NAME").unwrap();
 
-    if crate_name == "fruity_ecs" {
+    if crate_name == "fruity_ecs_new" {
         quote! { crate }
     } else {
         quote! { ::fruity_ecs }

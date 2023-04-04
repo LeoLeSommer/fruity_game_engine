@@ -5,7 +5,7 @@ use crate::ui::elements::UIElement;
 use crate::ui::elements::UIWidget;
 use crate::ui::hooks::use_read_service;
 use crate::ui::hooks::use_write_service;
-use std::sync::Arc;
+use fruity_game_engine::Arc;
 
 pub fn run_controls_component(ctx: &mut UIContext) -> Vec<UIElement> {
     let scene_state = use_read_service::<SceneState>(ctx);

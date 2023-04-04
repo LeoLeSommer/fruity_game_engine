@@ -1,6 +1,7 @@
 use fruity_game_engine::export_function;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::typescript_import;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
 use fruity_input::input_service::InputService;
 use fruity_input::input_service::Modifiers;
@@ -10,7 +11,6 @@ use fruity_input::input_service::LOGO;
 use fruity_input::input_service::SHIFT;
 use fruity_windows::window_service::WindowService;
 use fruity_windows_winit::window_service::WinitWindowService;
-use std::sync::Arc;
 use winit::event::ElementState;
 use winit::event::Event;
 use winit::event::MouseButton;

@@ -3,6 +3,7 @@
 #![feature(downcast_unchecked)]
 #![feature(auto_traits)]
 #![feature(async_closure)]
+#![feature(arbitrary_self_types)]
 
 //! ECS
 //!

@@ -684,6 +684,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "fruity_ecs_new"
+version = "0.0.0"
+dependencies = [
+ "either",
+ "fruity_ecs_macro",
+ "fruity_game_engine",
+ "fruity_game_engine_build",
+ "itertools",
+ "log",
+ "maplit",
+ "napi-build",
+ "rayon",
+ "sorted-vec",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "fruity_editor"
 version = "0.1.0"
 dependencies = [

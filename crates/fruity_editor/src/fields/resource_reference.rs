@@ -14,8 +14,8 @@ use fruity_game_engine::resource::resource_reference::ResourceReference;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::script_value::ScriptObject;
 use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
-use std::sync::Arc;
 
 pub fn draw_editor_resource_reference<T: IntrospectFields + IntrospectMethods + ?Sized>(
     name: &str,

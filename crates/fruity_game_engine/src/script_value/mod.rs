@@ -11,6 +11,7 @@ use crate::introspect::IntrospectFields;
 use crate::introspect::IntrospectMethods;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::typescript;
+use crate::Arc;
 use crate::FruityError;
 use crate::FruityResult;
 use futures::future::Shared;
@@ -20,7 +21,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 
 /// Traits similar to TryInto and TryFrom for ScriptValue
 pub mod convert;
