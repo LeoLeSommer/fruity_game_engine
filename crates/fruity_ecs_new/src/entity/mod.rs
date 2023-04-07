@@ -55,11 +55,11 @@ impl TryFromScriptValue for EntityId {
 
 /// The location of an entity in the world
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct EntityLocation {
+pub struct EntityLocation {
     /// Archetype id
-    archetype: ArchetypeId,
+    pub(crate) archetype: ArchetypeId,
     /// Index in the archetype
-    index: usize,
+    pub(crate) index: usize,
 }
 
 /// A module for the engine

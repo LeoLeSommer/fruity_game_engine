@@ -1,9 +1,8 @@
-use super::Settings;
-use super::{Deserialize, Serialize};
+use super::{Deserialize, Serialize, Settings};
 use crate::entity::EntityId;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
-use fruity_game_engine::FruityError;
-use fruity_game_engine::FruityResult;
+use fruity_game_engine::{
+    resource::resource_container::ResourceContainer, FruityError, FruityResult,
+};
 use std::collections::HashMap;
 
 impl<T1: Serialize, T2: Serialize> Serialize for (T1, T2) {

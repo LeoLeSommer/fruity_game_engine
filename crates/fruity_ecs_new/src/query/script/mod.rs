@@ -53,8 +53,6 @@ pub trait ScriptQueryParam: FruityAny + Send + Sync {
 /// A query over entities
 #[derive(FruityAny)]
 #[export_struct(typescript = "interface ScriptQuery<Args extends any[] = []> {
-  onEntityCreated: Signal<EntityReference>;
-  onEntityDeleted: Signal<EntityId>;
   forEach(callback: (args: Args) => void);
   onCreated(callback: (args: Args) => undefined | (() => void)): ObserverHandler;
 }")]
@@ -159,7 +157,7 @@ impl ScriptQuery {
                 .on_entity_address_added
                 .add_observer(move |event| {
                     if params_2.filter_archetype(unsafe { event.archetype.as_ref() }) {
-                        on_entity_created_2.notify(event.entity_reference.clone())?;
+                        on_entity_created_2.send(event.entity_reference.clone())?;
                     }
 
                     Ok(())
@@ -172,7 +170,7 @@ impl ScriptQuery {
                 .on_entity_address_removed
                 .add_observer(move |event| {
                     if params_2.filter_archetype(unsafe { event.archetype.as_ref() }) {
-                        on_entity_deleted_2.notify(event.entity_id)?;
+                        on_entity_deleted_2.send(event.entity_id)?;
                     }
 
                     Ok(())

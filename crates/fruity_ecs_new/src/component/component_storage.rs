@@ -37,6 +37,9 @@ pub trait ComponentStorage: Debug + FruityAny {
     /// Removes the component at the given index in a given entity
     fn remove_slice(&mut self, entity_index: usize) -> Vec<Box<dyn Component>>;
 
+    /// Get length of a slice
+    fn slice_len(&self, entity_index: usize) -> usize;
+
     /// Appends the components of another storage to this storage
     fn append(&mut self, other: &mut dyn ComponentStorage) -> FruityResult<()>;
 
@@ -51,12 +54,15 @@ pub trait ComponentStorage: Debug + FruityAny {
 
     /// Returns the capacity of the storage
     fn capacity(&self) -> usize;
+
+    /// Returns the size of the component type
+    fn get_component_type_size(&self) -> usize;
 }
 
 /// A component storage that uses a sliced vec
 #[derive(FruityAny, Debug, Clone, Default)]
 pub struct VecComponentStorage<T: Component> {
-    data: SlicedVec<T>,
+    pub(crate) data: SlicedVec<T>,
 }
 
 impl<T: Component> VecComponentStorage<T> {
@@ -146,6 +152,10 @@ impl<T: Component> ComponentStorage for VecComponentStorage<T> {
             .collect()
     }
 
+    fn slice_len(&self, entity_index: usize) -> usize {
+        self.data.slice_len(entity_index)
+    }
+
     fn append(&mut self, other: &mut dyn ComponentStorage) -> FruityResult<()> {
         let other =
             other
@@ -175,5 +185,9 @@ impl<T: Component> ComponentStorage for VecComponentStorage<T> {
 
     fn capacity(&self) -> usize {
         self.data.capacity()
+    }
+
+    fn get_component_type_size(&self) -> usize {
+        std::mem::size_of::<T>()
     }
 }

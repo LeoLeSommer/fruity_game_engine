@@ -137,7 +137,7 @@ pub fn run_world_middleware(
             let event = unsafe { &*event as &Event<'static, ()> };
             let event = unsafe { &*(&event as *const _) } as &Event<'static, ()>;
 
-            on_event.notify(event.clone()).unwrap();
+            on_event.send(event.clone()).unwrap();
 
             match event {
                 // Check if the user has closed the window from the OS
@@ -160,7 +160,7 @@ pub fn run_world_middleware(
                     ..
                 } => {
                     on_resize
-                        .notify((physical_size.width, physical_size.height))
+                        .send((physical_size.width, physical_size.height))
                         .unwrap();
                 }
                 // Check if the user has moved the cursor
@@ -178,7 +178,7 @@ pub fn run_world_middleware(
                     std::mem::drop(window_service);
 
                     on_cursor_moved
-                        .notify((position.x as u32, position.y as u32))
+                        .send((position.x as u32, position.y as u32))
                         .unwrap();
                 }
                 Event::WindowEvent {
@@ -186,11 +186,11 @@ pub fn run_world_middleware(
                     ..
                 } => {
                     on_resize
-                        .notify((new_inner_size.width, new_inner_size.height))
+                        .send((new_inner_size.width, new_inner_size.height))
                         .unwrap();
                 }
                 Event::MainEventsCleared => {
-                    on_events_cleared.notify(()).unwrap();
+                    on_events_cleared.send(()).unwrap();
                 }
                 _ => (),
             }
@@ -199,7 +199,7 @@ pub fn run_world_middleware(
         // Start updating
         {
             profile_scope!("start_update");
-            on_start_update.notify(()).unwrap();
+            on_start_update.send(()).unwrap();
         }
 
         // Run the systems
@@ -210,7 +210,7 @@ pub fn run_world_middleware(
         // End the update
         {
             profile_scope!("end_update");
-            on_end_update.notify(()).unwrap();
+            on_end_update.send(()).unwrap();
         }
     };
 

@@ -1,23 +1,27 @@
 use super::{Archetype, ArchetypeComponentTypes, ArchetypeId, EntityId, EntityLocation};
-use crate::component::{Component, ExtensionComponentService};
+use crate::{
+    component::{Component, ExtensionComponentService},
+    query::{EntityStorageQuery, QueryParam},
+};
 use fruity_game_engine::{signal::Signal, FruityError, FruityResult};
 use sorted_vec::SortedVec;
-use std::collections::HashMap;
+use std::{collections::HashMap, ptr::NonNull};
 
 /// The entity storage
+#[derive(Debug)]
 pub struct EntityStorage {
     entity_locations: HashMap<EntityId, EntityLocation>,
     archetype_types: HashMap<ArchetypeComponentTypes, ArchetypeId>,
-    archetypes: SortedVec<Archetype>,
+    pub(crate) archetypes: SortedVec<Archetype>,
 
-    /// Signal notified when an entity is created
-    pub on_entity_created: Signal<(EntityId, EntityLocation)>,
+    /// Signal notified when an archetype is created
+    /// The vec is sorted by archetype component types, so the archetypes after the new one are moved
+    pub on_archetype_created: Signal<NonNull<Archetype>>,
 
-    /// Signal notified when an entity is deleted
-    pub on_entity_deleted: Signal<(EntityId, EntityLocation)>,
-
-    /// Signal notified when an entity is deleted
-    pub on_archetype_created: Signal<(ArchetypeComponentTypes, ArchetypeId)>,
+    /// Signal notified when all archetypes are moved troughs memory
+    /// Is raised when the archetypes vec is reallocated to increase capacity
+    /// The parameter is the gap between the old and the new address of the archetypes vec
+    pub on_archetypes_reallocated: Signal<isize>,
 }
 
 impl EntityStorage {
@@ -27,10 +31,32 @@ impl EntityStorage {
             entity_locations: HashMap::new(),
             archetype_types: HashMap::new(),
             archetypes: SortedVec::new(),
-            on_entity_created: Signal::new(),
-            on_entity_deleted: Signal::new(),
             on_archetype_created: Signal::new(),
+            on_archetypes_reallocated: Signal::new(),
         }
+    }
+
+    /// Create a query over entities
+    pub fn query<'a, T: QueryParam<'a> + 'static>(&self) -> EntityStorageQuery<T> {
+        EntityStorageQuery::<T>::new(self)
+    }
+
+    /// Check if an entity id exists
+    pub fn has_entity(&self, entity_id: EntityId) -> bool {
+        self.entity_locations.contains_key(&entity_id)
+    }
+
+    /// Get the entity components, clone them
+    pub fn get_entity_components(&self, entity_id: EntityId) -> Option<Vec<Box<dyn Component>>> {
+        let entity_location = self.entity_locations.get(&entity_id)?;
+        let archetype = &self.archetypes[entity_location.archetype.0];
+
+        Some(archetype.get_entity_components(entity_location.index))
+    }
+
+    /// Get entity location
+    pub fn get_entity_location(&self, entity_id: EntityId) -> Option<EntityLocation> {
+        self.entity_locations.get(&entity_id).cloned()
     }
 
     /// Add an entity to the storage
@@ -40,7 +66,7 @@ impl EntityStorage {
         components: Vec<Box<dyn Component>>,
         extension_component_service: Option<&ExtensionComponentService>,
         default_components: Option<Vec<Box<dyn Component>>>,
-    ) -> FruityResult<()> {
+    ) -> FruityResult<EntityLocation> {
         if self.entity_locations.contains_key(&entity_id) {
             return Err(FruityError::GenericFailure(
                 format!("Entity with id {:?} already exists", entity_id).into(),
@@ -77,9 +103,29 @@ impl EntityStorage {
                     default_components,
                 )?;
 
+                // Check if a reallocation will be occurred on next archetype insert
+                let is_archetypes_about_to_reallocate =
+                    self.archetypes.len() + 1 > self.archetypes.capacity();
+                let archetypes_old_ptr = self.archetypes.as_ptr();
+
+                // Insert the archetype
                 let archetype_index = self.archetypes.push(archetype);
                 self.archetype_types
                     .insert(component_types, ArchetypeId(archetype_index));
+
+                // Notify memory moves
+                let archetype = &self.archetypes[archetype_index];
+                self.on_archetype_created.send(unsafe {
+                    NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
+                })?;
+
+                if is_archetypes_about_to_reallocate {
+                    let archetypes_new_ptr = self.archetypes.as_ptr();
+                    let addr_diff =
+                        unsafe { archetypes_new_ptr.byte_offset_from(archetypes_old_ptr) };
+
+                    self.on_archetypes_reallocated.send(addr_diff)?;
+                }
 
                 EntityLocation {
                     archetype: ArchetypeId(archetype_index),
@@ -91,11 +137,7 @@ impl EntityStorage {
         self.entity_locations
             .insert(entity_id, entity_location.clone());
 
-        // Notify that entity is created
-        self.on_entity_created
-            .notify((entity_id, entity_location))?;
-
-        Ok(())
+        Ok(entity_location)
     }
 
     /// Remove an entity from the storage
@@ -114,10 +156,6 @@ impl EntityStorage {
         let archetype =
             unsafe { &mut self.archetypes.get_unchecked_mut_vec()[entity_location.archetype.0] };
         let result = archetype.remove_entity(entity_location.index)?;
-
-        // Notify that entity is deleted
-        self.on_entity_deleted
-            .notify((entity_id, entity_location))?;
 
         Ok(Some(result))
     }
@@ -142,12 +180,6 @@ impl EntityStorage {
 
     /// Clear the storage
     pub fn clear(&mut self) -> FruityResult<()> {
-        // Notify that the entities are deleted
-        for (entity_id, entity_location) in self.entity_locations.iter() {
-            self.on_entity_deleted
-                .notify((*entity_id, entity_location.clone()))?;
-        }
-
         self.entity_locations.clear();
         unsafe {
             self.archetypes
@@ -160,7 +192,8 @@ impl EntityStorage {
     }
 
     /// Append the entities of another storage to this one
-    pub fn append(&mut self, other: &mut Self) -> FruityResult<()> {
+    pub fn append(&mut self, other: &mut Self) -> FruityResult<Vec<(EntityId, EntityLocation)>> {
+        let mut entity_locations = Vec::with_capacity(other.entity_locations.len());
         other.archetypes.drain(..).try_for_each(|mut archetype| {
             let component_types = archetype.get_component_types().clone();
 
@@ -185,20 +218,27 @@ impl EntityStorage {
                     }
                 };
 
-            other
+            let locations = other
                 .entity_locations
                 .drain()
-                .try_for_each(|(entity_id, location)| {
+                .map(|(entity_id, location)| {
                     let entity_location = EntityLocation {
                         archetype: archetype_index,
                         index: begin_entity_index + location.index,
                     };
 
                     self.entity_locations
-                        .insert(entity_id.clone(), entity_location);
+                        .insert(entity_id.clone(), entity_location.clone());
 
-                    Ok(())
+                    Ok((entity_id, entity_location))
                 })
-        })
+                .try_collect::<Vec<_>>()?;
+
+            entity_locations.extend(locations);
+
+            Ok(())
+        })?;
+
+        Ok(entity_locations)
     }
 }

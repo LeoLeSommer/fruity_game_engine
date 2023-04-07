@@ -27,6 +27,12 @@ pub use extension_component_service::*;
 mod component_storage;
 pub use component_storage::*;
 
+mod component_guard;
+pub use component_guard::*;
+
+mod component_reference;
+pub use component_reference::*;
+
 pub use fruity_ecs_macro::Component;
 
 /// A component is a piece of data that can be attached to an entity.
@@ -41,6 +47,11 @@ pub enum ComponentTypeId {
 }
 
 impl ComponentTypeId {
+    /// Create a new component type id from a rust type
+    pub fn from_identifier(string: &str) -> Self {
+        Self::Script(string.to_string())
+    }
+
     /// Create a new component type id from a rust type
     pub fn of<T: 'static>() -> Self {
         Self::Rust(std::any::TypeId::of::<T>())

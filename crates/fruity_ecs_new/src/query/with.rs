@@ -1,91 +1,13 @@
-use super::BidirectionalIterator;
-use super::NoneBidirectionalIterator;
-use super::SingleBidirectionalIterator;
-use crate::component::Component;
-use crate::component::StaticComponent;
-use crate::entity::archetype::Archetype;
-use crate::entity::entity_query::QueryParam;
-use crate::entity::entity_reference::EntityReference;
-use crate::entity::entity_reference::InnerShareableEntityReference;
-use crate::entity::Entity;
-use crate::entity::EntityId;
-use crate::entity::EntityMut;
-use either::Either;
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::ptr::NonNull;
-
-/// The entity reference
-pub struct WithEntityReference;
-
-/// An iterator over entity references
-pub struct WithEntityReferenceIterator<'a> {
-    current_entity_index: usize,
-    end_entity_index: usize,
-    archetype: &'a Archetype,
-}
-
-impl<'a> Iterator for WithEntityReferenceIterator<'a> {
-    type Item = EntityReference;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_entity_index < self.end_entity_index {
-            let result = self.current();
-            self.current_entity_index += 1;
-
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> BidirectionalIterator for WithEntityReferenceIterator<'a> {
-    fn current(&mut self) -> Self::Item {
-        let entity_index = self.current_entity_index;
-        self.archetype.get_entity_reference(entity_index)
-    }
-
-    fn go_back(&mut self, count: usize) {
-        self.current_entity_index -= count;
-    }
-}
-
-impl<'a> QueryParam<'a> for WithEntityReference {
-    type Item = EntityReference;
-    type Iterator = WithEntityReferenceIterator<'a>;
-    type FromEntityReferenceIterator = SingleBidirectionalIterator<Self::Item>;
-
-    fn filter_archetype(_archetype: &Archetype) -> bool {
-        true
-    }
-
-    fn require_read() -> bool {
-        false
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(_archetype: &'a Archetype) -> usize {
-        1
-    }
-
-    fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        WithEntityReferenceIterator {
-            current_entity_index: 0,
-            end_entity_index: archetype.len(),
-            archetype,
-        }
-    }
-
-    fn from_entity_reference(
-        entity_reference: &EntityReference,
-    ) -> Self::FromEntityReferenceIterator {
-        SingleBidirectionalIterator::new(entity_reference.clone())
-    }
-}
+use super::{EntityIterator, QueryParam, SingleEntityIterator};
+use crate::{
+    component::{Component, ComponentStorage, ComponentTypeId, Enabled, Name, VecComponentStorage},
+    entity::{
+        Archetype, ArchetypeComponentTypes, EntityId, EntityLocation, EntityReader,
+        EntityReference, EntityWriter, InnerShareableEntityReference,
+    },
+};
+use fruity_game_engine::{RwLockReadGuard, RwLockWriteGuard};
+use std::{marker::PhantomData, ops::Deref, ptr::NonNull};
 
 /// The entity
 pub struct WithEntity;
@@ -98,7 +20,7 @@ pub struct WithEntityIterator<'a> {
 }
 
 impl<'a> Iterator for WithEntityIterator<'a> {
-    type Item = Entity<'a>;
+    type Item = EntityReader<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_entity_index < self.end_entity_index {
@@ -112,39 +34,32 @@ impl<'a> Iterator for WithEntityIterator<'a> {
     }
 }
 
-impl<'a> BidirectionalIterator for WithEntityIterator<'a> {
+impl<'a> EntityIterator for WithEntityIterator<'a> {
     fn current(&mut self) -> Self::Item {
         let entity_index = self.current_entity_index;
-        Entity {
+        EntityReader {
             entity_index,
-            archetype: self.archetype,
+            archetype: NonNull::from(self.archetype),
+            phantom: Default::default(),
         }
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current_entity_index -= count;
+    fn has_reach_entity_end(&self) -> bool {
+        true
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_entity_index -= 1;
     }
 }
 
 impl<'a> QueryParam<'a> for WithEntity {
-    type Item = Entity<'a>;
+    type Item = EntityReader<'a>;
     type Iterator = WithEntityIterator<'a>;
-    type FromEntityReferenceIterator = SingleBidirectionalIterator<Self::Item>;
+    type FromEntityReferenceIterator = SingleEntityIterator<Self::Item>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(_archetype: &'a Archetype) -> usize {
-        1
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
@@ -159,14 +74,16 @@ impl<'a> QueryParam<'a> for WithEntity {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            SingleBidirectionalIterator::new(Entity {
-                entity_index: *entity_index,
-                archetype: unsafe { archetype_ptr.as_ref() }.unwrap(),
+            SingleEntityIterator::new(EntityReader {
+                entity_index: location.index,
+                archetype: NonNull::from(&entity_storage.read().archetypes[location.archetype.0]),
+                phantom: Default::default(),
             })
         } else {
             unreachable!()
@@ -185,7 +102,7 @@ pub struct WithEntityMutIterator<'a> {
 }
 
 impl<'a> Iterator for WithEntityMutIterator<'a> {
-    type Item = EntityMut<'a>;
+    type Item = EntityWriter<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_entity_index < self.end_entity_index {
@@ -199,39 +116,32 @@ impl<'a> Iterator for WithEntityMutIterator<'a> {
     }
 }
 
-impl<'a> BidirectionalIterator for WithEntityMutIterator<'a> {
+impl<'a> EntityIterator for WithEntityMutIterator<'a> {
     fn current(&mut self) -> Self::Item {
         let entity_index = self.current_entity_index;
-        EntityMut {
+        EntityWriter {
             entity_index,
-            archetype: self.archetype,
+            archetype: NonNull::from(self.archetype),
+            phantom: PhantomData,
         }
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current_entity_index -= count;
+    fn has_reach_entity_end(&self) -> bool {
+        true
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_entity_index -= 1;
     }
 }
 
 impl<'a> QueryParam<'a> for WithEntityMut {
-    type Item = EntityMut<'a>;
+    type Item = EntityWriter<'a>;
     type Iterator = WithEntityMutIterator<'a>;
-    type FromEntityReferenceIterator = SingleBidirectionalIterator<Self::Item>;
+    type FromEntityReferenceIterator = SingleEntityIterator<Self::Item>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        true
-    }
-
-    fn items_per_entity(_archetype: &'a Archetype) -> usize {
-        1
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
@@ -246,14 +156,16 @@ impl<'a> QueryParam<'a> for WithEntityMut {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            SingleBidirectionalIterator::new(EntityMut {
-                entity_index: *entity_index,
-                archetype: unsafe { archetype_ptr.as_ref() }.unwrap(),
+            SingleEntityIterator::new(EntityWriter {
+                entity_index: location.index,
+                archetype: NonNull::from(&entity_storage.read().archetypes[location.archetype.0]),
+                phantom: PhantomData,
             })
         } else {
             unreachable!()
@@ -283,13 +195,17 @@ impl<'a> Iterator for WithIdIterator<'a> {
     }
 }
 
-impl<'a> BidirectionalIterator for WithIdIterator<'a> {
+impl<'a> EntityIterator for WithIdIterator<'a> {
     fn current(&mut self) -> Self::Item {
         *unsafe { self.current.as_ref() }
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
+    fn has_reach_entity_end(&self) -> bool {
+        true
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(1)) };
     }
 }
 
@@ -299,26 +215,14 @@ pub struct WithId;
 impl<'a> QueryParam<'a> for WithId {
     type Item = EntityId;
     type Iterator = WithIdIterator<'a>;
-    type FromEntityReferenceIterator = SingleBidirectionalIterator<Self::Item>;
+    type FromEntityReferenceIterator = SingleEntityIterator<Self::Item>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(_archetype: &'a Archetype) -> usize {
-        1
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        let begin = &archetype.entity_id_array[0] as *const EntityId as *mut EntityId;
+        let begin = &archetype.entity_ids[0] as *const EntityId as *mut EntityId;
         WithIdIterator {
             current: unsafe { NonNull::new_unchecked(begin) },
             end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
@@ -330,14 +234,21 @@ impl<'a> QueryParam<'a> for WithId {
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            SingleBidirectionalIterator::new(archetype.entity_id_array[*entity_index])
+            SingleEntityIterator::new(archetype.entity_ids[location.index])
         } else {
             unreachable!()
         }
@@ -345,34 +256,29 @@ impl<'a> QueryParam<'a> for WithId {
 }
 
 /// An iterator over entity names
-pub struct WithNameIterator<'a> {
-    current: NonNull<String>,
-    end: NonNull<String>,
-    _marker: PhantomData<&'a String>,
+pub struct WithNameIterator<'a, T: Iterator<Item = &'a Name> + EntityIterator> {
+    with_iterator: T,
 }
 
-impl<'a> Iterator for WithNameIterator<'a> {
+impl<'a, T: Iterator<Item = &'a Name> + EntityIterator> Iterator for WithNameIterator<'a, T> {
     type Item = &'a String;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
-        }
+        self.with_iterator.next().map(|name| &name.0)
     }
 }
 
-impl<'a> BidirectionalIterator for WithNameIterator<'a> {
+impl<'a, T: Iterator<Item = &'a Name> + EntityIterator> EntityIterator for WithNameIterator<'a, T> {
     fn current(&mut self) -> Self::Item {
-        unsafe { self.current.as_ref() }
+        &self.with_iterator.current().0
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
+    fn has_reach_entity_end(&self) -> bool {
+        self.with_iterator.has_reach_entity_end()
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.with_iterator.reset_current_entity()
     }
 }
 
@@ -381,148 +287,206 @@ pub struct WithName;
 
 impl<'a> QueryParam<'a> for WithName {
     type Item = &'a String;
-    type Iterator = WithNameIterator<'a>;
-    type FromEntityReferenceIterator = SingleBidirectionalIterator<Self::Item>;
+    type Iterator = WithNameIterator<'a, WithIterator<'a, Name>>;
+    type FromEntityReferenceIterator = WithNameIterator<'a, FromEntityWithIterator<'a, Name>>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(_archetype: &'a Archetype) -> usize {
-        1
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        let begin = &archetype.name_array[0] as *const String as *mut String;
         WithNameIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
+            with_iterator: With::iter(archetype),
         }
     }
 
     fn from_entity_reference(
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
-        let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
-        {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-
-            SingleBidirectionalIterator::new(&archetype.name_array[*entity_index])
-        } else {
-            unreachable!()
+        WithNameIterator {
+            with_iterator: With::from_entity_reference(entity_reference),
         }
     }
 }
 
 /// An iterator over entity enabled state
-pub struct WithEnabledIterator<'a> {
-    current: NonNull<bool>,
-    end: NonNull<bool>,
-    _marker: PhantomData<&'a bool>,
+pub struct WithEnabledIterator<'a, T: Iterator<Item = &'a Enabled> + EntityIterator> {
+    with_iterator: T,
 }
 
-impl<'a> Iterator for WithEnabledIterator<'a> {
+impl<'a, T: Iterator<Item = &'a Enabled> + EntityIterator> Iterator for WithEnabledIterator<'a, T> {
     type Item = bool;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
-        }
+        self.with_iterator.next().map(|enabled| enabled.0)
     }
 }
 
-impl<'a> BidirectionalIterator for WithEnabledIterator<'a> {
+impl<'a, T: Iterator<Item = &'a Enabled> + EntityIterator> EntityIterator
+    for WithEnabledIterator<'a, T>
+{
     fn current(&mut self) -> Self::Item {
-        *unsafe { self.current.as_ref() }
+        self.with_iterator.current().0
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
+    fn has_reach_entity_end(&self) -> bool {
+        self.with_iterator.has_reach_entity_end()
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.with_iterator.reset_current_entity()
     }
 }
 
-/// Is entity enabled
+/// The entity enabled state
 pub struct WithEnabled;
 
 impl<'a> QueryParam<'a> for WithEnabled {
     type Item = bool;
-    type Iterator = WithEnabledIterator<'a>;
-    type FromEntityReferenceIterator = SingleBidirectionalIterator<Self::Item>;
+    type Iterator = WithEnabledIterator<'a, WithIterator<'a, Enabled>>;
+    type FromEntityReferenceIterator = WithEnabledIterator<'a, FromEntityWithIterator<'a, Enabled>>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(_archetype: &'a Archetype) -> usize {
-        1
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        let begin = &archetype.enabled_array[0] as *const bool as *mut bool;
         WithEnabledIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
+            with_iterator: With::iter(archetype),
         }
     }
 
     fn from_entity_reference(
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
-        let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
-        {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-
-            SingleBidirectionalIterator::new(archetype.enabled_array[*entity_index])
-        } else {
-            unreachable!()
+        WithEnabledIterator {
+            with_iterator: With::from_entity_reference(entity_reference),
         }
     }
 }
 
 /// An iterator over entity components with a given type
-pub struct WithIterator<'a, T: Component + StaticComponent + 'static> {
+pub struct WithIterator<'a, T: Component + 'static> {
+    _component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
     current: NonNull<T>,
+    current_entity_length: NonNull<usize>,
+    current_entity_index: usize,
     end: NonNull<T>,
-    _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static> Iterator for WithIterator<'a, T> {
+impl<'a, T: Component + 'static> WithIterator<'a, T> {
+    fn new(component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>) -> Self {
+        let component_storage = component_storage_lock
+            .as_any_ref()
+            .downcast_ref::<VecComponentStorage<T>>()
+            .unwrap();
+
+        let begin = &component_storage.data.data[0] as *const T as *mut T;
+        let begin_entity_length = &component_storage.data.lengths[0] as *const usize as *mut usize;
+        let end = unsafe { begin.add(component_storage.data.data.len()) };
+
+        WithIterator {
+            _component_storage_lock: component_storage_lock,
+            current: unsafe { NonNull::new_unchecked(begin) },
+            current_entity_length: unsafe { NonNull::new_unchecked(begin_entity_length) },
+            current_entity_index: 0,
+            end: unsafe { NonNull::new_unchecked(end) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static> Iterator for WithIterator<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current < self.end {
             let result = self.current();
+            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
+
+            if self.current_entity_index == *unsafe { self.current_entity_length.as_ref() } {
+                self.current_entity_length =
+                    unsafe { NonNull::new_unchecked(self.current_entity_length.as_ptr().add(1)) };
+                self.current_entity_index = 0;
+            } else {
+                self.current_entity_index += 1;
+            }
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T: Component + 'static> EntityIterator for WithIterator<'a, T> {
+    fn current(&mut self) -> Self::Item {
+        unsafe { self.current.as_ref() }
+    }
+
+    fn has_reach_entity_end(&self) -> bool {
+        self.current_entity_index + 1 == *unsafe { self.current_entity_length.as_ref() }
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current =
+            unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(self.current_entity_index)) };
+        self.current_entity_index = 0;
+    }
+}
+
+/// An iterator over entity components of a single entity
+pub struct FromEntityWithIterator<'a, T: Component + 'static> {
+    _component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+    begin: NonNull<T>,
+    current: NonNull<T>,
+    end: NonNull<T>,
+}
+
+impl<'a, T: Component + 'static> FromEntityWithIterator<'a, T> {
+    fn new(
+        component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+        location: &EntityLocation,
+    ) -> Self {
+        let vec_component_storage = component_storage_lock
+            .as_any_ref()
+            .downcast_ref::<VecComponentStorage<T>>()
+            .unwrap();
+
+        let slice_range = vec_component_storage
+            .data
+            .get_slice(location.index)
+            .unwrap()
+            .as_ptr_range();
+
+        Self {
+            _component_storage_lock: component_storage_lock,
+            begin: unsafe { NonNull::new_unchecked(slice_range.start as *mut T) },
+            current: unsafe { NonNull::new_unchecked(slice_range.start as *mut T) },
+            end: unsafe { NonNull::new_unchecked(slice_range.end as *mut T) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static> EntityIterator for FromEntityWithIterator<'a, T> {
+    fn current(&mut self) -> Self::Item {
+        unsafe { self.current.as_ref() }
+    }
+
+    fn has_reach_entity_end(&self) -> bool {
+        unsafe { self.current.as_ptr().add(1) == self.end.as_ptr() }
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current = self.begin;
+    }
+}
+
+impl<'a, T: Component + 'static> Iterator for FromEntityWithIterator<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.end {
+            let result = unsafe { self.current.as_ref() };
             self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
 
             Some(result)
@@ -532,86 +496,48 @@ impl<'a, T: Component + StaticComponent + 'static> Iterator for WithIterator<'a,
     }
 }
 
-impl<'a, T: Component + StaticComponent + 'static> BidirectionalIterator for WithIterator<'a, T> {
-    fn current(&mut self) -> Self::Item {
-        unsafe { self.current.as_ref() }
-    }
-
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
-    }
-}
-
 /// A readable component reference
-pub struct With<T: Component + StaticComponent + 'static> {
+pub struct With<T: Component + 'static> {
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for With<T> {
+impl<'a, T: Component + 'static> QueryParam<'a> for With<T> {
     type Item = &'a T;
     type Iterator = WithIterator<'a, T>;
-    type FromEntityReferenceIterator = WithIterator<'a, T>;
+    type FromEntityReferenceIterator = FromEntityWithIterator<'a, T>;
 
-    fn filter_archetype(archetype: &Archetype) -> bool {
-        archetype
-            .identifier
-            .contains(&T::get_component_name().to_string())
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(archetype: &'a Archetype) -> usize {
-        archetype.component_storages[T::get_component_name()].components_per_entity
+    fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
+        component_types.contains(ComponentTypeId::of::<T>())
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        let component_storage =
-            &archetype.component_storages[T::get_component_name()].component_storage;
-        let begin = component_storage
-            .get(0)
-            .as_any_ref()
-            .downcast_ref::<T>()
-            .unwrap() as *const T as *mut T;
-
-        WithIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
-        }
+        let component_storage_lock =
+            archetype.component_storages[&ComponentTypeId::of::<T>()].read();
+        WithIterator::new(component_storage_lock)
     }
 
     fn from_entity_reference(
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-            let component_storage = &archetype.component_storages[T::get_component_name()];
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            let begin = component_storage
-                .component_storage
-                .get(entity_index * component_storage.components_per_entity)
-                .as_any_ref()
-                .downcast_ref::<T>()
-                .unwrap() as *const T as *mut T;
+            let component_storage_lock =
+                archetype.component_storages[&ComponentTypeId::of::<T>()].read();
 
-            WithIterator {
-                current: unsafe { NonNull::new_unchecked(begin) },
-                end: unsafe {
-                    NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
-                },
-                _marker: Default::default(),
-            }
+            FromEntityWithIterator::new(component_storage_lock, location)
         } else {
             unreachable!()
         }
@@ -619,18 +545,113 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for With<T> {
 }
 
 /// An iterator over entity components with a given type with mutability
-pub struct WithMutIterator<'a, T: Component + StaticComponent + 'static> {
+pub struct WithMutIterator<'a, T: Component + 'static> {
+    _component_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
     current: NonNull<T>,
+    current_entity_length: NonNull<usize>,
+    current_entity_index: usize,
     end: NonNull<T>,
-    _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static> Iterator for WithMutIterator<'a, T> {
+impl<'a, T: Component + 'static> WithMutIterator<'a, T> {
+    fn new(component_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>) -> Self {
+        let component_storage = component_storage_lock
+            .as_any_ref()
+            .downcast_ref::<VecComponentStorage<T>>()
+            .unwrap();
+
+        let begin = &component_storage.data.data[0] as *const T as *mut T;
+        let begin_entity_length = &component_storage.data.lengths[0] as *const usize as *mut usize;
+        let end = unsafe { begin.add(component_storage.data.data.len()) };
+
+        Self {
+            _component_storage_lock: component_storage_lock,
+            current: unsafe { NonNull::new_unchecked(begin) },
+            current_entity_length: unsafe { NonNull::new_unchecked(begin_entity_length) },
+            current_entity_index: 0,
+            end: unsafe { NonNull::new_unchecked(end) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static> Iterator for WithMutIterator<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current < self.end {
-            let result = self.current();
+            let result = unsafe { self.current.as_mut() };
+            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
+
+            if self.current_entity_index == *unsafe { self.current_entity_length.as_ref() } {
+                self.current_entity_length =
+                    unsafe { NonNull::new_unchecked(self.current_entity_length.as_ptr().add(1)) };
+                self.current_entity_index = 0;
+            } else {
+                self.current_entity_index += 1;
+            }
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T: Component + 'static> EntityIterator for WithMutIterator<'a, T> {
+    fn current(&mut self) -> Self::Item {
+        unsafe { self.current.as_mut() }
+    }
+
+    fn has_reach_entity_end(&self) -> bool {
+        self.current_entity_index + 1 == *unsafe { self.current_entity_length.as_ref() }
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current =
+            unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(self.current_entity_index)) };
+        self.current_entity_index = 0;
+    }
+}
+
+/// An iterator over entity components with a given type with mutability
+pub struct FromEntityWithMutIterator<'a, T: Component + 'static> {
+    _component_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+    begin: NonNull<T>,
+    current: NonNull<T>,
+    end: NonNull<T>,
+}
+
+impl<'a, T: Component + 'static> FromEntityWithMutIterator<'a, T> {
+    fn new(
+        component_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+        location: &EntityLocation,
+    ) -> Self {
+        let vec_component_storage = component_storage_lock
+            .as_any_ref()
+            .downcast_ref::<VecComponentStorage<T>>()
+            .unwrap();
+
+        let slice_range = vec_component_storage
+            .data
+            .get_slice(location.index)
+            .unwrap()
+            .as_ptr_range();
+
+        Self {
+            _component_storage_lock: component_storage_lock,
+            begin: unsafe { NonNull::new_unchecked(slice_range.start as *mut T) },
+            current: unsafe { NonNull::new_unchecked(slice_range.start as *mut T) },
+            end: unsafe { NonNull::new_unchecked(slice_range.end as *mut T) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static> Iterator for FromEntityWithMutIterator<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.end {
+            let result = unsafe { self.current.as_mut() };
             self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
 
             Some(result)
@@ -640,15 +661,17 @@ impl<'a, T: Component + StaticComponent + 'static> Iterator for WithMutIterator<
     }
 }
 
-impl<'a, T: Component + StaticComponent + 'static> BidirectionalIterator
-    for WithMutIterator<'a, T>
-{
+impl<'a, T: Component + 'static> EntityIterator for FromEntityWithMutIterator<'a, T> {
     fn current(&mut self) -> Self::Item {
         unsafe { self.current.as_mut() }
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
+    fn has_reach_entity_end(&self) -> bool {
+        unsafe { self.current.as_ptr().add(1) == self.end.as_ptr() }
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current = self.begin;
     }
 }
 
@@ -657,108 +680,95 @@ pub struct WithMut<T> {
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithMut<T> {
+impl<'a, T: Component + 'static> QueryParam<'a> for WithMut<T> {
     type Item = &'a mut T;
     type Iterator = WithMutIterator<'a, T>;
-    type FromEntityReferenceIterator = WithMutIterator<'a, T>;
+    type FromEntityReferenceIterator = FromEntityWithMutIterator<'a, T>;
 
-    fn filter_archetype(archetype: &Archetype) -> bool {
-        archetype
-            .identifier
-            .contains(&T::get_component_name().to_string())
-    }
-
-    fn require_read() -> bool {
-        false
-    }
-
-    fn require_write() -> bool {
-        true
-    }
-
-    fn items_per_entity(archetype: &'a Archetype) -> usize {
-        archetype.component_storages[T::get_component_name()].components_per_entity
+    fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
+        component_types.contains(ComponentTypeId::of::<T>())
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        let component_storage =
-            &archetype.component_storages[T::get_component_name()].component_storage;
-        let begin = component_storage
-            .get(0)
-            .as_any_ref()
-            .downcast_ref::<T>()
-            .unwrap() as *const T as *mut T;
-
-        WithMutIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
-        }
+        let component_storage_lock =
+            archetype.component_storages[&ComponentTypeId::of::<T>()].write();
+        WithMutIterator::new(component_storage_lock)
     }
 
     fn from_entity_reference(
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-            let component_storage = &archetype.component_storages[T::get_component_name()];
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            let begin = component_storage
-                .component_storage
-                .get(entity_index * component_storage.components_per_entity)
-                .as_any_ref()
-                .downcast_ref::<T>()
-                .unwrap() as *const T as *mut T;
+            let component_storage_lock =
+                archetype.component_storages[&ComponentTypeId::of::<T>()].write();
 
-            WithMutIterator {
-                current: unsafe { NonNull::new_unchecked(begin) },
-                end: unsafe {
-                    NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
-                },
-                _marker: Default::default(),
-            }
+            FromEntityWithMutIterator::new(component_storage_lock, location)
         } else {
             unreachable!()
         }
     }
 }
 
-/// An iterator over entity optional components with a given type
-pub struct WithOptionalIterator<'a, T: Component + StaticComponent + 'static> {
-    current: NonNull<T>,
-    end: NonNull<T>,
-    _marker: PhantomData<&'a T>,
+/// An optional entity iterator
+pub struct WithOptionalIterator<T: Iterator + EntityIterator>(Option<T>);
+
+impl<T: Iterator + EntityIterator> WithOptionalIterator<T> {
+    fn new(iter: T) -> Self {
+        Self(Some(iter))
+    }
+
+    fn empty() -> Self {
+        Self(None)
+    }
 }
 
-impl<'a, T: Component + StaticComponent + 'static> Iterator for WithOptionalIterator<'a, T> {
-    type Item = Option<&'a T>;
+impl<T: Iterator + EntityIterator> Iterator for WithOptionalIterator<T> {
+    type Item = Option<T::Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-
-            Some(result)
+        if let Some(iter) = self.0.as_mut() {
+            Some(iter.next())
         } else {
-            None
+            Some(None)
         }
     }
 }
 
-impl<'a, T: Component + StaticComponent + 'static> BidirectionalIterator
-    for WithOptionalIterator<'a, T>
-{
+impl<T: Iterator + EntityIterator> EntityIterator for WithOptionalIterator<T> {
     fn current(&mut self) -> Self::Item {
-        Some(unsafe { self.current.as_ref() })
+        if let Some(iter) = self.0.as_mut() {
+            Some(iter.current())
+        } else {
+            None
+        }
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
+    fn has_reach_entity_end(&self) -> bool {
+        if let Some(iter) = self.0.as_ref() {
+            iter.has_reach_entity_end()
+        } else {
+            true
+        }
+    }
+
+    fn reset_current_entity(&mut self) {
+        if let Some(iter) = self.0.as_mut() {
+            iter.reset_current_entity()
+        }
     }
 }
 
@@ -767,49 +777,23 @@ pub struct WithOptional<T> {
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithOptional<T> {
+impl<'a, T: Component + 'static> QueryParam<'a> for WithOptional<T> {
     type Item = Option<&'a T>;
-    type Iterator = Either<WithOptionalIterator<'a, T>, NoneBidirectionalIterator<&'a T>>;
-    type FromEntityReferenceIterator =
-        Either<WithOptionalIterator<'a, T>, NoneBidirectionalIterator<&'a T>>;
+    type Iterator = WithOptionalIterator<WithIterator<'a, T>>;
+    type FromEntityReferenceIterator = WithOptionalIterator<FromEntityWithIterator<'a, T>>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(archetype: &'a Archetype) -> usize {
-        archetype
-            .component_storages
-            .get(T::get_component_name())
-            .map(|storage| storage.components_per_entity)
-            .unwrap_or(1)
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        match archetype.component_storages.get(T::get_component_name()) {
-            Some(storage) => {
-                let begin = storage
-                    .component_storage
-                    .get(0)
-                    .as_any_ref()
-                    .downcast_ref::<T>()
-                    .unwrap() as *const T as *mut T;
-
-                Either::Left(WithOptionalIterator {
-                    current: unsafe { NonNull::new_unchecked(begin) },
-                    end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-                    _marker: Default::default(),
-                })
-            }
-            None => Either::Right(NoneBidirectionalIterator::default()),
+        if let Some(component_storage) = archetype
+            .component_storages
+            .get(&ComponentTypeId::of::<T>())
+        {
+            WithOptionalIterator::new(WithIterator::new(component_storage.read()))
+        } else {
+            WithOptionalIterator::empty()
         }
     }
 
@@ -817,69 +801,35 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithOption
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            match archetype.component_storages.get(T::get_component_name()) {
-                Some(storage) => {
-                    let begin = storage
-                        .component_storage
-                        .get(entity_index * storage.components_per_entity)
-                        .as_any_ref()
-                        .downcast_ref::<T>()
-                        .unwrap() as *const T as *mut T;
-
-                    Either::Left(WithOptionalIterator {
-                        current: unsafe { NonNull::new_unchecked(begin) },
-                        end: unsafe {
-                            NonNull::new_unchecked(begin.add(storage.components_per_entity))
-                        },
-                        _marker: Default::default(),
-                    })
-                }
-                None => Either::Right(NoneBidirectionalIterator::default()),
+            if let Some(component_storage) = archetype
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+            {
+                let component_storage_lock = component_storage.read();
+                WithOptionalIterator::new(FromEntityWithIterator::new(
+                    component_storage_lock,
+                    location,
+                ))
+            } else {
+                WithOptionalIterator::empty()
             }
         } else {
             unreachable!()
         }
-    }
-}
-
-/// An iterator over entity optional components with a given type with mutability
-pub struct WithOptionalMutIterator<'a, T: Component + StaticComponent + 'static> {
-    current: NonNull<T>,
-    end: NonNull<T>,
-    _marker: PhantomData<&'a T>,
-}
-
-impl<'a, T: Component + StaticComponent + 'static> Iterator for WithOptionalMutIterator<'a, T> {
-    type Item = Option<&'a mut T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a, T: Component + StaticComponent + 'static> BidirectionalIterator
-    for WithOptionalMutIterator<'a, T>
-{
-    fn current(&mut self) -> Self::Item {
-        Some(unsafe { self.current.as_mut() })
-    }
-
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
     }
 }
 
@@ -888,49 +838,23 @@ pub struct WithOptionalMut<T> {
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithOptionalMut<T> {
+impl<'a, T: Component + 'static> QueryParam<'a> for WithOptionalMut<T> {
     type Item = Option<&'a mut T>;
-    type Iterator = Either<WithOptionalMutIterator<'a, T>, NoneBidirectionalIterator<&'a mut T>>;
-    type FromEntityReferenceIterator =
-        Either<WithOptionalMutIterator<'a, T>, NoneBidirectionalIterator<&'a mut T>>;
+    type Iterator = WithOptionalIterator<WithMutIterator<'a, T>>;
+    type FromEntityReferenceIterator = WithOptionalIterator<FromEntityWithMutIterator<'a, T>>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        false
-    }
-
-    fn require_write() -> bool {
-        true
-    }
-
-    fn items_per_entity(archetype: &'a Archetype) -> usize {
-        archetype
-            .component_storages
-            .get(T::get_component_name())
-            .map(|storage| storage.components_per_entity)
-            .unwrap_or(1)
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        match archetype.component_storages.get(T::get_component_name()) {
-            Some(storage) => {
-                let begin = storage
-                    .component_storage
-                    .get(0)
-                    .as_any_ref()
-                    .downcast_ref::<T>()
-                    .unwrap() as *const T as *mut T;
-
-                Either::Left(WithOptionalMutIterator {
-                    current: unsafe { NonNull::new_unchecked(begin) },
-                    end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-                    _marker: Default::default(),
-                })
-            }
-            None => Either::Right(NoneBidirectionalIterator::default()),
+        if let Some(component_storage) = archetype
+            .component_storages
+            .get(&ComponentTypeId::of::<T>())
+        {
+            WithOptionalIterator::new(WithMutIterator::new(component_storage.write()))
+        } else {
+            WithOptionalIterator::empty()
         }
     }
 
@@ -938,31 +862,31 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithOption
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            match archetype.component_storages.get(T::get_component_name()) {
-                Some(storage) => {
-                    let begin = storage
-                        .component_storage
-                        .get(entity_index * storage.components_per_entity)
-                        .as_any_ref()
-                        .downcast_ref::<T>()
-                        .unwrap() as *const T as *mut T;
-
-                    Either::Left(WithOptionalMutIterator {
-                        current: unsafe { NonNull::new_unchecked(begin) },
-                        end: unsafe {
-                            NonNull::new_unchecked(begin.add(storage.components_per_entity))
-                        },
-                        _marker: Default::default(),
-                    })
-                }
-                None => Either::Right(NoneBidirectionalIterator::default()),
+            if let Some(component_storage) = archetype
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+            {
+                let component_storage_lock = component_storage.write();
+                WithOptionalIterator::new(FromEntityWithMutIterator::new(
+                    component_storage_lock,
+                    location,
+                ))
+            } else {
+                WithOptionalIterator::empty()
             }
         } else {
             unreachable!()
@@ -971,401 +895,434 @@ impl<'a, T: Component + StaticComponent + 'static> QueryParam<'a> for WithOption
 }
 
 /// An iterator over entity components with a given type and its associated extension
-pub struct WithExtensionIterator<
-    'a,
-    T: Component + StaticComponent + 'static,
-    E: Component + StaticComponent + 'static,
-> {
-    current: NonNull<T>,
+pub struct WithExtensionIterator<'a, T: Component + 'static, E: Component + 'static> {
+    _extension_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+    with_iterator: WithIterator<'a, T>,
     current_extension: NonNull<E>,
-    end: NonNull<T>,
-    _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    Iterator for WithExtensionIterator<'a, T, E>
-{
-    type Item = (&'a T, &'a E);
+impl<'a, T: Component + 'static, E: Component + 'static> WithExtensionIterator<'a, T, E> {
+    fn new(
+        component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+        extension_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+    ) -> Self {
+        let extension_component_storage = extension_storage_lock
+            .as_any_ref()
+            .downcast_ref::<VecComponentStorage<E>>()
+            .unwrap();
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
+        let begin_extension = &extension_component_storage.data.data[0] as *const E as *mut E;
 
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-            self.current_extension =
-                unsafe { NonNull::new_unchecked(self.current_extension.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
+        Self {
+            _extension_storage_lock: extension_storage_lock,
+            with_iterator: WithIterator::new(component_storage_lock),
+            current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
         }
     }
 }
 
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    BidirectionalIterator for WithExtensionIterator<'a, T, E>
+impl<'a, T: Component + 'static, E: Component + 'static> Iterator
+    for WithExtensionIterator<'a, T, E>
+{
+    type Item = (&'a T, &'a E);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iterator.next().map(|component| {
+            let result = (component, unsafe { self.current_extension.as_ref() });
+            self.current_extension =
+                unsafe { NonNull::new_unchecked(self.current_extension.as_ptr().add(1)) };
+
+            result
+        })
+    }
+}
+
+impl<'a, T: Component + 'static, E: Component + 'static> EntityIterator
+    for WithExtensionIterator<'a, T, E>
 {
     fn current(&mut self) -> Self::Item {
-        (unsafe { self.current.as_ref() }, unsafe {
+        (unsafe { self.with_iterator.current.as_ref() }, unsafe {
             self.current_extension.as_ref()
         })
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
+    fn has_reach_entity_end(&self) -> bool {
+        self.with_iterator.has_reach_entity_end()
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_extension = unsafe {
+            NonNull::new_unchecked(
+                self.current_extension
+                    .as_ptr()
+                    .sub(self.with_iterator.current_entity_index),
+            )
+        };
+        self.with_iterator.reset_current_entity();
+    }
+}
+
+/// An iterator over entity components of a single entity
+pub struct FromEntityWithExtensionIterator<'a, T: Component + 'static, E: Component + 'static> {
+    _extension_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+    with_iterator: FromEntityWithIterator<'a, T>,
+    current_extension: NonNull<E>,
+    begin_extension: NonNull<E>,
+}
+
+impl<'a, T: Component + 'static, E: Component + 'static> FromEntityWithExtensionIterator<'a, T, E> {
+    fn new(
+        component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+        extension_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+        location: &EntityLocation,
+    ) -> Self {
+        let extension_component_storage = extension_storage_lock
+            .as_any_ref()
+            .downcast_ref::<VecComponentStorage<E>>()
+            .unwrap();
+
+        let begin_extension = extension_component_storage
+            .data
+            .get_slice(location.index)
+            .unwrap()
+            .as_ptr() as *mut E;
+
+        Self {
+            _extension_storage_lock: extension_storage_lock,
+            with_iterator: FromEntityWithIterator::new(component_storage_lock, location),
+            current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+            begin_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static, E: Component + 'static> Iterator
+    for FromEntityWithExtensionIterator<'a, T, E>
+{
+    type Item = (&'a T, &'a E);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iterator.next().map(|component| {
+            let result = (component, unsafe { self.current_extension.as_ref() });
+            self.current_extension =
+                unsafe { NonNull::new_unchecked(self.current_extension.as_ptr().add(1)) };
+
+            result
+        })
+    }
+}
+
+impl<'a, T: Component + 'static, E: Component + 'static> EntityIterator
+    for FromEntityWithExtensionIterator<'a, T, E>
+{
+    fn current(&mut self) -> Self::Item {
+        (unsafe { self.with_iterator.current.as_ref() }, unsafe {
+            self.current_extension.as_ref()
+        })
+    }
+
+    fn has_reach_entity_end(&self) -> bool {
+        self.with_iterator.has_reach_entity_end()
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_extension = self.begin_extension;
+        self.with_iterator.reset_current_entity();
     }
 }
 
 /// A readable component reference
 pub struct WithExtension<T, E> {
-    _phantom: PhantomData<T>,
-    _phantom_e: PhantomData<E>,
+    _phantom: PhantomData<(T, E)>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    QueryParam<'a> for WithExtension<T, E>
-{
+impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a> for WithExtension<T, E> {
     type Item = (&'a T, &'a E);
     type Iterator = WithExtensionIterator<'a, T, E>;
-    type FromEntityReferenceIterator = WithExtensionIterator<'a, T, E>;
+    type FromEntityReferenceIterator = FromEntityWithExtensionIterator<'a, T, E>;
 
-    fn filter_archetype(archetype: &Archetype) -> bool {
-        archetype
-            .identifier
-            .contains(&T::get_component_name().to_string())
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(archetype: &'a Archetype) -> usize {
-        archetype.component_storages[T::get_component_name()].components_per_entity
+    fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
+        component_types.contains(ComponentTypeId::of::<T>())
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        let component_storage =
-            &archetype.component_storages[T::get_component_name()].component_storage;
-        let begin = component_storage
-            .get(0)
-            .as_any_ref()
-            .downcast_ref::<T>()
-            .unwrap() as *const T as *mut T;
+        let component_storage_lock =
+            archetype.component_storages[&ComponentTypeId::of::<T>()].read();
 
-        let component_storage_extension =
-            &archetype.component_storages[E::get_component_name()].component_storage;
-        let begin_extension = component_storage_extension
-            .get(0)
-            .as_any_ref()
-            .downcast_ref::<E>()
-            .unwrap() as *const E as *mut E;
+        let extension_component_storage_lock =
+            archetype.component_storages[&ComponentTypeId::of::<E>()].read();
 
-        WithExtensionIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
-        }
+        Self::Iterator::new(component_storage_lock, extension_component_storage_lock)
     }
 
     fn from_entity_reference(
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            let component_storage = &archetype.component_storages[T::get_component_name()];
-            let begin = component_storage
-                .component_storage
-                .get(entity_index * component_storage.components_per_entity)
-                .as_any_ref()
-                .downcast_ref::<T>()
-                .unwrap() as *const T as *mut T;
+            let component_storage_lock =
+                archetype.component_storages[&ComponentTypeId::of::<T>()].read();
 
-            let component_storage_extension =
-                &archetype.component_storages[E::get_component_name()];
-            let begin_extension = component_storage_extension
-                .component_storage
-                .get(entity_index * component_storage.components_per_entity)
-                .as_any_ref()
-                .downcast_ref::<E>()
-                .unwrap() as *const E as *mut E;
+            let extension_component_storage_lock =
+                archetype.component_storages[&ComponentTypeId::of::<E>()].read();
 
-            WithExtensionIterator {
-                current: unsafe { NonNull::new_unchecked(begin) },
-                current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-                end: unsafe {
-                    NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
-                },
-                _marker: Default::default(),
-            }
+            FromEntityWithExtensionIterator::new(
+                component_storage_lock,
+                extension_component_storage_lock,
+                location,
+            )
         } else {
-            unreachable!()
+            unimplemented!()
         }
     }
 }
 
 /// An iterator over entity components with a given type and its associated extension with mutability
-pub struct WithExtensionMutIterator<
-    'a,
-    T: Component + StaticComponent + 'static,
-    E: Component + StaticComponent + 'static,
-> {
-    current: NonNull<T>,
+pub struct WithExtensionMutIterator<'a, T: Component + 'static, E: Component + 'static> {
+    _extension_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+    with_iterator: WithMutIterator<'a, T>,
     current_extension: NonNull<E>,
-    end: NonNull<T>,
-    _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    Iterator for WithExtensionMutIterator<'a, T, E>
+impl<'a, T: Component + 'static, E: Component + 'static> WithExtensionMutIterator<'a, T, E> {
+    fn new(
+        component_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+        extension_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+    ) -> Self {
+        let extension_component_storage = extension_storage_lock
+            .as_any_ref()
+            .downcast_ref::<VecComponentStorage<E>>()
+            .unwrap();
+
+        let begin_extension = &extension_component_storage.data.data[0] as *const E as *mut E;
+
+        Self {
+            _extension_storage_lock: extension_storage_lock,
+            with_iterator: WithMutIterator::new(component_storage_lock),
+            current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static, E: Component + 'static> Iterator
+    for WithExtensionMutIterator<'a, T, E>
 {
     type Item = (&'a mut T, &'a mut E);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
+        self.with_iterator.next().map(|component| {
+            let result = (component, unsafe { self.current_extension.as_mut() });
             self.current_extension =
                 unsafe { NonNull::new_unchecked(self.current_extension.as_ptr().add(1)) };
 
-            Some(result)
-        } else {
-            None
-        }
+            result
+        })
     }
 }
 
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    BidirectionalIterator for WithExtensionMutIterator<'a, T, E>
+impl<'a, T: Component + 'static, E: Component + 'static> EntityIterator
+    for WithExtensionMutIterator<'a, T, E>
 {
     fn current(&mut self) -> Self::Item {
-        (unsafe { self.current.as_mut() }, unsafe {
+        (unsafe { self.with_iterator.current.as_mut() }, unsafe {
             self.current_extension.as_mut()
         })
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
+    fn has_reach_entity_end(&self) -> bool {
+        self.with_iterator.has_reach_entity_end()
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_extension = unsafe {
+            NonNull::new_unchecked(
+                self.current_extension
+                    .as_ptr()
+                    .sub(self.with_iterator.current_entity_index),
+            )
+        };
+        self.with_iterator.reset_current_entity();
     }
 }
 
-/// A writable component reference
-pub struct WithExtensionMut<T, E> {
-    _phantom: PhantomData<T>,
-    _phantom_e: PhantomData<E>,
+/// An iterator over entity components of a single entity
+pub struct FromEntityWithExtensionMutIterator<'a, T: Component + 'static, E: Component + 'static> {
+    _extension_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+    with_iterator: FromEntityWithMutIterator<'a, T>,
+    current_extension: NonNull<E>,
+    begin_extension: NonNull<E>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    QueryParam<'a> for WithExtensionMut<T, E>
+impl<'a, T: Component + 'static, E: Component + 'static>
+    FromEntityWithExtensionMutIterator<'a, T, E>
+{
+    fn new(
+        component_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+        extension_storage_lock: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+        location: &EntityLocation,
+    ) -> Self {
+        let extension_component_storage = extension_storage_lock
+            .as_any_ref()
+            .downcast_ref::<VecComponentStorage<E>>()
+            .unwrap();
+
+        let begin_extension = extension_component_storage
+            .data
+            .get_slice(location.index)
+            .unwrap()
+            .as_ptr() as *mut E;
+
+        Self {
+            _extension_storage_lock: extension_storage_lock,
+            with_iterator: FromEntityWithMutIterator::new(component_storage_lock, location),
+            current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+            begin_extension: unsafe { NonNull::new_unchecked(begin_extension) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static, E: Component + 'static> Iterator
+    for FromEntityWithExtensionMutIterator<'a, T, E>
 {
     type Item = (&'a mut T, &'a mut E);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iterator.next().map(|component| {
+            let result = (component, unsafe { self.current_extension.as_mut() });
+            self.current_extension =
+                unsafe { NonNull::new_unchecked(self.current_extension.as_ptr().add(1)) };
+
+            result
+        })
+    }
+}
+
+impl<'a, T: Component + 'static, E: Component + 'static> EntityIterator
+    for FromEntityWithExtensionMutIterator<'a, T, E>
+{
+    fn current(&mut self) -> Self::Item {
+        (unsafe { self.with_iterator.current.as_mut() }, unsafe {
+            self.current_extension.as_mut()
+        })
+    }
+
+    fn has_reach_entity_end(&self) -> bool {
+        self.with_iterator.has_reach_entity_end()
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_extension = self.begin_extension;
+        self.with_iterator.reset_current_entity();
+    }
+}
+
+/// A readable component reference
+pub struct WithExtensionMut<T, E> {
+    _phantom: PhantomData<(T, E)>,
+}
+
+impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a> for WithExtensionMut<T, E> {
+    type Item = (&'a mut T, &'a mut E);
     type Iterator = WithExtensionMutIterator<'a, T, E>;
-    type FromEntityReferenceIterator = WithExtensionMutIterator<'a, T, E>;
+    type FromEntityReferenceIterator = FromEntityWithExtensionMutIterator<'a, T, E>;
 
-    fn filter_archetype(archetype: &Archetype) -> bool {
-        archetype
-            .identifier
-            .contains(&T::get_component_name().to_string())
-    }
-
-    fn require_read() -> bool {
-        false
-    }
-
-    fn require_write() -> bool {
-        true
-    }
-
-    fn items_per_entity(archetype: &'a Archetype) -> usize {
-        archetype.component_storages[T::get_component_name()].components_per_entity
+    fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
+        component_types.contains(ComponentTypeId::of::<T>())
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        let test = archetype.component_storages.keys().collect::<Vec<_>>();
-        println!("{:?}", T::get_component_name());
-        println!("{:?}", test);
+        let component_storage_lock =
+            archetype.component_storages[&ComponentTypeId::of::<T>()].write();
 
-        let component_storage =
-            &archetype.component_storages[T::get_component_name()].component_storage;
-        let begin = component_storage
-            .get(0)
-            .as_any_ref()
-            .downcast_ref::<T>()
-            .unwrap() as *const T as *mut T;
+        let extension_component_storage_lock =
+            archetype.component_storages[&ComponentTypeId::of::<E>()].write();
 
-        let component_storage_extension =
-            &archetype.component_storages[E::get_component_name()].component_storage;
-
-        let begin_extension = component_storage_extension
-            .get(0)
-            .as_any_ref()
-            .downcast_ref::<E>()
-            .unwrap() as *const E as *mut E;
-
-        WithExtensionMutIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
-        }
+        Self::Iterator::new(component_storage_lock, extension_component_storage_lock)
     }
 
     fn from_entity_reference(
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            let component_storage = &archetype.component_storages[T::get_component_name()];
-            let begin = component_storage
-                .component_storage
-                .get(entity_index * component_storage.components_per_entity)
-                .as_any_ref()
-                .downcast_ref::<T>()
-                .unwrap() as *const T as *mut T;
+            let component_storage_lock =
+                archetype.component_storages[&ComponentTypeId::of::<T>()].write();
 
-            let component_storage_extension =
-                &archetype.component_storages[E::get_component_name()];
-            let begin_extension = component_storage_extension
-                .component_storage
-                .get(entity_index * component_storage.components_per_entity)
-                .as_any_ref()
-                .downcast_ref::<E>()
-                .unwrap() as *const E as *mut E;
+            let extension_component_storage_lock =
+                archetype.component_storages[&ComponentTypeId::of::<E>()].write();
 
-            WithExtensionMutIterator {
-                current: unsafe { NonNull::new_unchecked(begin) },
-                current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-                end: unsafe {
-                    NonNull::new_unchecked(begin.add(component_storage.components_per_entity))
-                },
-                _marker: Default::default(),
-            }
+            FromEntityWithExtensionMutIterator::new(
+                component_storage_lock,
+                extension_component_storage_lock,
+                location,
+            )
         } else {
-            unreachable!()
+            unimplemented!()
         }
-    }
-}
-
-/// An iterator over entity optional components with a given type and its associated extension
-pub struct WithExtensionOptionalIterator<
-    'a,
-    T: Component + StaticComponent + 'static,
-    E: Component + StaticComponent + 'static,
-> {
-    current: NonNull<T>,
-    current_extension: NonNull<E>,
-    end: NonNull<T>,
-    _marker: PhantomData<&'a T>,
-}
-
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    Iterator for WithExtensionOptionalIterator<'a, T, E>
-{
-    type Item = Option<(&'a T, &'a E)>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-            self.current_extension =
-                unsafe { NonNull::new_unchecked(self.current_extension.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    BidirectionalIterator for WithExtensionOptionalIterator<'a, T, E>
-{
-    fn current(&mut self) -> Self::Item {
-        Some((unsafe { self.current.as_ref() }, unsafe {
-            self.current_extension.as_ref()
-        }))
-    }
-
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
     }
 }
 
 /// A readable optional component reference
 pub struct WithExtensionOptional<T, E> {
-    _phantom: PhantomData<T>,
-    _phantom_e: PhantomData<E>,
+    _phantom: PhantomData<(T, E)>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    QueryParam<'a> for WithExtensionOptional<T, E>
+impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a>
+    for WithExtensionOptional<T, E>
 {
     type Item = Option<(&'a T, &'a E)>;
-    type Iterator =
-        Either<WithExtensionOptionalIterator<'a, T, E>, NoneBidirectionalIterator<(&'a T, &'a E)>>;
+    type Iterator = WithOptionalIterator<WithExtensionIterator<'a, T, E>>;
     type FromEntityReferenceIterator =
-        Either<WithExtensionOptionalIterator<'a, T, E>, NoneBidirectionalIterator<(&'a T, &'a E)>>;
+        WithOptionalIterator<FromEntityWithExtensionIterator<'a, T, E>>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        true
-    }
-
-    fn require_write() -> bool {
-        false
-    }
-
-    fn items_per_entity(archetype: &'a Archetype) -> usize {
-        archetype.component_storages[T::get_component_name()].components_per_entity
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        match archetype.component_storages.get(T::get_component_name()) {
-            Some(storage) => {
-                let begin = storage
-                    .component_storage
-                    .get(0)
-                    .as_any_ref()
-                    .downcast_ref::<T>()
-                    .unwrap() as *const T as *mut T;
-
-                let component_storage_extension =
-                    &archetype.component_storages[E::get_component_name()].component_storage;
-                let begin_extension = component_storage_extension
-                    .get(0)
-                    .as_any_ref()
-                    .downcast_ref::<E>()
-                    .unwrap() as *const E as *mut E;
-
-                Either::Left(WithExtensionOptionalIterator {
-                    current: unsafe { NonNull::new_unchecked(begin) },
-                    current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-                    end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-                    _marker: Default::default(),
-                })
+        if let Some(component_storage) = archetype
+            .component_storages
+            .get(&ComponentTypeId::of::<T>())
+        {
+            if let Some(extension_storage) = archetype
+                .component_storages
+                .get(&ComponentTypeId::of::<E>())
+            {
+                WithOptionalIterator::new(WithExtensionIterator::new(
+                    component_storage.read(),
+                    extension_storage.read(),
+                ))
+            } else {
+                WithOptionalIterator::empty()
             }
-            None => Either::Right(NoneBidirectionalIterator::default()),
+        } else {
+            WithOptionalIterator::empty()
         }
     }
 
@@ -1373,41 +1330,40 @@ impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponen
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            match archetype.component_storages.get(T::get_component_name()) {
-                Some(storage) => {
-                    let begin = storage
-                        .component_storage
-                        .get(entity_index * storage.components_per_entity)
-                        .as_any_ref()
-                        .downcast_ref::<T>()
-                        .unwrap() as *const T as *mut T;
-
-                    let component_storage_extension =
-                        &archetype.component_storages[E::get_component_name()];
-                    let begin_extension = component_storage_extension
-                        .component_storage
-                        .get(entity_index * storage.components_per_entity)
-                        .as_any_ref()
-                        .downcast_ref::<E>()
-                        .unwrap() as *const E as *mut E;
-
-                    Either::Left(WithExtensionOptionalIterator {
-                        current: unsafe { NonNull::new_unchecked(begin) },
-                        current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-                        end: unsafe {
-                            NonNull::new_unchecked(begin.add(storage.components_per_entity))
-                        },
-                        _marker: Default::default(),
-                    })
+            if let Some(component_storage) = archetype
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+            {
+                if let Some(extension_storage) = archetype
+                    .component_storages
+                    .get(&ComponentTypeId::of::<E>())
+                {
+                    let component_storage_lock = component_storage.read();
+                    let extension_storage_lock = extension_storage.read();
+                    WithOptionalIterator::new(FromEntityWithExtensionIterator::new(
+                        component_storage_lock,
+                        extension_storage_lock,
+                        location,
+                    ))
+                } else {
+                    WithOptionalIterator::empty()
                 }
-                None => Either::Right(NoneBidirectionalIterator::default()),
+            } else {
+                WithOptionalIterator::empty()
             }
         } else {
             unreachable!()
@@ -1415,113 +1371,41 @@ impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponen
     }
 }
 
-/// An iterator over entity optional components with a given type and its associated extension with mutability
-pub struct WithExtensionOptionalMutIterator<
-    'a,
-    T: Component + StaticComponent + 'static,
-    E: Component + StaticComponent + 'static,
-> {
-    current: NonNull<T>,
-    current_extension: NonNull<E>,
-    end: NonNull<T>,
-    _marker: PhantomData<&'a T>,
-}
-
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    Iterator for WithExtensionOptionalMutIterator<'a, T, E>
-{
-    type Item = Option<(&'a mut T, &'a mut E)>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-            self.current_extension =
-                unsafe { NonNull::new_unchecked(self.current_extension.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    BidirectionalIterator for WithExtensionOptionalMutIterator<'a, T, E>
-{
-    fn current(&mut self) -> Self::Item {
-        Some((unsafe { self.current.as_mut() }, unsafe {
-            self.current_extension.as_mut()
-        }))
-    }
-
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
-    }
-}
-
-/// A writable optional component reference
+/// A readable optional component reference
 pub struct WithExtensionOptionalMut<T, E> {
-    _phantom: PhantomData<T>,
-    _phantom_e: PhantomData<E>,
+    _phantom: PhantomData<(T, E)>,
 }
 
-impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponent + 'static>
-    QueryParam<'a> for WithExtensionOptionalMut<T, E>
+impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a>
+    for WithExtensionOptionalMut<T, E>
 {
     type Item = Option<(&'a mut T, &'a mut E)>;
-    type Iterator = Either<
-        WithExtensionOptionalMutIterator<'a, T, E>,
-        NoneBidirectionalIterator<(&'a mut T, &'a mut E)>,
-    >;
-    type FromEntityReferenceIterator = Either<
-        WithExtensionOptionalMutIterator<'a, T, E>,
-        NoneBidirectionalIterator<(&'a mut T, &'a mut E)>,
-    >;
+    type Iterator = WithOptionalIterator<WithExtensionMutIterator<'a, T, E>>;
+    type FromEntityReferenceIterator =
+        WithOptionalIterator<FromEntityWithExtensionMutIterator<'a, T, E>>;
 
-    fn filter_archetype(_archetype: &Archetype) -> bool {
+    fn filter_archetype(_component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn require_read() -> bool {
-        false
-    }
-
-    fn require_write() -> bool {
-        true
-    }
-
-    fn items_per_entity(archetype: &'a Archetype) -> usize {
-        archetype.component_storages[T::get_component_name()].components_per_entity
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        match archetype.component_storages.get(T::get_component_name()) {
-            Some(storage) => {
-                let begin = storage
-                    .component_storage
-                    .get(0)
-                    .as_any_ref()
-                    .downcast_ref::<T>()
-                    .unwrap() as *const T as *mut T;
-
-                let component_storage_extension =
-                    &archetype.component_storages[E::get_component_name()].component_storage;
-                let begin_extension = component_storage_extension
-                    .get(0)
-                    .as_any_ref()
-                    .downcast_ref::<E>()
-                    .unwrap() as *const E as *mut E;
-
-                Either::Left(WithExtensionOptionalMutIterator {
-                    current: unsafe { NonNull::new_unchecked(begin) },
-                    current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-                    end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-                    _marker: Default::default(),
-                })
+        if let Some(component_storage) = archetype
+            .component_storages
+            .get(&ComponentTypeId::of::<T>())
+        {
+            if let Some(extension_storage) = archetype
+                .component_storages
+                .get(&ComponentTypeId::of::<E>())
+            {
+                WithOptionalIterator::new(WithExtensionMutIterator::new(
+                    component_storage.write(),
+                    extension_storage.write(),
+                ))
+            } else {
+                WithOptionalIterator::empty()
             }
-            None => Either::Right(NoneBidirectionalIterator::default()),
+        } else {
+            WithOptionalIterator::empty()
         }
     }
 
@@ -1529,41 +1413,40 @@ impl<'a, T: Component + StaticComponent + 'static, E: Component + StaticComponen
         entity_reference: &EntityReference,
     ) -> Self::FromEntityReferenceIterator {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-            match archetype.component_storages.get(T::get_component_name()) {
-                Some(storage) => {
-                    let begin = storage
-                        .component_storage
-                        .get(entity_index * storage.components_per_entity)
-                        .as_any_ref()
-                        .downcast_ref::<T>()
-                        .unwrap() as *const T as *mut T;
-
-                    let component_storage_extension =
-                        &archetype.component_storages[E::get_component_name()];
-                    let begin_extension = component_storage_extension
-                        .component_storage
-                        .get(entity_index * storage.components_per_entity)
-                        .as_any_ref()
-                        .downcast_ref::<E>()
-                        .unwrap() as *const E as *mut E;
-
-                    Either::Left(WithExtensionOptionalMutIterator {
-                        current: unsafe { NonNull::new_unchecked(begin) },
-                        current_extension: unsafe { NonNull::new_unchecked(begin_extension) },
-                        end: unsafe {
-                            NonNull::new_unchecked(begin.add(storage.components_per_entity))
-                        },
-                        _marker: Default::default(),
-                    })
+            if let Some(component_storage) = archetype
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+            {
+                if let Some(extension_storage) = archetype
+                    .component_storages
+                    .get(&ComponentTypeId::of::<E>())
+                {
+                    let component_storage_lock = component_storage.write();
+                    let extension_storage_lock = extension_storage.write();
+                    WithOptionalIterator::new(FromEntityWithExtensionMutIterator::new(
+                        component_storage_lock,
+                        extension_storage_lock,
+                        location,
+                    ))
+                } else {
+                    WithOptionalIterator::empty()
                 }
-                None => Either::Right(NoneBidirectionalIterator::default()),
+            } else {
+                WithOptionalIterator::empty()
             }
         } else {
             unreachable!()

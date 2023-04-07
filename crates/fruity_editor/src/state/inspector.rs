@@ -47,14 +47,14 @@ impl InspectorState {
     pub fn select(&mut self, selection: Box<dyn ScriptObject>) -> FruityResult<()> {
         self.temporary_disable_gizmos = false;
         self.selected = Some(selection.duplicate());
-        self.on_selected.notify(selection)
+        self.on_selected.send(selection)
     }
 
     #[export]
     pub fn unselect(&mut self) -> FruityResult<()> {
         self.temporary_disable_gizmos = false;
         self.selected = None;
-        self.on_unselected.notify(())
+        self.on_unselected.send(())
     }
 
     pub fn inspect(&self, ctx: &mut UIContext) -> FruityResult<UIElement> {

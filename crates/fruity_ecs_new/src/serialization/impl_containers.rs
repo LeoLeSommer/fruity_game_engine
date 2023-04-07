@@ -1,13 +1,13 @@
 use super::{Deserialize, Serialize};
 use crate::entity::EntityId;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
-use fruity_game_engine::settings::Settings;
-use fruity_game_engine::FruityError;
-use fruity_game_engine::FruityResult;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::hash::Hash;
-use std::ops::Range;
+use fruity_game_engine::{
+    resource::resource_container::ResourceContainer, settings::Settings, FruityError, FruityResult,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    ops::Range,
+};
 
 impl<T: Serialize> Serialize for Vec<T> {
     fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings> {

@@ -156,7 +156,7 @@ impl WgpuGraphicService {
 
         // Dispatch initialized event
         let on_initialized = Signal::new();
-        on_initialized.notify(())?;
+        on_initialized.send(())?;
 
         let window_service = resource_container.require::<dyn WindowService>();
         Ok(WgpuGraphicService {

@@ -1,22 +1,5 @@
-use crate::entity::archetype::Archetype;
-use crate::entity::entity_query::BidirectionalIterator;
-use crate::entity::entity_query::QueryParam;
-use crate::entity::entity_reference::EntityReference;
-use crate::entity::entity_reference::InnerShareableEntityReference;
-use std::ops::Deref;
-use std::ops::Mul;
-
-struct TupleSubIterator<'a, T: QueryParam<'a> + 'static> {
-    iterator: T::Iterator,
-    local_id: usize,
-    items_per_entity: usize,
-}
-
-struct TupleSubFromEntityReferenceIterator<'a, T: QueryParam<'a> + 'static> {
-    iterator: T::FromEntityReferenceIterator,
-    local_id: usize,
-    items_per_entity: usize,
-}
+use super::{EntityIterator, QueryParam};
+use crate::entity::{Archetype, ArchetypeComponentTypes, EntityReference};
 
 macro_rules! struct_iterator {
     (
@@ -29,7 +12,7 @@ macro_rules! struct_iterator {
             'a,
             $($tn: QueryParam<'a> + 'static),*
         > {
-            $($tn: TupleSubIterator<'a, $tn>),*
+            $($tn: $tn::Iterator),*
         }
     };
 }
@@ -45,12 +28,12 @@ macro_rules! struct_from_entity_reference_iterator {
             'a,
             $($tn: QueryParam<'a> + 'static),*
         > {
-            $($tn: TupleSubFromEntityReferenceIterator<'a, $tn>),*
+            $($tn: $tn::FromEntityReferenceIterator),*
         }
     };
 }
 
-macro_rules! next_for_iterators {
+macro_rules! next_for_entity_iterators {
     (
         [$($all_tn:ident),*]
         $self:ident,
@@ -58,22 +41,20 @@ macro_rules! next_for_iterators {
         $($previous_tn:ident),+
     ) => {
         // Next for previous
-        next_for_iterators!([$($all_tn),*] $self, $($previous_tn),*);
+        next_for_entity_iterators!([$($all_tn),*] $self, $($previous_tn),*);
 
         // Next if needed for T(x)
-        if $self.$last.local_id + 1 < $self.$last.items_per_entity {
-            $self.$last.iterator.next()?;
-            $self.$last.local_id += 1;
+        if !$self.$last.has_reach_entity_end() {
+            $self.$last.next()?;
 
             // Reinitialize the left iterators
             $(
-                $self.$previous_tn.iterator.go_back($self.$previous_tn.items_per_entity - 1);
-                $self.$previous_tn.local_id += 0;
+                $self.$previous_tn.reset_current_entity();
             )*
 
             // Returns the current result
             return Some((
-                $($self.$all_tn.iterator.current(),)*
+                $($self.$all_tn.current(),)*
             ))
         }
     };
@@ -83,25 +64,24 @@ macro_rules! next_for_iterators {
         $last:ident
     ) => {
         // Next if needed for T(x)
-        if $self.$last.local_id + 1 < $self.$last.items_per_entity {
-            $self.$last.iterator.next()?;
-            $self.$last.local_id += 1;
+        if !$self.$last.has_reach_entity_end() {
+            $self.$last.next()?;
 
             // Returns the current result
             return Some((
-                $($self.$all_tn.iterator.current(),)*
+                $($self.$all_tn.current(),)*
             ))
         }
     };
     // This is to reverse the elem order
     ($self:ident, [$($all_tn:ident),*] [] $($reversed:ident,)*) => {
-        next_for_iterators!([$($all_tn),*] $self, $($reversed),*) // base case
+        next_for_entity_iterators!([$($all_tn),*] $self, $($reversed),*) // base case
     };
     ($self:ident, [$($all_tn:ident),*] [$first:ident] $($reversed:ident,)*) => {
-        next_for_iterators!($self, [$($all_tn),*] [] $first, $($reversed,)*) // last recursion
+        next_for_entity_iterators!($self, [$($all_tn),*] [] $first, $($reversed,)*) // last recursion
     };
     ($self:ident, [$($all_tn:ident),*] [$first:ident, $($rest:ident),*] $($reversed:ident,)*) => {
-        next_for_iterators!($self, [$($all_tn),*]  [$($rest),*] $first, $($reversed,)*) // recursion
+        next_for_entity_iterators!($self, [$($all_tn),*]  [$($rest),*] $first, $($reversed,)*) // recursion
     };
 }
 
@@ -120,15 +100,13 @@ macro_rules! impl_iterator {
             fn next(&mut self) -> Option<Self::Item> {
                 // If we arrive at the end of the entity cross product, we just change the entity
                 // We do it first cause it is the most common case
-                if $(self.$tn.local_id + 1 == self.$tn.items_per_entity) && * {
-                    $(self.$tn.local_id = 0;)*
-
+                if $(self.$tn.has_reach_entity_end()) && * {
                     return Some((
-                        $(self.$tn.iterator.next()?,)*
+                        $(self.$tn.next()?,)*
                     ));
                 }
 
-                next_for_iterators!(self, [ $($tn),* ] [ $($tn),* ]);
+                next_for_entity_iterators!(self, [ $($tn),* ] [ $($tn),* ]);
 
                 unreachable!()
             }
@@ -136,7 +114,7 @@ macro_rules! impl_iterator {
     };
 }
 
-macro_rules! impl_bidirectional_iterator {
+macro_rules! impl_entity_iterator {
     (
         $iterator_ident:ident,
         $($tn:ident),+
@@ -144,30 +122,21 @@ macro_rules! impl_bidirectional_iterator {
         impl<
                 'a,
                 $($tn: QueryParam<'a> + 'static),*
-            > BidirectionalIterator for $iterator_ident<'a, $($tn),+>
+            > EntityIterator for $iterator_ident<'a, $($tn),+>
         {
             fn current(&mut self) -> Self::Item {
-                (
-                    $(self.$tn.iterator.current()),*
-                )
+                ($(self.$tn.current()),*)
             }
 
-            fn go_back(&mut self, count: usize) {
-                $(self.$tn.iterator.go_back(self.$tn.items_per_entity * count);)*
+            fn has_reach_entity_end(&self) -> bool {
+                $(self.$tn.has_reach_entity_end()) && *
+            }
+
+            fn reset_current_entity(&mut self) {
+                $(self.$tn.reset_current_entity();)*
             }
         }
     };
-}
-
-macro_rules! items_per_entity {
-    (
-        $archetype:ident,
-        $t1:ident,
-        $($tn:ident),+
-    ) => {
-        $t1::items_per_entity($archetype)
-        $(.mul($tn::items_per_entity($archetype)))*
-    }
 }
 
 macro_rules! impl_query_param {
@@ -185,30 +154,14 @@ macro_rules! impl_query_param {
             type Iterator = $iterator_ident<'a, $($tn),+>;
             type FromEntityReferenceIterator = $from_entity_reference_iterator_ident<'a, $($tn),+>;
 
-            fn filter_archetype(archetype: &Archetype) -> bool {
-                $($tn::filter_archetype(archetype)) && +
-            }
-
-            fn require_read() -> bool {
-                $($tn::require_read()) || +
-            }
-
-            fn require_write() -> bool {
-                $($tn::require_write()) || +
-            }
-
-            fn items_per_entity(archetype: &'a Archetype) -> usize {
-                items_per_entity!(archetype, $($tn),*)
+            fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
+                $($tn::filter_archetype(component_types)) && +
             }
 
             fn iter(archetype: &'a Archetype) -> Self::Iterator {
                 $iterator_ident {
                     $(
-                        $tn: TupleSubIterator {
-                            iterator: $tn::iter(archetype),
-                            local_id: 0,
-                            items_per_entity: $tn::items_per_entity(archetype),
-                        },
+                        $tn: $tn::iter(archetype),
                     )*
                 }
             }
@@ -216,31 +169,11 @@ macro_rules! impl_query_param {
             fn from_entity_reference(
                 entity_reference: &EntityReference,
             ) -> Self::FromEntityReferenceIterator {
-                let inner_entity_reference = entity_reference.inner.read();
-                if let InnerShareableEntityReference::Archetype {
-                    archetype_ptr, ..
-                } = inner_entity_reference.deref()
-                {
-                    let archetype = unsafe {
-                            archetype_ptr
-                            .as_ref()
-                            .unwrap()
-                    };
-
-                    $from_entity_reference_iterator_ident {
-                        $(
-                            $tn: TupleSubFromEntityReferenceIterator {
-                                iterator: $tn::from_entity_reference(entity_reference),
-                                local_id: 0,
-                                items_per_entity: $tn::items_per_entity(archetype),
-                            },
-                        )*
-                    }
-                } else {
-                    unreachable!()
+                $from_entity_reference_iterator_ident {
+                    $(
+                        $tn: $tn::from_entity_reference(entity_reference),
+                    )*
                 }
-
-
             }
         }
     };
@@ -254,11 +187,11 @@ macro_rules! tuple_impl_generics {
     ) => {
         struct_iterator!($iterator_ident, $($tn),*);
         impl_iterator!($iterator_ident, $($tn),*);
-        impl_bidirectional_iterator!($iterator_ident, $($tn),*);
+        impl_entity_iterator!($iterator_ident, $($tn),*);
 
         struct_from_entity_reference_iterator!($from_entity_reference_iterator_ident, $($tn),*);
         impl_iterator!($from_entity_reference_iterator_ident, $($tn),*);
-        impl_bidirectional_iterator!($from_entity_reference_iterator_ident, $($tn),*);
+        impl_entity_iterator!($from_entity_reference_iterator_ident, $($tn),*);
 
         impl_query_param!($iterator_ident, $from_entity_reference_iterator_ident, $($tn),*);
     }

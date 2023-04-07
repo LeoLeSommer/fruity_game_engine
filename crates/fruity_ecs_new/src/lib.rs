@@ -13,7 +13,7 @@
 //! - Components are structure where the datas are stored
 
 use component::ExtensionComponentService;
-use entity::EntityId;
+use entity::{EntityId, EntityService};
 use fruity_game_engine::{export_function, module::Module, typescript_import, Arc};
 use serialization::SerializationService;
 use system::SystemService;
@@ -25,7 +25,7 @@ pub mod component;
 pub mod entity;
 
 /// Queries module
-// pub mod query;
+pub mod query;
 
 /// Serialization module
 pub mod serialization;
@@ -63,8 +63,8 @@ pub fn create_fruity_ecs_module() -> Module {
                 Box::new(extension_component_service),
             );
 
-            /*let entity_service = EntityService::new(resource_container.clone());
-            resource_container.add::<EntityService>("entity_service", Box::new(entity_service));*/
+            let entity_service = EntityService::new(resource_container.clone());
+            resource_container.add::<EntityService>("entity_service", Box::new(entity_service));
 
             let serialization_service = resource_container.require::<SerializationService>();
             let mut serialization_service = serialization_service.write();
@@ -72,7 +72,7 @@ pub fn create_fruity_ecs_module() -> Module {
             serialization_service.register::<EntityId>();
 
             // Register system middleware
-            /*let system_service = resource_container.require::<SystemService>();
+            let system_service = resource_container.require::<SystemService>();
             let entity_service = resource_container.require::<EntityService>();
             world.add_run_start_middleware(move |next, world| {
                 {
@@ -81,7 +81,7 @@ pub fn create_fruity_ecs_module() -> Module {
                 }
 
                 {
-                    let mut entity_service_writer = entity_service.write();
+                    let entity_service_writer = entity_service.read();
                     unsafe { entity_service_writer.apply_pending_mutations()? };
                 }
 
@@ -97,7 +97,7 @@ pub fn create_fruity_ecs_module() -> Module {
                 }
 
                 {
-                    let mut entity_service_writer = entity_service.write();
+                    let entity_service_writer = entity_service.read();
                     unsafe { entity_service_writer.apply_pending_mutations()? };
                 }
 
@@ -113,12 +113,12 @@ pub fn create_fruity_ecs_module() -> Module {
                 }
 
                 {
-                    let mut entity_service_writer = entity_service.write();
+                    let entity_service_writer = entity_service.read();
                     unsafe { entity_service_writer.apply_pending_mutations()? };
                 }
 
                 next(world)
-            });*/
+            });
 
             Ok(())
         })),

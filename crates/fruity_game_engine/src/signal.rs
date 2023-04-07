@@ -52,7 +52,7 @@ struct InternSignal<T: 'static> {
 #[derive(FruityAny)]
 #[typescript(
     "interface Signal<T> {
-  notify(event: T);
+  send(event: T);
   addObserver(callback: (value: T) => void);
 }"
 )]
@@ -126,7 +126,7 @@ impl<T> Signal<T> {
 
     /// Notify that the event happened
     /// This will launch all the observers that are registered for this signal
-    pub fn notify(&self, event: T) -> FruityResult<()> {
+    pub fn send(&self, event: T) -> FruityResult<()> {
         let observers = {
             let intern = self.intern.read();
             intern.observers.clone()
@@ -180,16 +180,16 @@ where
     T: TryFromScriptValue + TryIntoScriptValue + Clone,
 {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec!["notify".to_string()])
+        Ok(vec!["send".to_string()])
     }
 
     fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
         match name {
-            "notify" => {
+            "send" => {
                 let mut caster = ArgumentCaster::new(args);
                 let arg1 = caster.cast_next::<T>()?;
 
-                let handle = self.notify(arg1);
+                let handle = self.send(arg1);
 
                 handle.into_script_value()
             }
@@ -223,16 +223,16 @@ where
 
 impl IntrospectMethods for Signal<Box<dyn ScriptObject>> {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec!["notify".to_string()])
+        Ok(vec!["send".to_string()])
     }
 
     fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
         match name {
-            "notify" => {
+            "send" => {
                 let mut caster = ArgumentCaster::new(args);
                 let arg1 = caster.cast_next::<Box<dyn ScriptObject>>()?;
 
-                let handle = self.notify(arg1);
+                let handle = self.send(arg1);
 
                 handle.into_script_value()
             }
@@ -275,7 +275,7 @@ impl<'a, T: Send + Sync + Clone> Drop for SignalWriteGuard<'a, T> {
     fn drop(&mut self) {
         self.target
             .on_updated
-            .notify(self.target.value.clone())
+            .send(self.target.value.clone())
             .unwrap();
     }
 }

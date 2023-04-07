@@ -38,10 +38,10 @@ pub struct Archetype {
     component_types: ArchetypeComponentTypes,
 
     /// The entity ids
-    entity_ids: Vec<EntityId>,
+    pub(crate) entity_ids: Vec<EntityId>,
 
     /// The component storages
-    component_storages: BTreeMap<ComponentTypeId, RwLock<Box<dyn ComponentStorage>>>,
+    pub(crate) component_storages: BTreeMap<ComponentTypeId, RwLock<Box<dyn ComponentStorage>>>,
 }
 
 impl Archetype {
@@ -116,6 +116,21 @@ impl Archetype {
         self.component_storages.clear();
 
         Ok(())
+    }
+
+    pub fn get_entity_components(&self, entity_index: usize) -> Vec<Box<dyn Component>> {
+        self.component_storages
+            .values()
+            .map(|component_storage| {
+                let component_storage = component_storage.read();
+                component_storage
+                    .iter_slice(entity_index)
+                    .unwrap()
+                    .map(|component| component.duplicate())
+                    .collect::<Vec<_>>()
+            })
+            .flatten()
+            .collect::<Vec<Box<dyn Component>>>()
     }
 
     /// Add an entity to the archetype

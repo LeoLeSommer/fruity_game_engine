@@ -158,7 +158,7 @@ impl InputService {
             if !self.pressed_inputs.contains(input) {
                 self.pressed_inputs.insert(input.clone());
                 self.pressed_this_frame_inputs.insert(input.to_string());
-                self.on_pressed.notify(input.clone())?;
+                self.on_pressed.send(input.clone())?;
             }
         }
 
@@ -174,7 +174,7 @@ impl InputService {
             if self.pressed_inputs.contains(input) {
                 self.pressed_inputs.remove(input);
                 self.released_this_frame_inputs.insert(input.to_string());
-                self.on_released.notify(input.clone())?;
+                self.on_released.send(input.clone())?;
             }
         }
 

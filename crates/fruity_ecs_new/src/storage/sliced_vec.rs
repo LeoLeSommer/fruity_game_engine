@@ -2,11 +2,11 @@
 #[derive(Debug, Clone, Default)]
 pub struct SlicedVec<T> {
     // The actual data
-    data: Vec<T>,
+    pub(crate) data: Vec<T>,
     // The indices of the slices
-    indices: Vec<usize>,
+    pub(crate) indices: Vec<usize>,
     /// The lengths of the slices
-    lengths: Vec<usize>,
+    pub(crate) lengths: Vec<usize>,
 }
 
 impl<T> SlicedVec<T> {

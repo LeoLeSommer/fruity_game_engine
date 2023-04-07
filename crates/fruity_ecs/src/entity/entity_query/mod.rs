@@ -345,7 +345,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
                 .on_entity_address_added
                 .add_observer(move |event| {
                     if T::filter_archetype(unsafe { event.archetype.as_ref() }) {
-                        on_entity_created_2.notify(event.entity_reference.clone())?;
+                        on_entity_created_2.send(event.entity_reference.clone())?;
                     }
 
                     Ok(())
@@ -357,7 +357,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
                 .on_entity_address_removed
                 .add_observer(move |event| {
                     if T::filter_archetype(unsafe { event.archetype.as_ref() }) {
-                        on_entity_deleted_2.notify(event.entity_id)?;
+                        on_entity_deleted_2.send(event.entity_id)?;
                     }
 
                     Ok(())

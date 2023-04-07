@@ -511,7 +511,7 @@ impl EntityService {
 
                 // Notify memory operation
                 let archetype = &self.archetypes[archetype_index];
-                self.on_archetype_address_added.notify(unsafe {
+                self.on_archetype_address_added.send(unsafe {
                     NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
                 })?;
 
@@ -532,7 +532,7 @@ impl EntityService {
                             };
 
                             self.on_archetype_address_moved
-                                .notify(OnArchetypeAddressMoved { old, new })
+                                .send(OnArchetypeAddressMoved { old, new })
                         })?;
                 } else {
                     self.archetypes
@@ -543,7 +543,7 @@ impl EntityService {
                             let old = unsafe { NonNull::new_unchecked(new.sub(1)) };
 
                             self.on_archetype_address_moved
-                                .notify(OnArchetypeAddressMoved { old, new })
+                                .send(OnArchetypeAddressMoved { old, new })
                         })?;
                 }
 
@@ -558,11 +558,11 @@ impl EntityService {
 
         // Notify that entity is created
         let entity_reference = self.get_entity_reference(entity_id).unwrap();
-        self.on_created.notify(entity_reference.clone())?;
+        self.on_created.send(entity_reference.clone())?;
 
         // Notify memory operation
         let archetype = &self.archetypes[location.archetype_index];
-        self.on_entity_address_added.notify(OnEntityAddressAdded {
+        self.on_entity_address_added.send(OnEntityAddressAdded {
             entity_reference,
             archetype: unsafe {
                 NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
@@ -594,12 +594,12 @@ impl EntityService {
         archetype.remove(location.entity_index, true)?;
 
         // Propagate the deleted signal
-        self.on_deleted.notify(entity_id)?;
+        self.on_deleted.send(entity_id)?;
 
         // Notify memory operation
         let archetype = &self.archetypes[location.archetype_index];
         self.on_entity_address_removed
-            .notify(OnEntityAddressRemoved {
+            .send(OnEntityAddressRemoved {
                 entity_id,
                 archetype: unsafe {
                     NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
@@ -675,7 +675,7 @@ impl EntityService {
                 as *mut RwLock<()>;
 
             self.on_entity_lock_address_moved
-                .notify(OnEntityLockAddressMoved {
+                .send(OnEntityLockAddressMoved {
                     old: unsafe { NonNull::new_unchecked(old_lock_ptr) },
                     new: new_lock_ptr,
                 })?;
@@ -713,26 +713,24 @@ impl EntityService {
                     };
 
                     self.on_component_address_moved
-                        .notify(OnComponentAddressMoved {
+                        .send(OnComponentAddressMoved {
                             old: old_component_ptr,
                             new: Some(unsafe { NonNull::new_unchecked(new_component_ptr) }),
                         })
                 })?;
 
-            self.on_entity_location_moved
-                .notify(OnEntityLocationMoved {
-                    old_entity_index: old_location.entity_index,
-                    old_archetype: unsafe {
-                        NonNull::new_unchecked(
-                            &self.archetypes[old_location.archetype_index] as *const Archetype
-                                as *mut Archetype,
-                        )
-                    },
-                    new_entity_index: new_location.entity_index,
-                    new_archetype_ptr: &self.archetypes[new_location.archetype_index]
-                        as *const Archetype
-                        as *mut Archetype,
-                })?;
+            self.on_entity_location_moved.send(OnEntityLocationMoved {
+                old_entity_index: old_location.entity_index,
+                old_archetype: unsafe {
+                    NonNull::new_unchecked(
+                        &self.archetypes[old_location.archetype_index] as *const Archetype
+                            as *mut Archetype,
+                    )
+                },
+                new_entity_index: new_location.entity_index,
+                new_archetype_ptr: &self.archetypes[new_location.archetype_index]
+                    as *const Archetype as *mut Archetype,
+            })?;
         }
 
         Ok(())
@@ -803,7 +801,7 @@ impl EntityService {
                 as *mut RwLock<()>;
 
             self.on_entity_lock_address_moved
-                .notify(OnEntityLockAddressMoved {
+                .send(OnEntityLockAddressMoved {
                     old: unsafe { NonNull::new_unchecked(old_lock_ptr) },
                     new: new_lock_ptr,
                 })?;
@@ -841,26 +839,24 @@ impl EntityService {
                     };
 
                     self.on_component_address_moved
-                        .notify(OnComponentAddressMoved {
+                        .send(OnComponentAddressMoved {
                             old: old_component_ptr,
                             new: Some(unsafe { NonNull::new_unchecked(new_component_ptr) }),
                         })
                 })?;
 
-            self.on_entity_location_moved
-                .notify(OnEntityLocationMoved {
-                    old_entity_index: old_location.entity_index,
-                    old_archetype: unsafe {
-                        NonNull::new_unchecked(
-                            &self.archetypes[old_location.archetype_index] as *const Archetype
-                                as *mut Archetype,
-                        )
-                    },
-                    new_entity_index: new_location.entity_index,
-                    new_archetype_ptr: &self.archetypes[new_location.archetype_index]
-                        as *const Archetype
-                        as *mut Archetype,
-                })?;
+            self.on_entity_location_moved.send(OnEntityLocationMoved {
+                old_entity_index: old_location.entity_index,
+                old_archetype: unsafe {
+                    NonNull::new_unchecked(
+                        &self.archetypes[old_location.archetype_index] as *const Archetype
+                            as *mut Archetype,
+                    )
+                },
+                new_entity_index: new_location.entity_index,
+                new_archetype_ptr: &self.archetypes[new_location.archetype_index]
+                    as *const Archetype as *mut Archetype,
+            })?;
         }
 
         Ok(())
@@ -870,26 +866,25 @@ impl EntityService {
         // Propagate the deleted signals
         self.entity_locations
             .iter()
-            .try_for_each(|(entity_id, _location)| self.on_deleted.notify(*entity_id))?;
+            .try_for_each(|(entity_id, _location)| self.on_deleted.send(*entity_id))?;
 
         // Notify memory operation
         self.entity_locations
             .iter()
             .try_for_each(|(entity_id, location)| {
                 let archetype = &self.archetypes[location.archetype_index];
-                self.on_entity_address_removed
-                    .notify(OnEntityAddressRemoved {
-                        entity_id: *entity_id,
-                        archetype: unsafe {
-                            NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
-                        },
-                    })
+                self.on_entity_address_removed.send(OnEntityAddressRemoved {
+                    entity_id: *entity_id,
+                    archetype: unsafe {
+                        NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
+                    },
+                })
             })?;
 
         self.entity_locations
             .iter()
             .try_for_each(|(_entity_id, location)| {
-                self.on_entity_location_moved.notify(OnEntityLocationMoved {
+                self.on_entity_location_moved.send(OnEntityLocationMoved {
                     old_entity_index: location.entity_index,
                     old_archetype: unsafe {
                         NonNull::new_unchecked(
@@ -904,7 +899,7 @@ impl EntityService {
 
         self.archetypes.iter().try_for_each(|archetype| {
             self.on_archetype_address_moved
-                .notify(OnArchetypeAddressMoved {
+                .send(OnArchetypeAddressMoved {
                     old: NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype),
                     new: null_mut(),
                 })

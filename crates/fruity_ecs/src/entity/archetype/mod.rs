@@ -169,7 +169,7 @@ impl Archetype {
         self.lock_array.iter().try_for_each(|lock| {
             let old = lock as *const RwLock<()> as *mut RwLock<()>;
             self.on_entity_lock_address_moved
-                .notify(OnEntityLockAddressMoved {
+                .send(OnEntityLockAddressMoved {
                     old: unsafe { NonNull::new_unchecked(old) },
                     new: null_mut(),
                 })
@@ -188,7 +188,7 @@ impl Archetype {
             .flatten()
             .try_for_each(|old_component_ptr| {
                 self.on_component_address_moved
-                    .notify(OnComponentAddressMoved {
+                    .send(OnComponentAddressMoved {
                         old: unsafe { NonNull::new_unchecked(old_component_ptr) },
                         new: None,
                     })
@@ -285,7 +285,7 @@ impl Archetype {
                 let old = unsafe { NonNull::new_unchecked(new.byte_offset(addr_diff)) };
 
                 self.on_entity_lock_address_moved
-                    .notify(OnEntityLockAddressMoved { old, new })
+                    .send(OnEntityLockAddressMoved { old, new })
             })?;
 
             component_storages_about_to_reallocate.iter().try_for_each(
@@ -309,7 +309,7 @@ impl Archetype {
                             };
 
                             self.on_component_address_moved
-                                .notify(OnComponentAddressMoved {
+                                .send(OnComponentAddressMoved {
                                     old: old_component_ptr,
                                     new: Some(unsafe { NonNull::new_unchecked(new_component_ptr) }),
                                 })
@@ -399,7 +399,7 @@ impl Archetype {
                 let new = old.sub(1);
 
                 self.on_entity_lock_address_moved
-                    .notify(OnEntityLockAddressMoved {
+                    .send(OnEntityLockAddressMoved {
                         old: unsafe { NonNull::new_unchecked(old) },
                         new,
                     })
@@ -421,7 +421,7 @@ impl Archetype {
                             );
 
                             self.on_component_address_moved
-                                .notify(OnComponentAddressMoved {
+                                .send(OnComponentAddressMoved {
                                     old: unsafe { NonNull::new_unchecked(old) },
                                     new: Some(unsafe { NonNull::new_unchecked(new) }),
                                 })
@@ -431,7 +431,7 @@ impl Archetype {
             if propagate_memory_deleted_signals {
                 let old = &self.lock_array[index] as *const RwLock<()> as *mut RwLock<()>;
                 self.on_entity_lock_address_moved
-                    .notify(OnEntityLockAddressMoved {
+                    .send(OnEntityLockAddressMoved {
                         old: unsafe { NonNull::new_unchecked(old) },
                         new: null_mut(),
                     })?;
@@ -449,7 +449,7 @@ impl Archetype {
                                     as *mut dyn Component;
 
                                 self.on_component_address_moved
-                                    .notify(OnComponentAddressMoved {
+                                    .send(OnComponentAddressMoved {
                                         old: unsafe { NonNull::new_unchecked(old) },
                                         new: None,
                                     })

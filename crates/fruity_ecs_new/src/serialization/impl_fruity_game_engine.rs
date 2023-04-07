@@ -1,6 +1,5 @@
-use crate::entity::EntityId;
-
 use super::{Deserialize, Serialize};
+use crate::entity::{EntityId, EntityReference, EntityService};
 // use crate::entity::{entity_reference::EntityReference, entity_service::EntityService, EntityId};
 use fruity_game_engine::{
     introspect::{IntrospectFields, IntrospectMethods},
@@ -118,7 +117,7 @@ impl<T: Deserialize + Send + Sync + Clone + 'static> Deserialize for SignalPrope
     }
 }
 
-/*impl Serialize for EntityReference {
+impl Serialize for EntityReference {
     fn serialize(&self, _resource_container: &ResourceContainer) -> FruityResult<Settings> {
         Ok(Settings::F64(self.get_entity_id()?.0 as f64))
     }
@@ -153,7 +152,7 @@ impl Deserialize for EntityReference {
 
         Ok(entity_reference)
     }
-}*/
+}
 
 impl Serialize for AnyResourceReference {
     fn serialize(&self, _resource_container: &ResourceContainer) -> FruityResult<Settings> {

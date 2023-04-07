@@ -104,7 +104,7 @@ impl WindowService for WinitWindowService {
         self.get_window()
             .set_inner_size(LogicalSize::new(width as i32, height as i32));
 
-        self.on_resize.notify((width, height))
+        self.on_resize.send((width, height))
     }
 
     #[export]

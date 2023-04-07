@@ -1,13 +1,13 @@
 use super::Deserialize;
-use crate::component::Component;
-use crate::entity::EntityId;
-use fruity_game_engine::script_value::convert::TryIntoScriptValue;
-use fruity_game_engine::settings::Settings;
+use crate::{component::Component, entity::EntityId};
 use fruity_game_engine::{
-    any::FruityAny, resource::resource_container::ResourceContainer, script_value::ScriptValue,
+    any::FruityAny,
+    export_impl, export_struct,
+    resource::resource_container::ResourceContainer,
+    script_value::{convert::TryIntoScriptValue, ScriptValue},
+    settings::Settings,
     FruityResult,
 };
-use fruity_game_engine::{export_impl, export_struct};
 use std::collections::HashMap;
 
 /// Utility used to deserialize objects, mostly used to restore snapshot
