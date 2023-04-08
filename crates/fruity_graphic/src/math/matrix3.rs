@@ -1,14 +1,7 @@
-use crate::math::vector2d::Vector2D;
-use crate::Matrix4;
-use cgmath::Angle;
-use cgmath::Rad;
-use cgmath::SquareMatrix;
-use fruity_ecs::serializable::Deserialize;
-use fruity_ecs::serializable::Serialize;
-use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::export;
-use fruity_game_engine::export_impl;
-use fruity_game_engine::export_struct;
+use crate::{math::vector2d::Vector2D, Matrix4};
+use cgmath::{Angle, Rad, SquareMatrix};
+use fruity_ecs::serialization::{Deserialize, Serialize};
+use fruity_game_engine::{any::FruityAny, export, export_impl, export_struct};
 use std::ops::Mul;
 
 #[derive(Debug, FruityAny, Serialize, Deserialize, Clone, Copy)]

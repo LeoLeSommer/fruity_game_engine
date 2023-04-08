@@ -9,7 +9,7 @@ use crate::{
 };
 use convert_case::{Case, Casing};
 use fruity_game_engine_macro::FruityAny;
-use futures::{executor::block_on, future::Shared, FutureExt};
+use futures::{executor::block_on, FutureExt};
 use lazy_static::lazy_static;
 use napi::NapiValue;
 use napi::{
@@ -244,7 +244,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                     })
                         as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
 
-                    ScriptValue::Future(future.shared())
+                    ScriptValue::Future(future)
                 } else {
                     profile_scope!("js_value_to_script_value_object");
 
@@ -259,10 +259,10 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                     match unwrap_result {
                         Ok(_) => {
                             let wrapped = wrapped as *mut Box<dyn ScriptObject>;
-                            let wrapped = unsafe { wrapped.as_mut() }.unwrap();
+                            let wrapped = unsafe { Box::from_raw(wrapped) };
 
                             // Second case, a value is wrapped into the object
-                            ScriptValue::Object(wrapped.deref().duplicate())
+                            ScriptValue::Object(*wrapped)
                         }
                         Err(_) => {
                             // Third case, the object is a plain javascript object
@@ -288,7 +288,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                         .map_err(|e| FruityError::from_napi(e))?;
 
                 let js_send_wrapper = SendWrapper::new((env.clone(), js_func));
-                ScriptValue::Callback(Arc::new(move |args| {
+                ScriptValue::Callback(Box::new(move |args| {
                     // Case the js function is called in the js thread, we call it directly
                     // Otherwise, we call the function in the js thread and wait for the result in our thread
                     let result = if js_send_wrapper.valid() {
@@ -312,14 +312,16 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                         let result = js_value_to_script_value(&env, result)?;
                         Ok(result)
                     } else {
-                        let result: ScriptValue = Builder::new_current_thread()
+                        todo!()
+
+                        /*let result: ScriptValue = Builder::new_current_thread()
                             .enable_all()
                             .build()
                             .unwrap()
                             .block_on(thread_safe_func.call_async(args))
                             .map_err(|e| FruityError::from_napi(e))?;
 
-                        Ok(result)
+                        Ok(result)*/
                     };
 
                     result
@@ -513,37 +515,6 @@ impl IntrospectMethods for JsIntrospectObject {
         _args: Vec<ScriptValue>,
     ) -> FruityResult<ScriptValue> {
         unreachable!()
-    }
-}
-
-struct FutureTask(Shared<Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>>);
-
-impl Task for FutureTask {
-    type Output = FruityResult<ScriptValue>;
-    type JsValue = JsUnknown;
-
-    fn compute(&mut self) -> napi::Result<Self::Output> {
-        let future = self.0.clone();
-        let result = Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(future);
-
-        Ok(result)
-    }
-
-    fn resolve(&mut self, env: Env, output: Self::Output) -> napi::Result<Self::JsValue> {
-        script_value_to_js_value(&env, output.map_err(|e| e.into_napi())?)
-            .map_err(|e| e.into_napi())
-    }
-
-    fn reject(&mut self, _env: Env, err: napi::Error) -> napi::Result<Self::JsValue> {
-        Err(err)
-    }
-
-    fn finally(&mut self, _env: Env) -> napi::Result<()> {
-        Ok(())
     }
 }
 

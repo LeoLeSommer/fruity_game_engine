@@ -2,12 +2,16 @@ use super::{Deserialize, Serialize};
 use crate::entity::{EntityId, EntityReference, EntityService};
 // use crate::entity::{entity_reference::EntityReference, entity_service::EntityService, EntityId};
 use fruity_game_engine::{
+    any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
     resource::{
         resource_container::ResourceContainer,
         resource_reference::{AnyResourceReference, ResourceReference},
     },
-    script_value::{HashMapScriptObject, ScriptValue},
+    script_value::{
+        convert::{TryFromScriptValue, TryIntoScriptValue},
+        ScriptValue,
+    },
     settings::Settings,
     signal::SignalProperty,
     FruityError, FruityResult,
@@ -78,16 +82,9 @@ impl Deserialize for ScriptValue {
                     })
                     .try_collect::<_>()?,
             ),
-            Settings::Object(value) => ScriptValue::Object(Box::new(HashMapScriptObject {
-                class_name: "unknown".to_string(),
-                fields: value
-                    .into_iter()
-                    .map(|(key, value)| {
-                        ScriptValue::deserialize(value, resource_container, local_id_to_entity_id)
-                            .map(|value| (key.clone(), value))
-                    })
-                    .try_collect::<_>()?,
-            })),
+            Settings::Object(value) => {
+                ScriptValue::Object(Box::new(SettingsHashMap(value.clone())))
+            }
             Settings::Null => ScriptValue::Null,
         })
     }
@@ -251,5 +248,55 @@ impl Deserialize for EntityId {
             )))?;
 
         Ok(entity_id.clone())
+    }
+}
+
+/// A wrapper around a HashMap<String, Settings> that can be used to store settings as a script object
+#[derive(FruityAny, Debug, Clone)]
+pub struct SettingsHashMap(HashMap<String, Settings>);
+
+impl IntrospectFields for SettingsHashMap {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(false)
+    }
+
+    fn get_class_name(&self) -> FruityResult<String> {
+        Ok("SettingsHashMap".to_string())
+    }
+
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        Ok(self.0.keys().map(|key| key.clone()).collect())
+    }
+
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        self.0
+            .insert(name.to_string(), Settings::from_script_value(value)?);
+        Ok(())
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        Ok(self.0.get(name).unwrap().clone().into_script_value()?)
+    }
+}
+
+impl IntrospectMethods for SettingsHashMap {
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        unimplemented!()
+    }
+
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unimplemented!()
     }
 }

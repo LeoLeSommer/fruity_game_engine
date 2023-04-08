@@ -4,7 +4,7 @@ use fruity_game_engine::{any::FruityAny, FruityError, FruityResult};
 use std::fmt::Debug;
 
 /// A storage for components
-pub trait ComponentStorage: Debug + FruityAny {
+pub trait ComponentStorage: Debug + FruityAny + Send + Sync {
     /// Returns a reference to the component at the given index. in a given entity
     fn get(&self, entity_index: usize, component_index: usize) -> Option<&dyn Component>;
 

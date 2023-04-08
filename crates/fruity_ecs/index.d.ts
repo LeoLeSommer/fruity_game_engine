@@ -5,37 +5,31 @@ import {
   ScriptValue,
 } from "fruity_game_engine"
 
-export type AnyComponentReference<T = unknown> = T
-
-export type AnyComponent = { [key: string]: any }
-
 export type EntityServiceSnapshot = SerializedEntity[]
 
-export type EntityId = number
-
-export interface EntityProperties {
-  entityId: EntityId
-  name: string
-  enabled: boolean
+export class Enabled {
+  0: boolean
+  constructor(enabled: boolean)
 }
 
 export interface EntityReference {
 
-  getAllComponents(): AnyComponentReference[]
-  getComponentsByTypeIdentifier(componentIdentifier: string): AnyComponentReference[]
   getEntityId(): EntityId
   getName(): string
+  setName(name: string): void
   isEnabled(): boolean
+  setEnabled(enabled: boolean): void
+  getAllComponents(): AnyComponentReference[]
+  getComponentsByTypeIdentifier(componentIdentifier: string): AnyComponentReference[]
 }
 
 export interface EntityService {
   onCreated: Signal<EntityReference>
   onDeleted: Signal<EntityId>
   getEntityReference(entityId: EntityId): EntityReference | null
-  query(): ScriptQueryBuilder
-  create(name: string, enabled: boolean, components: AnyComponent[]): EntityId
-  remove(entityId: EntityId): void
-  addComponents(entityId: EntityId, components: AnyComponent[]): void
+  createEntity(name: string, enabled: boolean, components: Component[]): EntityId
+  removeEntity(entityId: EntityId): Component[]
+  addComponents(entityId: EntityId, newComponents: Component[]): void
   removeComponent(entityId: EntityId, componentIndex: number): void
   clear(): void
   snapshot(): EntityServiceSnapshot
@@ -46,35 +40,13 @@ export interface ExtensionComponentService {
 
 }
 
-export interface ScriptQuery<Args extends any[] = []> {
-  onEntityCreated: Signal<EntityReference>;
-  onEntityDeleted: Signal<EntityId>;
-  forEach(callback: (args: Args) => void);
-  onCreated(callback: (args: Args) => undefined | (() => void)): ObserverHandler;
+export class Name {
+  0: string
+  constructor(string: string)
 }
-export interface ScriptQueryBuilder<Args extends any[] = []> {
-  withEntity(): ScriptQueryBuilder<[...Args, EntityReference]>;
-  withId(): ScriptQueryBuilder<[...Args, EntityId]>;
-  withName(): ScriptQueryBuilder<[...Args, string]>;
-  withEnabled(): ScriptQueryBuilder<[...Args, boolean]>;
-  with<T>(componentIdentifier: string): ScriptQueryBuilder<[...Args, T]>;
-  withOptional<T>(
-    componentIdentifier: string
-  ): ScriptQueryBuilder<[...Args, T | null]>;
-  without(
-    componentIdentifier: string
-  ): ScriptQueryBuilder<[...Args, null]>;
-  build(): ScriptQuery<[...Args]>
-}
+
 export interface SerializationService {
 
-}
-
-export interface SerializedEntity {
-  localId: number
-  name: string
-  enabled: boolean
-  components: AnyComponent[]
 }
 
 export interface StartupSystemParams {

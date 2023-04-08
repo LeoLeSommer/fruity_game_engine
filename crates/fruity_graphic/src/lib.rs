@@ -6,7 +6,7 @@ use crate::resources::default_resources::load_default_resources;
 use crate::resources::material_resource::load_material;
 use crate::resources::shader_resource::load_shader;
 use crate::resources::texture_resource::load_texture;
-use fruity_ecs::serialization_service::SerializationService;
+use fruity_ecs::serialization::SerializationService;
 use fruity_game_engine::module::Module;
 use fruity_game_engine::Arc;
 use fruity_game_engine::{export_function, typescript_import};

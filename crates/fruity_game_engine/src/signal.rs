@@ -4,7 +4,6 @@ use crate::introspect::IntrospectMethods;
 use crate::lazy_static;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
-use crate::script_value::ScriptObject;
 use crate::script_value::ScriptValue;
 use crate::typescript;
 use crate::utils::introspect::ArgumentCaster;
@@ -221,7 +220,7 @@ where
     }
 }
 
-impl IntrospectMethods for Signal<Box<dyn ScriptObject>> {
+impl IntrospectMethods for Signal<ScriptValue> {
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         Ok(vec!["send".to_string()])
     }
@@ -230,7 +229,7 @@ impl IntrospectMethods for Signal<Box<dyn ScriptObject>> {
         match name {
             "send" => {
                 let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster.cast_next::<Box<dyn ScriptObject>>()?;
+                let arg1 = caster.cast_next::<ScriptValue>()?;
 
                 let handle = self.send(arg1);
 
@@ -248,16 +247,10 @@ impl IntrospectMethods for Signal<Box<dyn ScriptObject>> {
         match name {
             "add_observer" => {
                 let mut caster = ArgumentCaster::new(args);
-                let arg1 =
-                    caster.cast_next::<Arc<
-                        dyn Send + Sync + Fn(Box<dyn ScriptObject>) -> FruityResult<ScriptValue>,
-                    >>()?;
+                let arg1 = caster
+                    .cast_next::<Box<dyn Send + Fn(ScriptValue) -> FruityResult<ScriptValue>>>()?;
 
-                let handle = self.add_observer(move |arg| {
-                    arg1(arg.duplicate())?;
-
-                    Ok(())
-                });
+                let handle = self.add_observer(move |arg| todo!());
 
                 handle.into_script_value()
             }

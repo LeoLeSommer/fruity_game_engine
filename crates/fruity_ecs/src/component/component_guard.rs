@@ -1,12 +1,10 @@
-use crate::component::Component;
-use fruity_game_engine::FruityError;
-use fruity_game_engine::RwLockReadGuard;
-use fruity_game_engine::RwLockWriteGuard;
-use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::ops::Deref;
-use std::ops::DerefMut;
-use std::ptr::NonNull;
+use super::{Component, ComponentStorage};
+use fruity_game_engine::{FruityError, RwLockReadGuard, RwLockWriteGuard};
+use std::{
+    fmt::{Debug, Formatter},
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
+};
 
 /// RAII structure used to release the shared read access of a lock when dropped.
 ///
@@ -15,7 +13,7 @@ use std::ptr::NonNull;
 /// [`read`]: ComponentReference::read
 ///
 pub struct AnyComponentReadGuard<'a> {
-    pub(crate) entity_guard: RwLockReadGuard<'a, ()>,
+    pub(crate) storage_guard: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
     pub(crate) component_ptr: NonNull<dyn Component>,
 }
 
@@ -42,7 +40,7 @@ impl<'a, T: Component> TryInto<ComponentReadGuard<'a, T>> for AnyComponentReadGu
             .downcast_ref::<T>()
         {
             Some(result) => Ok(ComponentReadGuard {
-                entity_guard: self.entity_guard,
+                storage_guard: self.storage_guard,
                 component_ptr: NonNull::<T>::from(result),
             }),
             None => Err(FruityError::GenericFailure(format!(
@@ -60,7 +58,7 @@ impl<'a, T: Component> TryInto<ComponentReadGuard<'a, T>> for AnyComponentReadGu
 /// [`write`]: ComponentReference::write
 ///
 pub struct AnyComponentWriteGuard<'a> {
-    pub(crate) entity_guard: RwLockWriteGuard<'a, ()>,
+    pub(crate) storage_guard: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
     pub(crate) component_ptr: NonNull<dyn Component>,
 }
 
@@ -93,7 +91,7 @@ impl<'a, T: Component> TryInto<ComponentWriteGuard<'a, T>> for AnyComponentWrite
             .downcast_ref::<T>()
         {
             Some(result) => Ok(ComponentWriteGuard {
-                entity_guard: self.entity_guard,
+                storage_guard: self.storage_guard,
                 component_ptr: NonNull::<T>::from(result),
             }),
             None => Err(FruityError::GenericFailure(format!(
@@ -111,7 +109,7 @@ impl<'a, T: Component> TryInto<ComponentWriteGuard<'a, T>> for AnyComponentWrite
 /// [`read`]: ComponentReference::read
 ///
 pub struct ComponentReadGuard<'a, T: Component> {
-    pub(crate) entity_guard: RwLockReadGuard<'a, ()>,
+    pub(crate) storage_guard: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
     pub(crate) component_ptr: NonNull<T>,
 }
 
@@ -138,7 +136,7 @@ impl<'a, T: Component> TryInto<AnyComponentReadGuard<'a>> for ComponentReadGuard
             .downcast_ref::<T>()
         {
             Some(result) => Ok(AnyComponentReadGuard {
-                entity_guard: self.entity_guard,
+                storage_guard: self.storage_guard,
                 component_ptr: NonNull::<T>::from(result),
             }),
             None => Err(FruityError::GenericFailure(format!(
@@ -156,7 +154,7 @@ impl<'a, T: Component> TryInto<AnyComponentReadGuard<'a>> for ComponentReadGuard
 /// [`write`]: ComponentReference::write
 ///
 pub struct ComponentWriteGuard<'a, T: Component> {
-    pub(crate) entity_guard: RwLockWriteGuard<'a, ()>,
+    pub(crate) storage_guard: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
     pub(crate) component_ptr: NonNull<T>,
 }
 
@@ -189,13 +187,171 @@ impl<'a, T: Component> TryInto<AnyComponentWriteGuard<'a>> for ComponentWriteGua
             .downcast_ref::<T>()
         {
             Some(result) => Ok(AnyComponentWriteGuard {
-                entity_guard: self.entity_guard,
+                storage_guard: self.storage_guard,
                 component_ptr: NonNull::<T>::from(result),
             }),
             None => Err(FruityError::GenericFailure(format!(
                 "Couldn't convert {:?} to typed component",
                 self
             ))),
+        }
+    }
+}
+
+/// An iterator over all components of a specific type.
+pub struct ComponentReadGuardIterator<'a, T: Component + 'static> {
+    _storage_guard: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+    current: NonNull<T>,
+    end: NonNull<T>,
+}
+
+impl<'a, T: Component + 'static> ComponentReadGuardIterator<'a, T> {
+    pub(crate) fn new(
+        storage_guard: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+        begin: NonNull<T>,
+        count: usize,
+    ) -> Self {
+        Self {
+            _storage_guard: storage_guard,
+            current: begin,
+            end: unsafe { NonNull::new_unchecked(begin.as_ptr().add(count)) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static> Iterator for ComponentReadGuardIterator<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.end {
+            let result = unsafe { self.current.as_ref() };
+            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+/// A mut iterator over all components of a specific type.
+pub struct ComponentWriteGuardIterator<'a, T: Component + 'static> {
+    _storage_guard: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+    current: NonNull<T>,
+    end: NonNull<T>,
+}
+
+impl<'a, T: Component + 'static> ComponentWriteGuardIterator<'a, T> {
+    pub(crate) fn new(
+        storage_guard: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+        begin: NonNull<T>,
+        count: usize,
+    ) -> Self {
+        Self {
+            _storage_guard: storage_guard,
+            current: begin,
+            end: unsafe { NonNull::new_unchecked(begin.as_ptr().add(count)) },
+        }
+    }
+}
+
+impl<'a, T: Component + 'static> Iterator for ComponentWriteGuardIterator<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.end {
+            let result = unsafe { self.current.as_mut() };
+            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+/// An iterator over components of an any type.
+pub struct AnyComponentReadGuardIterator<'a> {
+    _storage_guard: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+    component_type_size: usize,
+    current: NonNull<dyn Component>,
+    end: NonNull<dyn Component>,
+}
+
+impl<'a> AnyComponentReadGuardIterator<'a> {
+    pub(crate) fn new(
+        storage_guard: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+        component_type_size: usize,
+        begin: NonNull<dyn Component>,
+        count: usize,
+    ) -> Self {
+        Self {
+            _storage_guard: storage_guard,
+            component_type_size,
+            current: begin,
+            end: unsafe {
+                NonNull::new_unchecked(begin.as_ptr().byte_add(count * component_type_size))
+            },
+        }
+    }
+}
+
+impl<'a> Iterator for AnyComponentReadGuardIterator<'a> {
+    type Item = &'a dyn Component;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.end {
+            let result = unsafe { self.current.as_ref() };
+            self.current = unsafe {
+                NonNull::new_unchecked(self.current.as_ptr().byte_add(self.component_type_size))
+            };
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+/// A mut iterator over components of an any type.
+pub struct AnyComponentWriteGuardIterator<'a> {
+    _storage_guard: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+    component_type_size: usize,
+    current: NonNull<dyn Component>,
+    end: NonNull<dyn Component>,
+}
+
+impl<'a> AnyComponentWriteGuardIterator<'a> {
+    pub(crate) fn new(
+        storage_guard: RwLockWriteGuard<'a, Box<dyn ComponentStorage>>,
+        component_type_size: usize,
+        begin: NonNull<dyn Component>,
+        count: usize,
+    ) -> Self {
+        Self {
+            _storage_guard: storage_guard,
+            component_type_size,
+            current: begin,
+            end: unsafe {
+                NonNull::new_unchecked(begin.as_ptr().byte_add(count * component_type_size))
+            },
+        }
+    }
+}
+
+impl<'a> Iterator for AnyComponentWriteGuardIterator<'a> {
+    type Item = &'a mut dyn Component;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current < self.end {
+            let result = unsafe { self.current.as_mut() };
+            self.current = unsafe {
+                NonNull::new_unchecked(self.current.as_ptr().byte_add(self.component_type_size))
+            };
+
+            Some(result)
+        } else {
+            None
         }
     }
 }

@@ -1,11 +1,10 @@
-use crate::Parent;
-use fruity_ecs::entity::entity_query::with::With;
-use fruity_ecs::entity::entity_query::with::WithId;
-use fruity_ecs::entity::entity_query::Query;
-use fruity_ecs::entity::entity_service::EntityService;
-use fruity_ecs::system::StartupDisposeSystemCallback;
-use fruity_game_engine::inject::Ref;
-use fruity_game_engine::FruityResult;
+use crate::components::parent::Parent;
+use fruity_ecs::{
+    entity::EntityService,
+    query::{Query, With, WithId},
+    system::StartupDisposeSystemCallback,
+};
+use fruity_game_engine::{inject::Ref, FruityResult};
 use std::ops::Deref;
 
 /// Delete when child when it's parent is deleted
@@ -31,7 +30,7 @@ pub fn delete_cascade(
 
                 if is_child_of_deleted {
                     let entity_service = entity_service.read();
-                    entity_service.remove(entity_id)?;
+                    entity_service.remove_entity(entity_id)?;
                 }
 
                 Ok(())

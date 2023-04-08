@@ -1,25 +1,28 @@
-use super::Component;
-use crate::{
-    entity::archetype::component_storage::{ComponentStorage, VecComponentStorage},
-    serializable::Serialize,
-};
+use super::{component_storage::ComponentStorage, Component, ComponentTypeId, VecComponentStorage};
+use crate::serialization::Serialize;
 use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
     resource::resource_container::ResourceContainer,
     script_value::{ScriptObject, ScriptValue},
     settings::Settings,
-    FruityResult,
+    Arc, FruityResult,
 };
 use std::ops::Deref;
 
 /// Provide a component that contains a script value
-#[derive(FruityAny, Debug)]
-pub struct ScriptComponent(Box<dyn ScriptObject>);
+#[derive(FruityAny, Debug, Clone)]
+pub struct ScriptComponent(Arc<dyn ScriptObject>);
+
+// Safe cause script components are always called in the main thread
+unsafe impl Sync for ScriptComponent {}
+
+// Safe cause script components are always called in the main thread
+unsafe impl Send for ScriptComponent {}
 
 impl From<Box<dyn ScriptObject>> for ScriptComponent {
     fn from(value: Box<dyn ScriptObject>) -> Self {
-        ScriptComponent(value)
+        ScriptComponent(value.into())
     }
 }
 
@@ -65,11 +68,11 @@ impl IntrospectMethods for ScriptComponent {
 
 impl Component for ScriptComponent {
     fn duplicate(&self) -> Box<dyn Component> {
-        Box::new(ScriptComponent(self.0.duplicate()))
+        Box::new(self.clone())
     }
 
-    fn archetype_order(&self) -> FruityResult<u8> {
-        Ok(0)
+    fn get_component_type_id(&self) -> FruityResult<ComponentTypeId> {
+        Ok(ComponentTypeId::Script(self.0.get_class_name()?))
     }
 
     fn get_storage(&self) -> Box<dyn ComponentStorage> {

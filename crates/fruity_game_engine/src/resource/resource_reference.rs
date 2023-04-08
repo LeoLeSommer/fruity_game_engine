@@ -1,7 +1,6 @@
 use crate::any::FruityAny;
 use crate::introspect::IntrospectFields;
 use crate::introspect::IntrospectMethods;
-use crate::script_value::ScriptObject;
 use crate::script_value::ScriptValue;
 use crate::typescript;
 use crate::Arc;
@@ -12,14 +11,16 @@ use crate::RwLockWriteGuard;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
+use super::Resource;
+
 /// A reference over an any resource that is supposed to be used by components
-#[derive(Debug, FruityAny)]
+#[derive(Debug, Clone, FruityAny)]
 pub struct AnyResourceReference {
     /// The name of the resource
     pub name: String,
 
     /// The resource reference
-    pub resource: Box<dyn ScriptObject>,
+    pub resource: Arc<dyn Resource>,
 }
 
 impl AnyResourceReference {
@@ -30,7 +31,7 @@ impl AnyResourceReference {
     ) -> Self {
         AnyResourceReference {
             name: name.to_string(),
-            resource: Box::new(Arc::new(RwLock::new(resource))),
+            resource: Arc::new(RwLock::new(resource)),
         }
     }
 
@@ -44,20 +45,11 @@ impl AnyResourceReference {
         &self,
     ) -> Option<ResourceReference<T>> {
         self.resource
-            .duplicate()
-            .as_any_box()
-            .downcast::<Arc<RwLock<Box<T>>>>()
+            .clone()
+            .as_any_arc()
+            .downcast::<RwLock<Box<T>>>()
             .ok()
-            .map(|resource| ResourceReference::new(&self.name, *resource))
-    }
-}
-
-impl Clone for AnyResourceReference {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            resource: self.resource.duplicate(),
-        }
+            .map(|resource| ResourceReference::new(&self.name, resource))
     }
 }
 

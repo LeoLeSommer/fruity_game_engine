@@ -6,18 +6,14 @@
 //! Will be used to make a bridge between the rust ecosystem and the scripting language and by the
 //! data storage
 
-use crate::any::FruityAny;
 use crate::introspect::IntrospectFields;
 use crate::introspect::IntrospectMethods;
 use crate::script_value::convert::TryFromScriptValue;
 use crate::typescript;
-use crate::Arc;
 use crate::FruityError;
 use crate::FruityResult;
-use futures::future::Shared;
 use lazy_static::__Deref;
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
@@ -92,10 +88,10 @@ pub enum ScriptValue {
     Undefined,
 
     /// A future
-    Future(Shared<Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>>),
+    Future(Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>),
 
     /// A callback
-    Callback(Arc<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
+    Callback(Box<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
 
     /// An object created by rust
     Object(Box<dyn ScriptObject>),
@@ -118,10 +114,7 @@ impl<T: TryFromScriptValue + ?Sized> TryFromScriptValue for Vec<T> {
 
 /// A trait that can be implemented for an object storable in a ScriptValue
 #[typescript("type ScriptObject = {[key: string]: ScriptValue}")]
-pub trait ScriptObject: IntrospectFields + IntrospectMethods + Send + Sync {
-    /// Duplicate the script object
-    fn duplicate(&self) -> Box<dyn ScriptObject>;
-}
+pub trait ScriptObject: IntrospectFields + IntrospectMethods + Send {}
 
 impl dyn ScriptObject {
     /// Get all field values
@@ -146,14 +139,7 @@ impl dyn ScriptObject {
     }
 }
 
-impl<T> ScriptObject for T
-where
-    T: Clone + IntrospectFields + IntrospectMethods + Send + Sync,
-{
-    fn duplicate(&self) -> Box<dyn ScriptObject> {
-        Box::new(self.clone())
-    }
-}
+impl<T> ScriptObject for T where T: IntrospectFields + IntrospectMethods + Send + Sync {}
 
 impl Debug for ScriptValue {
     fn fmt(
@@ -182,91 +168,5 @@ impl Debug for ScriptValue {
             ScriptValue::Callback(_) => formatter.write_str("function"),
             ScriptValue::Object(value) => value.fmt(formatter),
         }
-    }
-}
-
-impl Clone for ScriptValue {
-    fn clone(&self) -> Self {
-        match self {
-            Self::I8(value) => Self::I8(value.clone()),
-            Self::I16(value) => Self::I16(value.clone()),
-            Self::I32(value) => Self::I32(value.clone()),
-            Self::I64(value) => Self::I64(value.clone()),
-            Self::ISize(value) => Self::ISize(value.clone()),
-            Self::U8(value) => Self::U8(value.clone()),
-            Self::U16(value) => Self::U16(value.clone()),
-            Self::U32(value) => Self::U32(value.clone()),
-            Self::U64(value) => Self::U64(value.clone()),
-            Self::USize(value) => Self::USize(value.clone()),
-            Self::F32(value) => Self::F32(value.clone()),
-            Self::F64(value) => Self::F64(value.clone()),
-            Self::Bool(value) => Self::Bool(value.clone()),
-            Self::String(value) => Self::String(value.clone()),
-            Self::Array(value) => Self::Array(value.clone()),
-            Self::Null => Self::Null,
-            Self::Undefined => Self::Undefined,
-            Self::Future(value) => Self::Future(value.clone()),
-            Self::Callback(value) => Self::Callback(value.clone()),
-            Self::Object(value) => Self::Object(value.duplicate()),
-        }
-    }
-}
-
-/// A script object implemented from an hashmap of script values
-#[derive(Debug, Clone, FruityAny)]
-pub struct HashMapScriptObject {
-    /// The object class name
-    pub class_name: String,
-    /// The object field values
-    pub fields: HashMap<String, ScriptValue>,
-}
-
-impl IntrospectFields for HashMapScriptObject {
-    fn is_static(&self) -> FruityResult<bool> {
-        Ok(false)
-    }
-
-    fn get_class_name(&self) -> FruityResult<String> {
-        Ok(self.class_name.clone())
-    }
-
-    fn get_field_names(&self) -> FruityResult<Vec<String>> {
-        Ok(self.fields.keys().map(|key| key.clone()).collect())
-    }
-
-    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
-        self.fields.entry(name.to_string()).or_insert_with(|| value);
-
-        Ok(())
-    }
-
-    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
-        Ok(self
-            .fields
-            .get(name)
-            .unwrap_or_else(|| unreachable!())
-            .clone())
-    }
-}
-
-impl IntrospectMethods for HashMapScriptObject {
-    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec![])
-    }
-
-    fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        unreachable!()
-    }
-
-    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec![])
-    }
-
-    fn call_mut_method(
-        &mut self,
-        _name: &str,
-        _args: Vec<ScriptValue>,
-    ) -> FruityResult<ScriptValue> {
-        unreachable!()
     }
 }

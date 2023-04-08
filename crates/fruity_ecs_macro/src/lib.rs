@@ -51,10 +51,6 @@ fn derive_component_trait(input: TokenStream) -> TokenStream {
                 Ok(#fruity_ecs_crate::component::ComponentTypeId::Rust(std::any::TypeId::of::<Self>()))
             }
 
-            fn archetype_order(&self) -> fruity_game_engine::FruityResult<u8> {
-                Ok(0)
-            }
-
             fn get_storage(&self) -> Box<dyn #fruity_ecs_crate::component::ComponentStorage> {
                 Box::new(#fruity_ecs_crate::component::VecComponentStorage::<Self>::new())
             }
@@ -212,7 +208,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
 fn fruity_ecs_crate() -> TokenStream2 {
     let crate_name = std::env::var("CARGO_PKG_NAME").unwrap();
 
-    if crate_name == "fruity_ecs_new" {
+    if crate_name == "fruity_ecs" {
         quote! { crate }
     } else {
         quote! { ::fruity_ecs }

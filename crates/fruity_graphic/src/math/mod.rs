@@ -1,8 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 use css_color_parser::Color as CssColor;
-use fruity_ecs::serializable::{Deserialize, Serialize};
-use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::{export_constructor, export_impl, export_struct};
+use fruity_ecs::serialization::{Deserialize, Serialize};
+use fruity_game_engine::{any::FruityAny, export_constructor, export_impl, export_struct};
 use std::str::FromStr;
 
 pub mod matrix3;

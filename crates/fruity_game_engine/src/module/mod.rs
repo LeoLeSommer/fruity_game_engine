@@ -1,8 +1,9 @@
-use crate::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
 use crate::settings::Settings;
 use crate::world::{RunWorldMiddleware, SetupWorldMiddleware, World};
-use crate::Arc;
-use crate::FruityResult;
+use crate::{Arc, FruityResult};
+use fruity_game_engine_macro::{export_impl, export_struct, FruityAny};
+use std::fmt::Debug;
+use std::fmt::Formatter;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -10,7 +11,8 @@ use std::pin::Pin;
 pub mod modules_service;
 
 /// A module for the engine
-#[derive(Clone, TryFromScriptValue, TryIntoScriptValue, Default)]
+#[derive(Default, Clone, FruityAny)]
+#[export_struct]
 pub struct Module {
     /// The name of the module
     pub name: String,
@@ -47,4 +49,16 @@ pub struct Module {
 
     /// A middleware that occurs when the world runs
     pub run_world_middleware: Option<RunWorldMiddleware>,
+}
+
+#[export_impl]
+impl Module {}
+
+impl Debug for Module {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Module")
+            .field("name", &self.name)
+            .field("dependencies", &self.dependencies)
+            .finish()
+    }
 }

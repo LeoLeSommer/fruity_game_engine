@@ -1,10 +1,12 @@
+use fruity_ecs::{
+    entity::EntityReference,
+    serialization::{Deserialize, Serialize},
+};
+use fruity_game_engine::{
+    any::FruityAny, export_constructor, export_impl, export_struct, signal::SignalProperty,
+    FruityResult,
+};
 use std::ops::Deref;
-
-use fruity_ecs::entity::entity_reference::EntityReference;
-use fruity_ecs::serializable::{Deserialize, Serialize};
-use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::signal::SignalProperty;
-use fruity_game_engine::{export_constructor, export_impl, export_struct, FruityResult};
 
 /// A component for an entity that as a parent or at least is part of the hierarchy
 #[derive(Debug, Clone, Default, Serialize, Deserialize, FruityAny)]
@@ -15,36 +17,37 @@ pub struct Parent {
 }
 
 impl fruity_ecs::component::Component for Parent {
-    fn get_storage(
-        &self,
-    ) -> Box<dyn fruity_ecs::entity::archetype::component_storage::ComponentStorage> {
-        Box::new(
-            fruity_ecs::entity::archetype::component_storage::VecComponentStorage::<Self>::new(),
-        )
+    fn duplicate(&self) -> Box<dyn fruity_ecs::component::Component> {
+        Box::new(self.clone())
     }
 
-    fn archetype_order(&self) -> FruityResult<u8> {
-        match self.parent.deref() {
+    fn get_component_type_id(&self) -> FruityResult<fruity_ecs::component::ComponentTypeId> {
+        let order = match self.parent.deref() {
             Some(parent_entity) => {
                 let parent_entity_reader = parent_entity.read()?;
-                let parent_reader = parent_entity_reader.get_component_by_type::<Parent>()?;
+                let parent_reader = parent_entity_reader.get_component_by_type::<Parent>();
                 match parent_reader.as_deref() {
-                    Some(parent_reader) => Ok(parent_reader.archetype_order()? + 1),
+                    Some(parent_reader) => match parent_reader.get_component_type_id()? {
+                        fruity_ecs::component::ComponentTypeId::Rust(_) => Ok(1),
+                        fruity_ecs::component::ComponentTypeId::OrderedRust(_, count) => {
+                            Ok(count + 1)
+                        }
+                        fruity_ecs::component::ComponentTypeId::Script(_) => Ok(1),
+                    },
                     None => Ok(1),
                 }
             }
             None => Ok(0),
-        }
+        }?;
+
+        Ok(fruity_ecs::component::ComponentTypeId::OrderedRust(
+            std::any::TypeId::of::<Self>(),
+            order,
+        ))
     }
 
-    fn duplicate(&self) -> Box<dyn fruity_ecs::component::Component> {
-        Box::new(self.clone())
-    }
-}
-
-impl fruity_ecs::component::StaticComponent for Parent {
-    fn get_component_name() -> &'static str {
-        "Parent"
+    fn get_storage(&self) -> Box<dyn fruity_ecs::component::ComponentStorage> {
+        Box::new(fruity_ecs::component::VecComponentStorage::<Self>::new())
     }
 }
 

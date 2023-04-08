@@ -1,343 +1,507 @@
-use super::archetype::Archetype;
-use super::Entity;
-use super::EntityMut;
-use super::entity_service::AddEntityMutation;
-use super::entity_service::OnArchetypeAddressMoved;
-use super::entity_service::OnComponentAddressMoved;
-use super::entity_service::OnEntityAddressAdded;
-use super::entity_service::OnEntityLocationMoved;
-use super::entity_service::OnEntityLockAddressMoved;
-use super::EntityId;
-use crate::component::component_reference::AnyComponentReference;
-use crate::component::component_reference::ComponentReference;
-use crate::component::Component;
-use crate::component::StaticComponent;
-use crate::entity::entity_guard::EntityReadGuard;use std::ops::DerefMut;
-use crate::entity::entity_guard::EntityWriteGuard;
-use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::signal::ObserverHandler;
-use fruity_game_engine::signal::Signal;
-use fruity_game_engine::FruityError;
-use fruity_game_engine::FruityResult;
-use fruity_game_engine::RwLock;
-use fruity_game_engine::RwLockReadGuard;
-use fruity_game_engine::{export, export_impl, export_struct};
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::ptr::null_mut;
-use std::ptr::NonNull;
-use fruity_game_engine::Arc;
+use super::{Archetype, EntityId, EntityLocation, EntityStorage};
+use crate::component::{
+    AnyComponentReadGuardIterator, AnyComponentReference, AnyComponentWriteGuardIterator,
+    Component, ComponentReadGuard, ComponentReadGuardIterator, ComponentTypeId,
+    ComponentWriteGuard, ComponentWriteGuardIterator, Enabled, Name,
+};
+use either::Either;
+use fruity_game_engine::{
+    any::FruityAny,
+    export, export_impl, export_struct,
+    signal::{ObserverHandler, Signal},
+    Arc, FruityError, FruityResult, RwLock,
+};
+use std::{fmt::Debug, marker::PhantomData, ptr::NonNull};
 
-pub(crate) enum InnerShareableEntityReference {
-    Archetype {
-        entity_index: usize,
-        archetype_ptr: *mut Archetype,
-    },
-    Mutation {
-        entity: Arc<RwLock<AddEntityMutation>>,
-    },
+/// An entity const reference
+#[derive(Clone)]
+pub struct EntityReader<'a> {
+    pub(crate) entity_index: usize,
+    pub(crate) archetype: NonNull<Archetype>,
+    pub(crate) phantom: PhantomData<&'a Archetype>,
 }
 
-// Safe cause archetypes are updated when an entity is moved trough memory
-unsafe impl Send for InnerShareableEntityReference {}
+impl<'a> Debug for EntityReader<'a> {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        Ok(())
+    }
+}
 
-// Safe cause archetypes are updated when an entity is moved trough memory
-unsafe impl Sync for InnerShareableEntityReference {}
+impl<'a> EntityReader<'a> {
+    /// Get the entity id
+    pub fn get_entity_id(&self) -> EntityId {
+        unsafe {
+            self.archetype
+                .as_ref()
+                .entity_ids
+                .get(self.entity_index)
+                .map(|entity_id| *entity_id)
+                .unwrap()
+        }
+    }
 
-/// A reference over an entity stored into an Archetype
-#[derive(Clone, FruityAny)]
+    /// Get the entity name
+    pub fn get_name(&self) -> String {
+        self.get_component_by_type::<Name>().unwrap().0.clone()
+    }
+
+    /// Get the entity enabled state
+    pub fn is_enabled(&self) -> bool {
+        self.get_component_by_type::<Enabled>().unwrap().0.clone()
+    }
+
+    /// Read all components of the entity
+    pub fn read_all_components(&self) -> impl Iterator<Item = &dyn Component> {
+        unsafe {
+            self.archetype
+                .as_ref()
+                .component_storages
+                .iter()
+                .map(|(_, storage)| {
+                    let storage_reader = storage.read();
+                    let slice_len = storage_reader.slice_len(self.entity_index);
+                    let slice_begin =
+                        NonNull::from(storage_reader.get_unchecked(self.entity_index, 0));
+                    let component_type_size = storage_reader.get_component_type_size();
+
+                    AnyComponentReadGuardIterator::new(
+                        storage_reader,
+                        component_type_size,
+                        slice_begin,
+                        slice_len,
+                    )
+                })
+                .flatten()
+        }
+    }
+
+    /// Read components with a given type
+    pub fn iter_components_by_type<T: Component>(&self) -> impl Iterator<Item = &T> {
+        unsafe {
+            if let Some(storage) = self
+                .archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+            {
+                let storage_reader = storage.read();
+                let slice_len = storage_reader.slice_len(self.entity_index);
+                let slice_begin = NonNull::from(
+                    storage_reader
+                        .get_unchecked(self.entity_index, 0)
+                        .as_any_ref()
+                        .downcast_ref::<T>()
+                        .unwrap(),
+                );
+
+                Either::Left(ComponentReadGuardIterator::new(
+                    storage_reader,
+                    slice_begin,
+                    slice_len,
+                ))
+            } else {
+                Either::Right(vec![].into_iter())
+            }
+        }
+    }
+
+    /// Read any components with a given type
+    pub fn iter_components_by_type_identifier(
+        &self,
+        component_identifier: &str,
+    ) -> impl Iterator<Item = &dyn Component> {
+        unsafe {
+            if let Some(storage) = self
+                .archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::from_identifier(component_identifier))
+            {
+                let storage_reader = storage.read();
+                let slice_len = storage_reader.slice_len(self.entity_index);
+                let slice_begin = NonNull::from(storage_reader.get_unchecked(self.entity_index, 0));
+                let component_type_size = storage_reader.get_component_type_size();
+
+                Either::Left(AnyComponentReadGuardIterator::new(
+                    storage_reader,
+                    component_type_size,
+                    slice_begin,
+                    slice_len,
+                ))
+            } else {
+                Either::Right(vec![].into_iter())
+            }
+        }
+    }
+
+    /// Read a single component with a given type
+    pub fn get_component_by_type<T: Component>(&self) -> Option<ComponentReadGuard<'_, T>> {
+        unsafe {
+            self.archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+                .map(|storage| {
+                    let storage_reader = storage.read();
+                    let component_ptr = NonNull::from(
+                        storage_reader
+                            .get_unchecked(self.entity_index, 0)
+                            .as_any_ref()
+                            .downcast_ref::<T>()
+                            .unwrap(),
+                    );
+
+                    ComponentReadGuard {
+                        storage_guard: storage_reader,
+                        component_ptr: component_ptr,
+                    }
+                })
+        }
+    }
+}
+
+/// An entity mut reference
+#[derive(Clone)]
+pub struct EntityWriter<'a> {
+    pub(crate) entity_index: usize,
+    pub(crate) archetype: NonNull<Archetype>,
+    pub(crate) phantom: PhantomData<&'a Archetype>,
+}
+
+impl<'a> Debug for EntityWriter<'a> {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        Ok(())
+    }
+}
+
+impl<'a> EntityWriter<'a> {
+    /// Get the entity id
+    pub fn get_entity_id(&self) -> EntityId {
+        unsafe {
+            self.archetype
+                .as_ref()
+                .entity_ids
+                .get(self.entity_index)
+                .map(|entity_id| *entity_id)
+                .unwrap()
+        }
+    }
+
+    /// Get the entity name
+    pub fn get_name(&self) -> String {
+        self.get_component_by_type::<Name>().unwrap().0.clone()
+    }
+
+    /// Set the entity name
+    pub fn set_name(&mut self, name: String) {
+        self.get_component_by_type_mut::<Name>().unwrap().0 = name;
+    }
+
+    /// Get the entity enabled state
+    pub fn is_enabled(&self) -> bool {
+        self.get_component_by_type::<Enabled>().unwrap().0.clone()
+    }
+
+    /// Set the entity enabled state
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.get_component_by_type_mut::<Enabled>().unwrap().0 = enabled;
+    }
+
+    /// Read all components of the entity
+    pub fn read_all_components(&self) -> impl Iterator<Item = &dyn Component> {
+        unsafe {
+            self.archetype
+                .as_ref()
+                .component_storages
+                .iter()
+                .map(|(_, storage)| {
+                    let storage_reader = storage.read();
+                    let slice_len = storage_reader.slice_len(self.entity_index);
+                    let slice_begin =
+                        NonNull::from(storage_reader.get_unchecked(self.entity_index, 0));
+                    let component_type_size = storage_reader.get_component_type_size();
+
+                    AnyComponentReadGuardIterator::new(
+                        storage_reader,
+                        component_type_size,
+                        slice_begin,
+                        slice_len,
+                    )
+                })
+                .flatten()
+        }
+    }
+
+    /// Read components with a given type
+    pub fn iter_components_by_type<T: Component>(&self) -> impl Iterator<Item = &T> {
+        unsafe {
+            if let Some(storage) = self
+                .archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+            {
+                let storage_reader = storage.read();
+                let slice_len = storage_reader.slice_len(self.entity_index);
+                let slice_begin = NonNull::from(
+                    storage_reader
+                        .get_unchecked(self.entity_index, 0)
+                        .as_any_ref()
+                        .downcast_ref::<T>()
+                        .unwrap(),
+                );
+
+                Either::Left(ComponentReadGuardIterator::new(
+                    storage_reader,
+                    slice_begin,
+                    slice_len,
+                ))
+            } else {
+                Either::Right(vec![].into_iter())
+            }
+        }
+    }
+
+    /// Write components with a given type
+    pub fn iter_components_by_type_mut<T: Component>(&mut self) -> impl Iterator<Item = &mut T> {
+        unsafe {
+            if let Some(storage) = self
+                .archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+            {
+                let storage_writer = storage.write();
+                let slice_len = storage_writer.slice_len(self.entity_index);
+                let slice_begin = NonNull::from(
+                    storage_writer
+                        .get_unchecked(self.entity_index, 0)
+                        .as_any_ref()
+                        .downcast_ref::<T>()
+                        .unwrap(),
+                );
+
+                Either::Left(ComponentWriteGuardIterator::new(
+                    storage_writer,
+                    slice_begin,
+                    slice_len,
+                ))
+            } else {
+                Either::Right(vec![].into_iter())
+            }
+        }
+    }
+
+    /// Read any components with a given type
+    pub fn iter_components_by_type_identifier(
+        &self,
+        component_identifier: &str,
+    ) -> impl Iterator<Item = &dyn Component> {
+        unsafe {
+            if let Some(storage) = self
+                .archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::from_identifier(component_identifier))
+            {
+                let storage_reader = storage.read();
+                let slice_len = storage_reader.slice_len(self.entity_index);
+                let slice_begin = NonNull::from(storage_reader.get_unchecked(self.entity_index, 0));
+                let component_type_size = storage_reader.get_component_type_size();
+
+                Either::Left(AnyComponentReadGuardIterator::new(
+                    storage_reader,
+                    component_type_size,
+                    slice_begin,
+                    slice_len,
+                ))
+            } else {
+                Either::Right(vec![].into_iter())
+            }
+        }
+    }
+
+    /// Write any components with a given type
+    pub fn iter_components_by_type_identifier_mut(
+        &mut self,
+        component_identifier: &str,
+    ) -> impl Iterator<Item = &mut dyn Component> {
+        unsafe {
+            if let Some(storage) = self
+                .archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::from_identifier(component_identifier))
+            {
+                let storage_writer = storage.write();
+                let slice_len = storage_writer.slice_len(self.entity_index);
+                let slice_begin = NonNull::from(storage_writer.get_unchecked(self.entity_index, 0));
+                let component_type_size = storage_writer.get_component_type_size();
+
+                Either::Left(AnyComponentWriteGuardIterator::new(
+                    storage_writer,
+                    component_type_size,
+                    slice_begin,
+                    slice_len,
+                ))
+            } else {
+                Either::Right(vec![].into_iter())
+            }
+        }
+    }
+
+    /// Read a single component with a given type
+    pub fn get_component_by_type<T: Component>(&self) -> Option<ComponentReadGuard<'_, T>> {
+        unsafe {
+            self.archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+                .map(|storage| {
+                    let storage_reader = storage.read();
+                    let component_ptr = NonNull::from(
+                        storage_reader
+                            .get_unchecked(self.entity_index, 0)
+                            .as_any_ref()
+                            .downcast_ref::<T>()
+                            .unwrap(),
+                    );
+
+                    ComponentReadGuard {
+                        storage_guard: storage_reader,
+                        component_ptr: component_ptr,
+                    }
+                })
+        }
+    }
+
+    /// Write a single component with a given type
+    pub fn get_component_by_type_mut<T: Component>(
+        &mut self,
+    ) -> Option<ComponentWriteGuard<'_, T>> {
+        unsafe {
+            self.archetype
+                .as_ref()
+                .component_storages
+                .get(&ComponentTypeId::of::<T>())
+                .map(|storage| {
+                    let storage_writer = storage.write();
+                    let component_ptr = NonNull::from(
+                        storage_writer
+                            .get_unchecked(self.entity_index, 0)
+                            .as_any_ref()
+                            .downcast_ref::<T>()
+                            .unwrap(),
+                    );
+
+                    ComponentWriteGuard {
+                        storage_guard: storage_writer,
+                        component_ptr: component_ptr,
+                    }
+                })
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct InnerShareableEntityReference {
+    pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
+    pub(crate) entity_id: EntityId,
+    pub(crate) location: EntityLocation,
+}
+
+/// A reference to an entity
+/// Update its own state when an entity is moved
+#[derive(Debug, FruityAny)]
 #[export_struct]
 pub struct EntityReference {
-    pub(crate) inner: Arc<RwLock<InnerShareableEntityReference>>,
-    on_entity_lock_address_moved: Signal<OnEntityLockAddressMoved>,
-    on_component_address_moved: Signal<OnComponentAddressMoved>,
-    on_entity_location_moved_handle: ObserverHandler<OnEntityLocationMoved>,
-    on_archetype_address_moved_handle: ObserverHandler<OnArchetypeAddressMoved>,
-    on_entity_address_added_handle: ObserverHandler<OnEntityAddressAdded>,
+    pub(crate) inner: Arc<RwLock<Option<InnerShareableEntityReference>>>,
+    on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    on_entity_location_moved_handler:
+        ObserverHandler<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+}
+
+impl Drop for EntityReference {
+    fn drop(&mut self) {
+        self.on_entity_location_moved_handler.dispose_by_ref();
+    }
 }
 
 #[export_impl]
 impl EntityReference {
     pub(crate) fn new(
-        inner: InnerShareableEntityReference,
-        on_entity_location_moved: &Signal<OnEntityLocationMoved>,
-        on_archetype_address_moved: &Signal<OnArchetypeAddressMoved>,
-        on_entity_address_added: &Signal<OnEntityAddressAdded>,
-        on_entity_lock_address_moved: &Signal<OnEntityLockAddressMoved>,
-        on_component_address_moved: &Signal<OnComponentAddressMoved>,
+        entity_storage: Arc<RwLock<EntityStorage>>,
+        entity_id: EntityId,
+        location: EntityLocation,
+        on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
     ) -> Self {
-        let inner = Arc::new(RwLock::new(inner));
+        let inner = Arc::new(RwLock::new(Some(InnerShareableEntityReference {
+            entity_storage,
+            entity_id,
+            location,
+        })));
 
-        // Register memory move observers to update the entity reference inner pointers when the memory is moved
-        let (on_entity_location_moved_handle, on_archetype_address_moved_handle, on_entity_address_added_handle) = {
-            let inner2 = inner.clone();
-            let on_entity_location_moved_handle =
-                on_entity_location_moved.add_observer(move |event| {
-                    let mut inner_writer = inner2.write();
-                    let (entity_index,  archetype_ptr) = if let InnerShareableEntityReference::Archetype { entity_index, archetype_ptr } = inner_writer.deref_mut() {
-                        (entity_index, archetype_ptr)
-                    } else {
-                        return Ok(())
-                    };
-
-
-                    if !archetype_ptr.is_null()
-                        && event.old_entity_index == *entity_index
-                        && event.old_archetype.as_ptr() == *archetype_ptr
-                    {
-                        *archetype_ptr = event.new_archetype_ptr;
-                        *entity_index = event.new_entity_index;
+        let inner_2 = inner.clone();
+        let on_entity_location_moved_handler =
+            on_entity_location_moved.add_observer(move |(entity_id, entity_storage, location)| {
+                let mut inner = inner_2.write();
+                if let Some(inner) = inner.as_mut() {
+                    if inner.entity_id == *entity_id {
+                        inner.entity_storage = entity_storage.clone();
+                        inner.location = location.clone();
                     }
+                }
 
-                    Ok(())
-                });
-
-            let inner2 = inner.clone();
-            let on_archetype_address_moved_handle =
-                on_archetype_address_moved.add_observer(move |event| {
-                    let mut inner_writer = inner2.write();
-                    let (entity_index,  archetype_ptr) = if let InnerShareableEntityReference::Archetype { entity_index, archetype_ptr } = inner_writer.deref_mut() {
-                        (entity_index, archetype_ptr)
-                    } else {
-                        return Ok(())
-                    };
-
-                    if !archetype_ptr.is_null()
-                        && event.old
-                            == unsafe { NonNull::new_unchecked(*archetype_ptr) }
-                    {
-                        if let Some(new) = unsafe { event.new.as_ref() } {
-                            *archetype_ptr = new as *const Archetype as *mut Archetype;
-                        } else {
-                            *archetype_ptr = null_mut();
-                            *entity_index = 0;
-                        }
-                    }
-
-                    Ok(())
-                });
-
-            let inner2 = inner.clone();
-            let on_entity_address_added_handle =
-                on_entity_address_added.add_observer(move |event| {
-                    let mut inner_writer = inner2.write();
-                    let entity = if let InnerShareableEntityReference::Mutation { entity } = inner_writer.deref_mut() {
-                        entity.clone()
-                    } else {
-                        return Ok(())
-                    };
-
-
-                    let entity_writer = entity.write();
-                    if entity_writer.entity_id == event.entity_reference.get_entity_id()?
-                    {
-                        let new_entity_reference_inner_reader = event.entity_reference.inner.read();
-                        let (new_entity_index, new_archetype_ptr) = Self::get_archetype_inner(new_entity_reference_inner_reader)?;
-
-                        *inner_writer = InnerShareableEntityReference::Archetype {
-                            entity_index: new_entity_index,
-                            archetype_ptr: new_archetype_ptr,
-                        };
-                    }
-
-                    Ok(())
-                });
-
-            (
-                on_entity_location_moved_handle,
-                on_archetype_address_moved_handle,
-                on_entity_address_added_handle,
-            )
-        };
+                Ok(())
+            });
 
         Self {
             inner,
-            on_entity_lock_address_moved: on_entity_lock_address_moved.clone(),
-            on_component_address_moved: on_component_address_moved.clone(),
-            on_entity_location_moved_handle: on_entity_location_moved_handle,
-            on_archetype_address_moved_handle: on_archetype_address_moved_handle,
-            on_entity_address_added_handle: on_entity_address_added_handle,
+            on_entity_location_moved,
+            on_entity_location_moved_handler,
         }
     }
 
     /// Get a read access to the entity
-    pub fn read(&self) -> FruityResult<EntityReadGuard> {
-        let inner = self.read_inner();
-        let (entity_index, archetype_ptr) = Self::get_archetype_inner(inner)?;
-            if !archetype_ptr.is_null() {
-                Ok(EntityReadGuard {
-                    _entity_guard: unsafe { archetype_ptr.as_ref() }
-                        .unwrap()
-                        .lock_array
-                        .get(entity_index)
-                        .unwrap()
-                        .read(),
-                    entity: Entity {
-                        entity_index: entity_index,
-                        archetype: unsafe { archetype_ptr.as_ref().unwrap() },
-                    },
-                })
-            } else {
-                Err(FruityError::GenericFailure(
-                    "You try to access a deleted entity".to_string(),
-                ))
-            }
+    pub fn read(&self) -> FruityResult<EntityReader> {
+        let inner = self.inner.read();
+        if let Some(inner) = inner.as_ref() {
+            let entity_storage = inner.entity_storage.read();
+
+            Ok(EntityReader {
+                archetype: NonNull::from(unsafe {
+                    entity_storage
+                        .archetypes
+                        .get_unchecked(inner.location.archetype.0)
+                }),
+                entity_index: inner.location.index,
+                phantom: PhantomData,
+            })
+        } else {
+            Err(FruityError::GenericFailure(
+                "You try to access a deleted entity".to_string(),
+            ))
+        }
     }
 
     /// Get a write access to the entity
-    pub fn write(&self) -> FruityResult<EntityWriteGuard> {
-        let inner = self.read_inner();
-        let (entity_index, archetype_ptr) = Self::get_archetype_inner(inner)?;
-            if !archetype_ptr.is_null() {
-                Ok(EntityWriteGuard {
-                    _entity_guard: unsafe { archetype_ptr.as_ref() }
-                        .unwrap()
-                        .lock_array
-                        .get(entity_index)
-                        .unwrap()
-                        .write(),
-                    entity: EntityMut {
-                        entity_index: entity_index,
-                        archetype: unsafe { archetype_ptr.as_ref().unwrap() },
-                    },
-                })
-            } else {
-                Err(FruityError::GenericFailure(
-                    "You try to access a deleted entity".to_string(),
-                ))
-            }
-    }
+    pub fn write(&self) -> FruityResult<EntityWriter> {
+        let inner = self.inner.read();
+        if let Some(inner) = inner.as_ref() {
+            let entity_storage = inner.entity_storage.write();
 
-    /// Get all components
-    #[export]
-    pub fn get_all_components(&self) -> FruityResult<Vec<AnyComponentReference>> {
-        let inner = self.read_inner();
-        let (entity_index, archetype_ptr) = Self::get_archetype_inner(inner)?;
-            if !archetype_ptr.is_null() {
-                let archetype = unsafe { archetype_ptr.as_mut().unwrap() };
-                let entity_lock_ptr =
-                    archetype.lock_array.get_mut(entity_index).unwrap() as *mut RwLock<()>;
-    
-                Ok(archetype
-                    .component_storages
-                    .iter()
-                    .map(|(_, storage)| {
-                        storage.get(entity_index).map(|component| {
-                            AnyComponentReference::new(
-                                &self.on_entity_lock_address_moved,
-                                &self.on_component_address_moved,
-                                entity_lock_ptr,
-                                Some(unsafe {
-                                    NonNull::new_unchecked(
-                                        component as *const dyn Component as *mut dyn Component,
-                                    )
-                                }),
-                            )
-                        })
-                    })
-                    .flatten()
-                    .collect::<Vec<_>>())
-            } else {
-                Err(FruityError::GenericFailure(
-                    "You try to access a deleted entity".to_string(),
-                ))
-            }
-    }
-
-    /// Get components with a given type
-    ///
-    /// # Arguments
-    /// * `component_identifier` - The component identifier
-    ///
-    #[export]
-    pub fn get_components_by_type_identifier(
-        &self,
-        component_identifier: String,
-    ) -> FruityResult<Vec<AnyComponentReference>> {
-        let inner = self.read_inner();
-        let (entity_index, archetype_ptr) = Self::get_archetype_inner(inner)?;
-            if !archetype_ptr.is_null() {
-                let archetype = unsafe { archetype_ptr.as_mut().unwrap() };
-                let entity_lock_ptr =
-                    archetype.lock_array.get_mut(entity_index).unwrap() as *mut RwLock<()>;
-    
-                let storage =
-                    if let Some(storage) = archetype.component_storages.get(&component_identifier) {
-                        storage
-                    } else {
-                        return Ok(vec![]);
-                    };
-    
-                Ok(storage
-                    .get(entity_index)
-                    .map(|component| {
-                        AnyComponentReference::new(
-                            &self.on_entity_lock_address_moved,
-                            &self.on_component_address_moved,
-                            entity_lock_ptr,
-                            Some(unsafe {
-                                NonNull::new_unchecked(
-                                    component as *const dyn Component as *mut dyn Component,
-                                )
-                            }),
-                        )
-                    })
-                    .collect::<Vec<_>>())
-            } else {
-                Err(FruityError::GenericFailure(
-                    "You try to access a deleted entity".to_string(),
-                ))
-            }
-    }
-
-    /// Get components with a given type
-    pub fn get_components_by_type<T: Component + StaticComponent>(
-        &self,
-    ) -> FruityResult<Vec<ComponentReference<T>>> {
-        let inner = self.read_inner();
-        let (entity_index, archetype_ptr) = Self::get_archetype_inner(inner)?;
-            if !archetype_ptr.is_null() {
-                let archetype = unsafe { archetype_ptr.as_mut().unwrap() };
-                let entity_lock_ptr =
-                    archetype.lock_array.get_mut(entity_index).unwrap() as *mut RwLock<()>;
-    
-                let storage =
-                    if let Some(storage) = archetype.component_storages.get(T::get_component_name()) {
-                        storage
-                    } else {
-                        return Ok(vec![]);
-                    };
-    
-                storage
-                    .get(entity_index)
-                    .map(|component| {
-                        match component.as_any_ref().downcast_ref::<T>() {
-                            Some(component) => {
-                                Ok(ComponentReference::new(
-                                    &self.on_entity_lock_address_moved,
-                                    &self.on_component_address_moved,
-                                    entity_lock_ptr,
-                                    component as *const T as *mut T,
-                                ))
-                            },
-                            None => Err(FruityError::GenericFailure(format!("You try to access a component with identifier {} in the entity named {} but the component don't match the required type", T::get_component_name(), self.get_name()?)))
-                        }
-    
-                    })
-                    .try_collect::<Vec<_>>()
-            } else {
-                Err(FruityError::GenericFailure(
-                    "You try to access a deleted entity".to_string(),
-                ))
-            }
-    }
-
-        fn get_archetype_inner(guard: RwLockReadGuard<InnerShareableEntityReference>) -> FruityResult<(usize, *mut Archetype)> {
-            if let InnerShareableEntityReference::Archetype { entity_index, archetype_ptr } = guard.deref() {
-                Ok((*entity_index, *archetype_ptr))
+            Ok(EntityWriter {
+                archetype: NonNull::from(unsafe {
+                    entity_storage
+                        .archetypes
+                        .get_unchecked(inner.location.archetype.0)
+                }),
+                entity_index: inner.location.index,
+                phantom: PhantomData,
+            })
         } else {
             Err(FruityError::GenericFailure(
-                "You try to access an entity that is still waiting to be inserted into an archetype".to_string(),
+                "You try to access a deleted entity".to_string(),
             ))
         }
     }
@@ -354,19 +518,123 @@ impl EntityReference {
         Ok(self.read()?.get_name())
     }
 
+    /// Set entity name
+    #[export]
+    pub fn set_name(&self, name: String) -> FruityResult<()> {
+        self.write()?.set_name(name);
+        Ok(())
+    }
+
     /// Get entity enabled
     #[export]
     pub fn is_enabled(&self) -> FruityResult<bool> {
         Ok(self.read()?.is_enabled())
     }
 
-    fn read_inner(&self) -> RwLockReadGuard<InnerShareableEntityReference> {
-        self.inner.read()
+    /// Set entity enabled
+    #[export]
+    pub fn set_enabled(&self, enabled: bool) -> FruityResult<()> {
+        self.write()?.set_enabled(enabled);
+        Ok(())
+    }
+
+    /// Get all components
+    #[export]
+    pub fn get_all_components(&self) -> FruityResult<Vec<AnyComponentReference>> {
+        let inner = self.inner.read();
+        if let Some(inner) = inner.as_ref() {
+            let entity_storage = inner.entity_storage.read();
+
+            let archetype = unsafe {
+                entity_storage
+                    .archetypes
+                    .get_unchecked(inner.location.archetype.0)
+            };
+
+            Ok(archetype
+                .component_storages
+                .iter()
+                .map(|(component_type_id, component_storage)| {
+                    let slice_len = component_storage.read().slice_len(inner.location.index);
+                    (0..slice_len).map(|component_index| {
+                        AnyComponentReference::new(
+                            self.clone(),
+                            component_type_id.clone(),
+                            component_index,
+                        )
+                    })
+                })
+                .flatten()
+                .collect())
+        } else {
+            Err(FruityError::GenericFailure(
+                "You try to access a deleted entity".to_string(),
+            ))
+        }
+    }
+
+    /// Get components with a given type
+    #[export]
+    pub fn get_components_by_type_identifier(
+        &self,
+        component_identifier: String,
+    ) -> FruityResult<Vec<AnyComponentReference>> {
+        self.get_components_by_type_id(ComponentTypeId::from_identifier(&component_identifier))
+    }
+
+    /// Get components with a given type
+    pub fn get_components_by_type<T: Component>(&self) -> FruityResult<Vec<AnyComponentReference>> {
+        self.get_components_by_type_id(ComponentTypeId::of::<T>())
+    }
+
+    /// Get components with a given component type id
+    fn get_components_by_type_id(
+        &self,
+        component_type_id: ComponentTypeId,
+    ) -> FruityResult<Vec<AnyComponentReference>> {
+        let inner = self.inner.read();
+        if let Some(inner) = inner.as_ref() {
+            let entity_storage = inner.entity_storage.read();
+
+            let archetype = unsafe {
+                entity_storage
+                    .archetypes
+                    .get_unchecked(inner.location.archetype.0)
+            };
+
+            let component_storage = if let Some(component_storage) =
+                archetype.component_storages.get(&component_type_id)
+            {
+                component_storage
+            } else {
+                return Ok(vec![]);
+            };
+
+            let slice_len = component_storage.read().slice_len(inner.location.index);
+            Ok((0..slice_len)
+                .map(|component_index| {
+                    AnyComponentReference::new(
+                        self.clone(),
+                        component_type_id.clone(),
+                        component_index,
+                    )
+                })
+                .collect())
+        } else {
+            Err(FruityError::GenericFailure(
+                "You try to access a deleted entity".to_string(),
+            ))
+        }
     }
 }
 
-impl Debug for EntityReference {
-    fn fmt(&self, _: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        Ok(())
+impl Clone for EntityReference {
+    fn clone(&self) -> Self {
+        Self::new(
+            self.inner.read().as_ref().unwrap().entity_storage.clone(),
+            self.inner.read().as_ref().unwrap().entity_id,
+            self.inner.read().as_ref().unwrap().location.clone(),
+            self.on_entity_location_moved.clone(),
+        )
     }
 }

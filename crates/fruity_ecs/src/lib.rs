@@ -8,41 +8,33 @@
 //! Provide an ECS, this ECS has hierarchy between all the entities and is intended to be easely extended by a scripting engine
 //!
 //! The ECS is organized with the following structure
-//! - Resources are object that are shared all over the application, it can store services to provide function, intended to be used by the systems, for example a log service can provide functionalities to log things, everything is a service including the entity storage and the system storage
 //! - Systems are function that do the logic part of the application, they can compute components and use resources
 //! - Entities represent any object stored in the ecs, entities are composed of components, in a game engine, a game object for example
 //! - Components are structure where the datas are stored
 
-use crate::entity::entity_service::EntityService;
-use crate::extension_component_service::ExtensionComponentService;
-use crate::system::SystemService;
-use entity::EntityId;
-pub use fruity_ecs_macro::Component;
-use fruity_game_engine::export_function;
-use fruity_game_engine::module::Module;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
-use fruity_game_engine::typescript_import;
-use fruity_game_engine::Arc;
-use serialization_service::SerializationService;
+use component::ExtensionComponentService;
+use entity::{EntityId, EntityService};
+use fruity_game_engine::{export_function, module::Module, typescript_import, Arc};
+use serialization::SerializationService;
+use system::SystemService;
 
-/// All related with components
+/// Components module
 pub mod component;
 
-/// All related with entities
+/// Entities module
 pub mod entity;
 
-/// Provides systems
+/// Queries module
+pub mod query;
+
+/// Serialization module
+pub mod serialization;
+
+/// Storage module
+pub mod storage;
+
+/// Systems module
 pub mod system;
-
-/// A service to store components extensions
-pub mod extension_component_service;
-
-/// Provides a factory for the introspect object
-/// This will be used by to do the snapshots
-pub mod serialization_service;
-
-/// A trait to serialize/deserialize script values with the SerializationService
-pub mod serializable;
 
 #[typescript_import({Signal, ObserverHandler, Module, ScriptValue} from "fruity_game_engine")]
 
@@ -89,7 +81,7 @@ pub fn create_fruity_ecs_module() -> Module {
                 }
 
                 {
-                    let mut entity_service_writer = entity_service.write();
+                    let entity_service_writer = entity_service.read();
                     unsafe { entity_service_writer.apply_pending_mutations()? };
                 }
 
@@ -105,7 +97,7 @@ pub fn create_fruity_ecs_module() -> Module {
                 }
 
                 {
-                    let mut entity_service_writer = entity_service.write();
+                    let entity_service_writer = entity_service.read();
                     unsafe { entity_service_writer.apply_pending_mutations()? };
                 }
 
@@ -121,7 +113,7 @@ pub fn create_fruity_ecs_module() -> Module {
                 }
 
                 {
-                    let mut entity_service_writer = entity_service.write();
+                    let entity_service_writer = entity_service.read();
                     unsafe { entity_service_writer.apply_pending_mutations()? };
                 }
 

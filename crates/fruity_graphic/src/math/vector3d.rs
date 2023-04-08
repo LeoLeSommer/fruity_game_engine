@@ -1,18 +1,7 @@
 use crate::math::matrix4::Matrix4;
-use fruity_ecs::serializable::{Deserialize, Serialize};
-use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::export;
-use fruity_game_engine::export_constructor;
-use fruity_game_engine::export_impl;
-use fruity_game_engine::export_struct;
-use std::ops::Add;
-use std::ops::AddAssign;
-use std::ops::Div;
-use std::ops::DivAssign;
-use std::ops::Mul;
-use std::ops::MulAssign;
-use std::ops::Sub;
-use std::ops::SubAssign;
+use fruity_ecs::serialization::{Deserialize, Serialize};
+use fruity_game_engine::{any::FruityAny, export, export_constructor, export_impl, export_struct};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 /// A vector in 3D dimension
 #[repr(C)]

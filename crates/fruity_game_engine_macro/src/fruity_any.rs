@@ -28,10 +28,6 @@ pub fn intern_derive_fruity_any(input: TokenStream) -> TokenStream {
                 self
             }
 
-            fn as_any_arc(self: #fruity_crate::Arc<Self>) -> #fruity_crate::Arc<dyn std::any::Any + Send + Sync> {
-                self
-            }
-
             fn as_fruity_any_ref(&self) -> &dyn #fruity_crate::any::FruityAny {
                 self
             }
@@ -41,10 +37,6 @@ pub fn intern_derive_fruity_any(input: TokenStream) -> TokenStream {
             }
 
             fn as_fruity_any_box(self: Box<Self>) -> Box<dyn #fruity_crate::any::FruityAny> {
-                self
-            }
-
-            fn as_fruity_any_arc(self: #fruity_crate::Arc<Self>) -> #fruity_crate::Arc<dyn #fruity_crate::any::FruityAny + Send + Sync> {
                 self
             }
         }

@@ -11,13 +11,16 @@ use fruity_game_engine::FruityResult;
 // pub mod script;
 
 /// Queries for tuples
-pub mod tuple;
+mod tuple;
+pub use tuple::*;
 
 /// Queries for with stuffs
-pub mod with;
+mod with;
+pub use with::*;
 
 /// Queries for without stuffs
-pub mod without;
+mod without;
+pub use without::*;
 
 mod entity_storage_query;
 pub use entity_storage_query::*;

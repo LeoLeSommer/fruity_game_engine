@@ -7,10 +7,10 @@ use crate::script_value::convert::TryFromScriptValue;
 use crate::script_value::convert::TryIntoScriptValue;
 use crate::FruityError;
 use crate::FruityResult;
-use futures::FutureExt;
 use std::any::type_name;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt::Debug;
 use std::future::Future;
 use std::hash::Hash;
 use std::ops::Range;
@@ -39,7 +39,7 @@ impl<T: TryIntoScriptValue + 'static> TryIntoScriptValue
 
         let future =
             Box::pin(future) as Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>;
-        Ok(ScriptValue::Future(future.shared()))
+        Ok(ScriptValue::Future(future))
     }
 }
 
@@ -67,24 +67,6 @@ where
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         Ok(<T as TryFromScriptValue>::from_script_value(value))
-    }
-}
-
-impl TryIntoScriptValue for Box<dyn ScriptObject> {
-    fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Object(self))
-    }
-}
-
-impl TryFromScriptValue for Box<dyn ScriptObject> {
-    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        match value {
-            ScriptValue::Object(value) => Ok(value),
-            value => Err(FruityError::InvalidArg(format!(
-                "Couldn't convert {:?} to native object",
-                value
-            ))),
-        }
     }
 }
 
@@ -165,14 +147,17 @@ impl<T: TryFromScriptValue + Eq + Hash> TryFromScriptValue for HashSet<T> {
 
 /// A script value object stored as an hashmap
 #[derive(Debug, Clone, FruityAny)]
-pub struct ScriptValueHashMap {
+pub struct ScriptValueHashMap<T: TryIntoScriptValue + TryFromScriptValue + Clone + Debug + 'static>
+{
     /// Class name
     pub class_name: String,
     /// Fields
-    pub fields: HashMap<String, ScriptValue>,
+    pub fields: HashMap<String, T>,
 }
 
-impl IntrospectFields for ScriptValueHashMap {
+impl<T: TryIntoScriptValue + TryFromScriptValue + Clone + Debug + 'static> IntrospectFields
+    for ScriptValueHashMap<T>
+{
     fn is_static(&self) -> FruityResult<bool> {
         Ok(false)
     }
@@ -186,7 +171,9 @@ impl IntrospectFields for ScriptValueHashMap {
     }
 
     fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
-        self.fields.entry(name.to_string()).or_insert_with(|| value);
+        self.fields
+            .entry(name.to_string())
+            .or_insert_with(|| T::from_script_value(value).unwrap());
 
         Ok(())
     }
@@ -196,11 +183,14 @@ impl IntrospectFields for ScriptValueHashMap {
             .fields
             .get(name)
             .unwrap_or_else(|| unreachable!())
-            .clone())
+            .clone()
+            .into_script_value()?)
     }
 }
 
-impl IntrospectMethods for ScriptValueHashMap {
+impl<T: TryIntoScriptValue + TryFromScriptValue + Clone + Debug + 'static> IntrospectMethods
+    for ScriptValueHashMap<T>
+{
     fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
         Ok(vec![])
     }
@@ -222,14 +212,13 @@ impl IntrospectMethods for ScriptValueHashMap {
     }
 }
 
-impl<T: TryIntoScriptValue> TryIntoScriptValue for HashMap<String, T> {
+impl<T: TryIntoScriptValue + TryFromScriptValue + Clone + Debug + Send + Sync + 'static>
+    TryIntoScriptValue for HashMap<String, T>
+{
     fn into_script_value(self) -> FruityResult<ScriptValue> {
         Ok(ScriptValue::Object(Box::new(ScriptValueHashMap {
-            class_name: "unknown".to_string(),
-            fields: self
-                .into_iter()
-                .map(|(key, value)| FruityResult::Ok((key, value.into_script_value()?)))
-                .try_collect::<HashMap<_, _>>()?,
+            class_name: type_name::<Self>().to_string(),
+            fields: self,
         })))
     }
 }

@@ -1,7 +1,7 @@
-use crate::ResourceContainer;
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::inject::Inject;
 use fruity_game_engine::profile_scope;
+use fruity_game_engine::resource::resource_container::ResourceContainer;
 use fruity_game_engine::script_value::convert::TryFromScriptValue;
 use fruity_game_engine::Arc;
 use fruity_game_engine::FruityResult;
@@ -61,18 +61,7 @@ struct StartupDisposeSystem {
     execute_in_main_thread: bool,
 }
 
-/// A systems collection
-///
-/// There is three type of systems:
-/// - begin_systems are called just before the rendering but after the resources allocations, it's perfect for initiliazing your entities
-/// - end systems is called before closing the software
-/// - systems are called every frame
-///
-/// There is a pool system, when you add a system, you can provide a pool, every systems of the same pool will be executed in parallel
-/// Try to use it realy rarely, cause parallel execution is realy usefull
-/// Pools from 0 to 10 and from 90 to 100 are reservec by the engine, you should avoid to create pool outside this range
-/// Pool 98 is for drawing
-/// Pool 99 is for camera
+/// System service
 ///
 #[derive(FruityAny)]
 #[export_struct]
@@ -133,7 +122,7 @@ impl SystemService {
         callback: T,
         params: Option<SystemParams>,
     ) {
-        self.add_arc_system(
+        self.add_boxed_system(
             identifier,
             callback.inject(&self.resource_container).into(),
             params,
@@ -150,10 +139,10 @@ impl SystemService {
     pub fn add_script_system(
         &mut self,
         identifier: String,
-        callback: Arc<dyn Send + Sync + Fn() -> FruityResult<()>>,
+        callback: Box<dyn Send + Sync + Fn() -> FruityResult<()>>,
         params: Option<SystemParams>,
     ) {
-        self.add_arc_system(
+        self.add_boxed_system(
             identifier.as_str(),
             callback,
             Some(
@@ -176,10 +165,10 @@ impl SystemService {
     /// * `system` - A function that will compute the world
     /// * `pool_index` - A pool identifier, all the systems of the same pool will be processed together in parallel
     ///
-    pub fn add_arc_system(
+    pub fn add_boxed_system(
         &mut self,
         identifier: &str,
-        system: Arc<dyn Send + Sync + Fn() -> FruityResult<()>>,
+        system: Box<dyn Send + Sync + Fn() -> FruityResult<()>>,
         params: Option<SystemParams>,
     ) {
         let params = params.unwrap_or_default();
@@ -235,7 +224,7 @@ impl SystemService {
     pub fn add_script_startup_system(
         &mut self,
         identifier: String,
-        callback: Arc<
+        callback: Box<
             dyn Send
                 + Sync
                 + Fn() -> FruityResult<
@@ -270,7 +259,7 @@ impl SystemService {
     pub fn add_arc_startup_system(
         &mut self,
         identifier: &str,
-        callback: Arc<
+        callback: Box<
             dyn Send
                 + Sync
                 + Fn() -> FruityResult<
@@ -323,7 +312,7 @@ impl SystemService {
     }
 
     /// Run all the startup systems
-    pub(crate) fn run_start(&self) -> FruityResult<()> {
+    pub fn run_start(&self) -> FruityResult<()> {
         profile_scope!("start_systems");
 
         (&self.startup_systems as &dyn SystemPool<StartupSystem>).run_systems()?;
@@ -336,7 +325,7 @@ impl SystemService {
     }
 
     /// Run all startup dispose callbacks
-    pub(crate) fn run_end(&self) -> FruityResult<()> {
+    pub fn run_end(&self) -> FruityResult<()> {
         profile_scope!("end_systems");
 
         if !self.is_paused() {
@@ -392,7 +381,7 @@ impl SystemService {
 
 struct FrameSystem {
     identifier: String,
-    system: Arc<SystemCallback>,
+    system: Box<SystemCallback>,
     ignore_pause: bool,
     execute_in_main_thread: bool,
 }
@@ -433,7 +422,7 @@ impl SystemPool<FrameSystem> for FrameSystemPool {
 
 struct StartupSystem {
     identifier: String,
-    system: Arc<StartupSystemCallback>,
+    system: Box<StartupSystemCallback>,
     execute_in_main_thread: bool,
 }
 

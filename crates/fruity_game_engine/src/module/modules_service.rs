@@ -4,7 +4,6 @@ use crate::FruityResult;
 use crate::ResourceContainer;
 
 /// A service for frame management
-#[derive(Clone)]
 pub struct ModulesService {
     modules: Vec<Module>,
 }
@@ -31,6 +30,7 @@ impl ModulesService {
             .iter()
             .map(|module| module.clone())
             .collect::<Vec<_>>();
+
         let mut ordered_modules = Vec::<Module>::new();
 
         while remaining_modules.len() > 0 {
