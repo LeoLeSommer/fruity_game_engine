@@ -1,5 +1,5 @@
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::Arc;
+use fruity_game_engine::sync::Arc;
 use fruity_game_engine::{export, export_impl, export_struct, FruityResult};
 use fruity_graphic::resources::texture_resource::TextureResource;
 use image::GenericImageView;

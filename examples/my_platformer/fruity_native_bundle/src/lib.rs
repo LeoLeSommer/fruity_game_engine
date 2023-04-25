@@ -1,15 +1,8 @@
 #![deny(clippy::all)]
 
-use fruity_game_engine::Arc;
-use fruity_game_engine::{export_function, module::Module, typescript};
+use fruity_game_engine::{export_function, module::Module, sync::Arc, typescript};
 
 pub extern crate fruity_ecs;
-pub extern crate fruity_editor;
-pub extern crate fruity_editor_egui;
-pub extern crate fruity_editor_graphic;
-pub extern crate fruity_editor_graphic_2d;
-pub extern crate fruity_editor_hierarchy;
-pub extern crate fruity_editor_physic_2d;
 pub extern crate fruity_game_engine;
 pub extern crate fruity_graphic;
 pub extern crate fruity_graphic_2d;

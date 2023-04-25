@@ -39,7 +39,7 @@ pub fn intern_derive_try_from_script_value(input: TokenStream) -> TokenStream {
                 });
 
             quote! {
-                impl #fruity_crate::script_value::convert::TryFromScriptValue for #ident {
+                impl #fruity_crate::script_value::TryFromScriptValue for #ident {
                     fn from_script_value(value: #fruity_crate::script_value::ScriptValue) -> #fruity_crate::FruityResult<Self> {
                         match value {
                             #fruity_crate::script_value::ScriptValue::Object(value) => {
@@ -101,7 +101,7 @@ pub fn intern_derive_try_into_script_value(input: TokenStream) -> TokenStream {
             });
 
             quote! {
-                impl #fruity_crate::script_value::convert::TryIntoScriptValue for #ident {
+                impl #fruity_crate::script_value::TryIntoScriptValue for #ident {
                     fn into_script_value(self) -> #fruity_crate::FruityResult<#fruity_crate::script_value::ScriptValue> {
                         let mut fields = std::collections::HashMap::new();
 

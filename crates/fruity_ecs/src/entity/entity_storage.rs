@@ -1,4 +1,4 @@
-use super::{Archetype, ArchetypeComponentTypes, ArchetypeId, EntityId, EntityLocation};
+use super::{Archetype, ArchetypeComponentTypes, EntityId, EntityLocation};
 use crate::{
     component::{Component, ExtensionComponentService},
     query::{EntityStorageQuery, QueryParam},
@@ -11,7 +11,7 @@ use std::{collections::HashMap, ptr::NonNull};
 #[derive(Debug)]
 pub struct EntityStorage {
     entity_locations: HashMap<EntityId, EntityLocation>,
-    archetype_types: HashMap<ArchetypeComponentTypes, ArchetypeId>,
+    archetype_types: HashMap<ArchetypeComponentTypes, usize>,
     pub(crate) archetypes: SortedVec<Archetype>,
 
     /// Signal notified when an archetype is created
@@ -49,9 +49,9 @@ impl EntityStorage {
     /// Get the entity components, clone them
     pub fn get_entity_components(&self, entity_id: EntityId) -> Option<Vec<Box<dyn Component>>> {
         let entity_location = self.entity_locations.get(&entity_id)?;
-        let archetype = &self.archetypes[entity_location.archetype.0];
+        let archetype = &self.archetypes[entity_location.archetype_index];
 
-        Some(archetype.get_entity_components(entity_location.index))
+        Some(archetype.get_entity_components(entity_location.entity_index))
     }
 
     /// Get entity location
@@ -81,7 +81,7 @@ impl EntityStorage {
             Some(archetype_index) => {
                 // Safe cause Archetype::component_types never change
                 let archetype =
-                    unsafe { &mut self.archetypes.get_unchecked_mut_vec()[archetype_index.0] };
+                    unsafe { &mut self.archetypes.get_unchecked_mut_vec()[*archetype_index] };
                 let entity_index = archetype.len();
                 archetype.add_entity(
                     entity_id,
@@ -91,12 +91,13 @@ impl EntityStorage {
                 )?;
 
                 EntityLocation {
-                    archetype: *archetype_index,
-                    index: entity_index,
+                    archetype_index: *archetype_index,
+                    entity_index,
                 }
             }
             None => {
                 let archetype = Archetype::new(
+                    0,
                     entity_id,
                     components,
                     extension_component_service,
@@ -111,7 +112,24 @@ impl EntityStorage {
                 // Insert the archetype
                 let archetype_index = self.archetypes.push(archetype);
                 self.archetype_types
-                    .insert(component_types, ArchetypeId(archetype_index));
+                    .insert(component_types, archetype_index);
+
+                // Update the archetypes indexes
+                unsafe { self.archetypes.get_unchecked_mut_vec() }
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(index, archetype)| {
+                        archetype.index = index;
+                    });
+
+                // Update the archetype index in entity locations
+                self.entity_locations
+                    .iter_mut()
+                    .for_each(|(_, entity_location)| {
+                        if entity_location.archetype_index >= archetype_index {
+                            entity_location.archetype_index += 1;
+                        }
+                    });
 
                 // Notify memory moves
                 let archetype = &self.archetypes[archetype_index];
@@ -128,8 +146,8 @@ impl EntityStorage {
                 }
 
                 EntityLocation {
-                    archetype: ArchetypeId(archetype_index),
-                    index: 0,
+                    archetype_index,
+                    entity_index: 0,
                 }
             }
         };
@@ -153,9 +171,10 @@ impl EntityStorage {
             };
 
         // Safe cause Archetype::component_types never change
-        let archetype =
-            unsafe { &mut self.archetypes.get_unchecked_mut_vec()[entity_location.archetype.0] };
-        let result = archetype.remove_entity(entity_location.index)?;
+        let archetype = unsafe {
+            &mut self.archetypes.get_unchecked_mut_vec()[entity_location.archetype_index]
+        };
+        let result = archetype.remove_entity(entity_location.entity_index)?;
 
         Ok(Some(result))
     }
@@ -200,11 +219,11 @@ impl EntityStorage {
             let (archetype_index, begin_entity_index) =
                 match self.archetype_types.get(&component_types) {
                     Some(archetype_index) => {
-                        let begin_entity_index = self.archetypes[archetype_index.0].len();
+                        let begin_entity_index = self.archetypes[*archetype_index].len();
 
                         // Safe cause Archetype::component_types never change
                         let self_archetype = unsafe {
-                            &mut self.archetypes.get_unchecked_mut_vec()[archetype_index.0]
+                            &mut self.archetypes.get_unchecked_mut_vec()[*archetype_index]
                         };
                         self_archetype.append(&mut archetype)?;
 
@@ -213,8 +232,8 @@ impl EntityStorage {
                     None => {
                         let archetype_index = self.archetypes.push(archetype);
                         self.archetype_types
-                            .insert(component_types.clone(), ArchetypeId(archetype_index));
-                        (ArchetypeId(archetype_index), 0)
+                            .insert(component_types.clone(), archetype_index);
+                        (archetype_index, 0)
                     }
                 };
 
@@ -223,8 +242,8 @@ impl EntityStorage {
                 .drain()
                 .map(|(entity_id, location)| {
                     let entity_location = EntityLocation {
-                        archetype: archetype_index,
-                        index: begin_entity_index + location.index,
+                        archetype_index,
+                        entity_index: begin_entity_index + location.entity_index,
                     };
 
                     self.entity_locations

@@ -100,9 +100,10 @@ fn write_fruity_export(export: FruityExport, file: &mut File) {
                     .unwrap_or(class.name.clone())
                     .to_string();
 
-                let export_type = match class.constructor {
-                    Some(_) => "class",
-                    None => "interface",
+                let export_type = if class.from_raw_js_object {
+                    "interface"
+                } else {
+                    "class"
                 };
 
                 exports.push(format!("export {} {} {{\n", &export_type, &class_name));

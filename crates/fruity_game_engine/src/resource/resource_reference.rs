@@ -1,17 +1,13 @@
-use crate::any::FruityAny;
-use crate::introspect::IntrospectFields;
-use crate::introspect::IntrospectMethods;
-use crate::script_value::ScriptValue;
-use crate::typescript;
-use crate::Arc;
-use crate::FruityResult;
-use crate::RwLock;
-use crate::RwLockReadGuard;
-use crate::RwLockWriteGuard;
-use std::ops::Deref;
-use std::ops::DerefMut;
-
 use super::Resource;
+use crate::{
+    any::FruityAny,
+    introspect::{IntrospectFields, IntrospectMethods},
+    script_value::{ScriptValue, TryFromScriptValue, TryIntoScriptValue},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    FruityError, FruityResult,
+};
+use fruity_game_engine_macro::typescript;
+use std::ops::{Deref, DerefMut};
 
 /// A reference over an any resource that is supposed to be used by components
 #[derive(Debug, Clone, FruityAny)]
@@ -94,6 +90,31 @@ impl IntrospectMethods for AnyResourceReference {
         _args: Vec<ScriptValue>,
     ) -> FruityResult<ScriptValue> {
         unreachable!()
+    }
+}
+
+impl TryIntoScriptValue for AnyResourceReference {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl TryFromScriptValue for AnyResourceReference {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
     }
 }
 
@@ -212,6 +233,37 @@ impl<T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized> IntrospectM
         _args: Vec<ScriptValue>,
     ) -> FruityResult<ScriptValue> {
         unreachable!()
+    }
+}
+
+impl<T> TryIntoScriptValue for ResourceReference<T>
+where
+    T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized,
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl<T> TryFromScriptValue for ResourceReference<T>
+where
+    T: IntrospectFields + IntrospectMethods + Send + Sync + ?Sized,
+{
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
     }
 }
 

@@ -1,23 +1,15 @@
-use fruity_game_engine_macro::export;
-use fruity_game_engine_macro::export_impl;
-use fruity_game_engine_macro::export_struct;
-
-use super::resource_reference::AnyResourceReference;
-use crate::any::FruityAny;
-use crate::introspect::IntrospectFields;
-use crate::introspect::IntrospectMethods;
-use crate::javascript::JsIntrospectObject;
-use crate::resource::resource_reference::ResourceReference;
-use crate::settings::Settings;
-use crate::Arc;
-use crate::FruityError;
-use crate::FruityResult;
-use crate::RwLock;
-use std::any::TypeId;
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::future::Future;
-use std::pin::Pin;
+use super::{AnyResourceReference, ResourceReference};
+use crate::{
+    any::FruityAny,
+    introspect::{IntrospectFields, IntrospectMethods},
+    javascript::JsIntrospectObject,
+    settings::Settings,
+    sync::{Arc, RwLock},
+    FruityError, FruityResult,
+};
+use fruity_game_engine_macro::{export, export_impl, export_struct};
+use futures::Future;
+use std::{any::TypeId, collections::HashMap, fmt::Debug, pin::Pin};
 
 /// A a function that is used to load a resource
 pub type ResourceLoader =

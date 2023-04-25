@@ -1,20 +1,18 @@
-use super::ScriptObject;
-use super::ScriptValue;
-use crate::any::FruityAny;
-use crate::introspect::IntrospectFields;
-use crate::introspect::IntrospectMethods;
-use crate::script_value::convert::TryFromScriptValue;
-use crate::script_value::convert::TryIntoScriptValue;
-use crate::FruityError;
-use crate::FruityResult;
-use std::any::type_name;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::fmt::Debug;
-use std::future::Future;
-use std::hash::Hash;
-use std::ops::Range;
-use std::pin::Pin;
+use super::{ScriptValue, TryFromScriptValue, TryIntoScriptValue};
+use crate::{
+    any::FruityAny,
+    introspect::{IntrospectFields, IntrospectMethods},
+    FruityError, FruityResult,
+};
+use futures::Future;
+use std::{
+    any::type_name,
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+    hash::Hash,
+    ops::Range,
+    pin::Pin,
+};
 
 impl<T> TryIntoScriptValue for FruityResult<T>
 where
@@ -67,36 +65,6 @@ where
 {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         Ok(<T as TryFromScriptValue>::from_script_value(value))
-    }
-}
-
-impl<T: ScriptObject> TryIntoScriptValue for T {
-    fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(ScriptValue::Object(Box::new(self)))
-    }
-}
-
-impl<T> TryFromScriptValue for T
-where
-    T: ScriptObject,
-{
-    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        use lazy_static::__Deref;
-
-        match value {
-            ScriptValue::Object(value) => match value.downcast::<T>() {
-                Ok(value) => Ok(*value),
-                Err(value) => Err(FruityError::InvalidArg(format!(
-                    "Couldn't convert a {} to {}",
-                    value.deref().get_type_name(),
-                    type_name::<T>()
-                ))),
-            },
-            value => Err(FruityError::InvalidArg(format!(
-                "Couldn't convert {:?} to native object",
-                value
-            ))),
-        }
     }
 }
 

@@ -147,8 +147,10 @@ pub struct FruityExportClass {
     /// Methods
     pub methods: Vec<FruityExportClassMethod>,
     /// Typescript overwrite, is used by the typescript build script
-    /// You can use it like this #[export_func(typescript = "interface { index: number }")]
+    /// You can use it like this #[export_func(typescript = "class { index: number }")]
     pub typescript_overwrite: Option<String>,
+    /// Is the class able to be converted from a raw js object
+    pub from_raw_js_object: bool,
 }
 
 /// An enum
@@ -163,7 +165,7 @@ pub struct FruityExportEnum {
     /// Variants, the potential values that the enum can take
     pub variants: Vec<syn::Ident>,
     /// Typescript overwrite, is used by the typescript build script
-    /// You can use it like this #[export_func(typescript = "interface { index: number }")]
+    /// You can use it like this #[export_func(typescript = "class { index: number }")]
     pub typescript_overwrite: Option<String>,
 }
 
@@ -310,7 +312,7 @@ pub fn parse_fn_item(item: syn::ItemFn) -> FruityExportFn {
         })
         .collect::<Vec<_>>();
 
-    let parsed_attrs = parse_attrs_item(&item.attrs);
+    let parsed_attrs = parse_attrs_items(&item.attrs);
 
     FruityExportFn {
         name: syn::Path {
@@ -369,6 +371,7 @@ pub fn parse_trait_item(item: syn::ItemTrait) -> FruityExportClass {
         fields: vec![],
         methods,
         typescript_overwrite: None,
+        from_raw_js_object: false,
     }
 }
 
@@ -418,7 +421,7 @@ fn parse_trait_method(item: &syn::TraitItemMethod) -> FruityExportClassMethod {
         })
         .collect::<Vec<_>>();
 
-    let parsed_attrs = parse_attrs_item(&item.attrs);
+    let parsed_attrs = parse_attrs_items(&item.attrs);
 
     FruityExportClassMethod {
         name,
@@ -499,6 +502,7 @@ pub fn parse_impl_item(item: syn::ItemImpl) -> FruityExportClass {
         fields: vec![],
         methods,
         typescript_overwrite: None,
+        from_raw_js_object: false,
     }
 }
 
@@ -512,7 +516,7 @@ pub fn parse_enum_item(item: syn::ItemEnum) -> FruityExportEnum {
         .map(|variant| variant.ident.clone())
         .collect::<Vec<_>>();
 
-    let parsed_attrs = parse_attrs_item(&item.attrs);
+    let parsed_attrs = parse_attrs_items(&item.attrs);
 
     FruityExportEnum {
         name,
@@ -569,7 +573,7 @@ fn parse_impl_method(item: &syn::ImplItemMethod) -> FruityExportClassMethod {
         })
         .collect::<Vec<_>>();
 
-    let parsed_attrs = parse_attrs_item(&item.attrs);
+    let parsed_attrs = parse_attrs_items(&item.attrs);
 
     FruityExportClassMethod {
         name,
@@ -589,7 +593,7 @@ fn parse_impl_method(item: &syn::ImplItemMethod) -> FruityExportClassMethod {
 /// Parse a struct item
 pub fn parse_struct_item(item: syn::ItemStruct) -> FruityExportClass {
     let name = item.ident;
-    let parsed_attrs = parse_attrs_item(&item.attrs);
+    let parsed_attrs = parse_attrs_items(&item.attrs);
 
     FruityExportClass {
         name,
@@ -599,6 +603,7 @@ pub fn parse_struct_item(item: syn::ItemStruct) -> FruityExportClass {
         fields: parse_struct_fields(&item.fields),
         methods: vec![],
         typescript_overwrite: parsed_attrs.typescript_overwrite,
+        from_raw_js_object: parsed_attrs.from_raw_js_object,
     }
 }
 
@@ -666,13 +671,14 @@ pub fn parse_struct_fields(fields: &syn::Fields) -> Vec<FruityExportClassField> 
     }
 }
 
-struct ParseAttrsItemResult {
+pub struct ParseAttrsItemResult {
     pub attrs: Vec<FruityExportAttribute>,
     pub name_overwrite: Option<syn::Ident>,
     pub typescript_overwrite: Option<String>,
+    pub from_raw_js_object: bool,
 }
 
-fn parse_attrs_item(items: &Vec<syn::Attribute>) -> ParseAttrsItemResult {
+pub fn parse_attrs_items(items: &Vec<syn::Attribute>) -> ParseAttrsItemResult {
     // Parse attributes
     let attrs = items
         .into_iter()
@@ -746,10 +752,22 @@ fn parse_attrs_item(items: &Vec<syn::Attribute>) -> ParseAttrsItemResult {
         None
     };
 
+    // Extract if can be instantiated from a raw js object
+    let from_raw_js_object = if let Some(export_attr) = export_attr {
+        export_attr
+            .params
+            .get("from_raw_js_object")
+            .map(|name| name.to_string().as_str() == "true")
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
     ParseAttrsItemResult {
         attrs,
         name_overwrite,
         typescript_overwrite,
+        from_raw_js_object,
     }
 }
 
@@ -825,6 +843,9 @@ fn merge_all_fruity_exports(exports: Vec<FruityExport>) -> Vec<FruityExport> {
                 .filter_map(|class| class.typescript_overwrite.clone())
                 .last();
 
+            // Get the typescript overwrite
+            let from_raw_js_object = classes.iter().any(|class| class.from_raw_js_object);
+
             // Get attrs of the class
             let mut attrs = classes
                 .iter()
@@ -861,6 +882,7 @@ fn merge_all_fruity_exports(exports: Vec<FruityExport>) -> Vec<FruityExport> {
                 fields,
                 methods,
                 typescript_overwrite,
+                from_raw_js_object,
             }
         })
         .map(|class| FruityExport::Class(class))

@@ -1,8 +1,7 @@
-use crate::script_value::convert::TryFromScriptValue;
-use crate::script_value::convert::TryIntoScriptValue;
-use crate::script_value::ScriptValue;
-use crate::FruityError;
-use crate::FruityResult;
+use crate::{
+    script_value::{ScriptValue, TryFromScriptValue, TryIntoScriptValue},
+    FruityError, FruityResult,
+};
 
 impl TryFromScriptValue for ScriptValue {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {

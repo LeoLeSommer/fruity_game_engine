@@ -1,12 +1,15 @@
 use super::{EntityIterator, QueryParam, SingleEntityIterator};
 use crate::{
-    component::{Component, ComponentStorage, ComponentTypeId, Enabled, Name, VecComponentStorage},
+    component::{Component, ComponentStorage, Enabled, Name, VecComponentStorage},
     entity::{
         Archetype, ArchetypeComponentTypes, EntityId, EntityLocation, EntityReader,
         EntityReference, EntityWriter, InnerShareableEntityReference,
     },
 };
-use fruity_game_engine::{RwLockReadGuard, RwLockWriteGuard};
+use fruity_game_engine::{
+    script_value::ScriptObjectType,
+    sync::{RwLockReadGuard, RwLockWriteGuard},
+};
 use std::{marker::PhantomData, ops::Deref, ptr::NonNull};
 
 /// The entity
@@ -81,8 +84,10 @@ impl<'a> QueryParam<'a> for WithEntity {
         }) = inner_entity_reference.deref()
         {
             SingleEntityIterator::new(EntityReader {
-                entity_index: location.index,
-                archetype: NonNull::from(&entity_storage.read().archetypes[location.archetype.0]),
+                entity_index: location.entity_index,
+                archetype: NonNull::from(
+                    &entity_storage.read().archetypes[location.archetype_index],
+                ),
                 phantom: Default::default(),
             })
         } else {
@@ -163,8 +168,10 @@ impl<'a> QueryParam<'a> for WithEntityMut {
         }) = inner_entity_reference.deref()
         {
             SingleEntityIterator::new(EntityWriter {
-                entity_index: location.index,
-                archetype: NonNull::from(&entity_storage.read().archetypes[location.archetype.0]),
+                entity_index: location.entity_index,
+                archetype: NonNull::from(
+                    &entity_storage.read().archetypes[location.archetype_index],
+                ),
                 phantom: PhantomData,
             })
         } else {
@@ -175,9 +182,9 @@ impl<'a> QueryParam<'a> for WithEntityMut {
 
 /// An iterator over entity ids
 pub struct WithIdIterator<'a> {
-    current: NonNull<EntityId>,
-    end: NonNull<EntityId>,
-    _marker: PhantomData<&'a EntityId>,
+    pub(crate) current: NonNull<EntityId>,
+    pub(crate) end: NonNull<EntityId>,
+    pub(crate) _marker: PhantomData<&'a EntityId>,
 }
 
 impl<'a> Iterator for WithIdIterator<'a> {
@@ -222,7 +229,7 @@ impl<'a> QueryParam<'a> for WithId {
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
-        let begin = &archetype.entity_ids[0] as *const EntityId as *mut EntityId;
+        let begin = archetype.entity_ids.as_ptr() as *mut EntityId;
         WithIdIterator {
             current: unsafe { NonNull::new_unchecked(begin) },
             end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
@@ -243,12 +250,12 @@ impl<'a> QueryParam<'a> for WithId {
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
-            SingleEntityIterator::new(archetype.entity_ids[location.index])
+            SingleEntityIterator::new(archetype.entity_ids[location.entity_index])
         } else {
             unreachable!()
         }
@@ -381,8 +388,8 @@ impl<'a, T: Component + 'static> WithIterator<'a, T> {
             .downcast_ref::<VecComponentStorage<T>>()
             .unwrap();
 
-        let begin = &component_storage.data.data[0] as *const T as *mut T;
-        let begin_entity_length = &component_storage.data.lengths[0] as *const usize as *mut usize;
+        let begin = component_storage.data.data.as_ptr() as *mut T;
+        let begin_entity_length = component_storage.data.lengths.as_ptr() as *mut usize;
         let end = unsafe { begin.add(component_storage.data.data.len()) };
 
         WithIterator {
@@ -454,7 +461,7 @@ impl<'a, T: Component + 'static> FromEntityWithIterator<'a, T> {
 
         let slice_range = vec_component_storage
             .data
-            .get_slice(location.index)
+            .get_slice(location.entity_index)
             .unwrap()
             .as_ptr_range();
 
@@ -507,12 +514,12 @@ impl<'a, T: Component + 'static> QueryParam<'a> for With<T> {
     type FromEntityReferenceIterator = FromEntityWithIterator<'a, T>;
 
     fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
-        component_types.contains(ComponentTypeId::of::<T>())
+        component_types.contains(&ScriptObjectType::of::<T>())
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
         let component_storage_lock =
-            archetype.component_storages[&ComponentTypeId::of::<T>()].read();
+            archetype.component_storages[&ScriptObjectType::of::<T>()].read();
         WithIterator::new(component_storage_lock)
     }
 
@@ -529,15 +536,15 @@ impl<'a, T: Component + 'static> QueryParam<'a> for With<T> {
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
             let component_storage_lock =
-                archetype.component_storages[&ComponentTypeId::of::<T>()].read();
+                archetype.component_storages[&ScriptObjectType::of::<T>()].read();
 
-            FromEntityWithIterator::new(component_storage_lock, location)
+            FromEntityWithIterator::new(component_storage_lock, &location)
         } else {
             unreachable!()
         }
@@ -560,8 +567,8 @@ impl<'a, T: Component + 'static> WithMutIterator<'a, T> {
             .downcast_ref::<VecComponentStorage<T>>()
             .unwrap();
 
-        let begin = &component_storage.data.data[0] as *const T as *mut T;
-        let begin_entity_length = &component_storage.data.lengths[0] as *const usize as *mut usize;
+        let begin = component_storage.data.data.as_ptr() as *mut T;
+        let begin_entity_length = component_storage.data.lengths.as_ptr() as *mut usize;
         let end = unsafe { begin.add(component_storage.data.data.len()) };
 
         Self {
@@ -633,7 +640,7 @@ impl<'a, T: Component + 'static> FromEntityWithMutIterator<'a, T> {
 
         let slice_range = vec_component_storage
             .data
-            .get_slice(location.index)
+            .get_slice(location.entity_index)
             .unwrap()
             .as_ptr_range();
 
@@ -686,12 +693,12 @@ impl<'a, T: Component + 'static> QueryParam<'a> for WithMut<T> {
     type FromEntityReferenceIterator = FromEntityWithMutIterator<'a, T>;
 
     fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
-        component_types.contains(ComponentTypeId::of::<T>())
+        component_types.contains(&ScriptObjectType::of::<T>())
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
         let component_storage_lock =
-            archetype.component_storages[&ComponentTypeId::of::<T>()].write();
+            archetype.component_storages[&ScriptObjectType::of::<T>()].write();
         WithMutIterator::new(component_storage_lock)
     }
 
@@ -708,15 +715,15 @@ impl<'a, T: Component + 'static> QueryParam<'a> for WithMut<T> {
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
             let component_storage_lock =
-                archetype.component_storages[&ComponentTypeId::of::<T>()].write();
+                archetype.component_storages[&ScriptObjectType::of::<T>()].write();
 
-            FromEntityWithMutIterator::new(component_storage_lock, location)
+            FromEntityWithMutIterator::new(component_storage_lock, &location)
         } else {
             unreachable!()
         }
@@ -789,7 +796,7 @@ impl<'a, T: Component + 'static> QueryParam<'a> for WithOptional<T> {
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
         if let Some(component_storage) = archetype
             .component_storages
-            .get(&ComponentTypeId::of::<T>())
+            .get(&ScriptObjectType::of::<T>())
         {
             WithOptionalIterator::new(WithIterator::new(component_storage.read()))
         } else {
@@ -810,19 +817,19 @@ impl<'a, T: Component + 'static> QueryParam<'a> for WithOptional<T> {
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
             if let Some(component_storage) = archetype
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
             {
                 let component_storage_lock = component_storage.read();
                 WithOptionalIterator::new(FromEntityWithIterator::new(
                     component_storage_lock,
-                    location,
+                    &location,
                 ))
             } else {
                 WithOptionalIterator::empty()
@@ -850,7 +857,7 @@ impl<'a, T: Component + 'static> QueryParam<'a> for WithOptionalMut<T> {
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
         if let Some(component_storage) = archetype
             .component_storages
-            .get(&ComponentTypeId::of::<T>())
+            .get(&ScriptObjectType::of::<T>())
         {
             WithOptionalIterator::new(WithMutIterator::new(component_storage.write()))
         } else {
@@ -871,19 +878,19 @@ impl<'a, T: Component + 'static> QueryParam<'a> for WithOptionalMut<T> {
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
             if let Some(component_storage) = archetype
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
             {
                 let component_storage_lock = component_storage.write();
                 WithOptionalIterator::new(FromEntityWithMutIterator::new(
                     component_storage_lock,
-                    location,
+                    &location,
                 ))
             } else {
                 WithOptionalIterator::empty()
@@ -911,7 +918,7 @@ impl<'a, T: Component + 'static, E: Component + 'static> WithExtensionIterator<'
             .downcast_ref::<VecComponentStorage<E>>()
             .unwrap();
 
-        let begin_extension = &extension_component_storage.data.data[0] as *const E as *mut E;
+        let begin_extension = extension_component_storage.data.data.as_ptr() as *mut E;
 
         Self {
             _extension_storage_lock: extension_storage_lock,
@@ -983,7 +990,7 @@ impl<'a, T: Component + 'static, E: Component + 'static> FromEntityWithExtension
 
         let begin_extension = extension_component_storage
             .data
-            .get_slice(location.index)
+            .get_slice(location.entity_index)
             .unwrap()
             .as_ptr() as *mut E;
 
@@ -1042,15 +1049,15 @@ impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a> for With
     type FromEntityReferenceIterator = FromEntityWithExtensionIterator<'a, T, E>;
 
     fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
-        component_types.contains(ComponentTypeId::of::<T>())
+        component_types.contains(&ScriptObjectType::of::<T>())
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
         let component_storage_lock =
-            archetype.component_storages[&ComponentTypeId::of::<T>()].read();
+            archetype.component_storages[&ScriptObjectType::of::<T>()].read();
 
         let extension_component_storage_lock =
-            archetype.component_storages[&ComponentTypeId::of::<E>()].read();
+            archetype.component_storages[&ScriptObjectType::of::<E>()].read();
 
         Self::Iterator::new(component_storage_lock, extension_component_storage_lock)
     }
@@ -1068,21 +1075,21 @@ impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a> for With
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
             let component_storage_lock =
-                archetype.component_storages[&ComponentTypeId::of::<T>()].read();
+                archetype.component_storages[&ScriptObjectType::of::<T>()].read();
 
             let extension_component_storage_lock =
-                archetype.component_storages[&ComponentTypeId::of::<E>()].read();
+                archetype.component_storages[&ScriptObjectType::of::<E>()].read();
 
             FromEntityWithExtensionIterator::new(
                 component_storage_lock,
                 extension_component_storage_lock,
-                location,
+                &location,
             )
         } else {
             unimplemented!()
@@ -1107,7 +1114,7 @@ impl<'a, T: Component + 'static, E: Component + 'static> WithExtensionMutIterato
             .downcast_ref::<VecComponentStorage<E>>()
             .unwrap();
 
-        let begin_extension = &extension_component_storage.data.data[0] as *const E as *mut E;
+        let begin_extension = extension_component_storage.data.data.as_ptr() as *mut E;
 
         Self {
             _extension_storage_lock: extension_storage_lock,
@@ -1181,7 +1188,7 @@ impl<'a, T: Component + 'static, E: Component + 'static>
 
         let begin_extension = extension_component_storage
             .data
-            .get_slice(location.index)
+            .get_slice(location.entity_index)
             .unwrap()
             .as_ptr() as *mut E;
 
@@ -1240,15 +1247,15 @@ impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a> for With
     type FromEntityReferenceIterator = FromEntityWithExtensionMutIterator<'a, T, E>;
 
     fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
-        component_types.contains(ComponentTypeId::of::<T>())
+        component_types.contains(&ScriptObjectType::of::<T>())
     }
 
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
         let component_storage_lock =
-            archetype.component_storages[&ComponentTypeId::of::<T>()].write();
+            archetype.component_storages[&ScriptObjectType::of::<T>()].write();
 
         let extension_component_storage_lock =
-            archetype.component_storages[&ComponentTypeId::of::<E>()].write();
+            archetype.component_storages[&ScriptObjectType::of::<E>()].write();
 
         Self::Iterator::new(component_storage_lock, extension_component_storage_lock)
     }
@@ -1266,21 +1273,21 @@ impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a> for With
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
             let component_storage_lock =
-                archetype.component_storages[&ComponentTypeId::of::<T>()].write();
+                archetype.component_storages[&ScriptObjectType::of::<T>()].write();
 
             let extension_component_storage_lock =
-                archetype.component_storages[&ComponentTypeId::of::<E>()].write();
+                archetype.component_storages[&ScriptObjectType::of::<E>()].write();
 
             FromEntityWithExtensionMutIterator::new(
                 component_storage_lock,
                 extension_component_storage_lock,
-                location,
+                &location,
             )
         } else {
             unimplemented!()
@@ -1308,11 +1315,11 @@ impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a>
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
         if let Some(component_storage) = archetype
             .component_storages
-            .get(&ComponentTypeId::of::<T>())
+            .get(&ScriptObjectType::of::<T>())
         {
             if let Some(extension_storage) = archetype
                 .component_storages
-                .get(&ComponentTypeId::of::<E>())
+                .get(&ScriptObjectType::of::<E>())
             {
                 WithOptionalIterator::new(WithExtensionIterator::new(
                     component_storage.read(),
@@ -1339,25 +1346,25 @@ impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a>
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
             if let Some(component_storage) = archetype
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
             {
                 if let Some(extension_storage) = archetype
                     .component_storages
-                    .get(&ComponentTypeId::of::<E>())
+                    .get(&ScriptObjectType::of::<E>())
                 {
                     let component_storage_lock = component_storage.read();
                     let extension_storage_lock = extension_storage.read();
                     WithOptionalIterator::new(FromEntityWithExtensionIterator::new(
                         component_storage_lock,
                         extension_storage_lock,
-                        location,
+                        &location,
                     ))
                 } else {
                     WithOptionalIterator::empty()
@@ -1391,11 +1398,11 @@ impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a>
     fn iter(archetype: &'a Archetype) -> Self::Iterator {
         if let Some(component_storage) = archetype
             .component_storages
-            .get(&ComponentTypeId::of::<T>())
+            .get(&ScriptObjectType::of::<T>())
         {
             if let Some(extension_storage) = archetype
                 .component_storages
-                .get(&ComponentTypeId::of::<E>())
+                .get(&ScriptObjectType::of::<E>())
             {
                 WithOptionalIterator::new(WithExtensionMutIterator::new(
                     component_storage.write(),
@@ -1422,25 +1429,25 @@ impl<'a, T: Component + 'static, E: Component + 'static> QueryParam<'a>
             // TODO: Find a way to remove it
             let archetype = unsafe {
                 <*const Archetype>::as_ref(
-                    &entity_storage.read().archetypes[location.archetype.0] as *const Archetype,
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
                 .unwrap()
             };
 
             if let Some(component_storage) = archetype
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
             {
                 if let Some(extension_storage) = archetype
                     .component_storages
-                    .get(&ComponentTypeId::of::<E>())
+                    .get(&ScriptObjectType::of::<E>())
                 {
                     let component_storage_lock = component_storage.write();
                     let extension_storage_lock = extension_storage.write();
                     WithOptionalIterator::new(FromEntityWithExtensionMutIterator::new(
                         component_storage_lock,
                         extension_storage_lock,
-                        location,
+                        &location,
                     ))
                 } else {
                     WithOptionalIterator::empty()

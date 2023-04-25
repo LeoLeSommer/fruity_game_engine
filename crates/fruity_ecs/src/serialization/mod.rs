@@ -1,7 +1,5 @@
 use crate::entity::EntityId;
-use fruity_game_engine::{
-    resource::resource_container::ResourceContainer, settings::Settings, FruityResult,
-};
+use fruity_game_engine::{resource::ResourceContainer, settings::Settings, FruityResult};
 use std::collections::HashMap;
 
 pub use fruity_ecs_macro::Deserialize;

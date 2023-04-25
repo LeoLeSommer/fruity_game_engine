@@ -1,6 +1,6 @@
-use fruity_ecs::Component;
+use fruity_ecs::component::Component;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::resource::resource_reference::ResourceReference;
+use fruity_game_engine::resource::ResourceReference;
 use fruity_game_engine::{export_constructor, export_impl, export_struct};
 use fruity_graphic::math::Color;
 use fruity_graphic::resources::texture_resource::TextureResource;

@@ -66,8 +66,8 @@ pub(crate) fn wasm_function_export(
         pub fn #wasm_func_ident(
             #(#function_args),*
         ) -> Result<#fruity_crate::wasm_bindgen::JsValue, #fruity_crate::wasm_bindgen::JsError> {
-            use #fruity_crate::script_value::convert::TryFromScriptValue;
-            use #fruity_crate::script_value::convert::TryIntoScriptValue;
+            use #fruity_crate::script_value::TryFromScriptValue;
+            use #fruity_crate::script_value::TryIntoScriptValue;
 
 
             let _ret = {

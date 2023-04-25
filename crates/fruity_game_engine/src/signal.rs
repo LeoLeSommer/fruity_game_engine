@@ -1,20 +1,17 @@
-use crate::any::FruityAny;
-use crate::introspect::IntrospectFields;
-use crate::introspect::IntrospectMethods;
-use crate::lazy_static;
-use crate::script_value::convert::TryFromScriptValue;
-use crate::script_value::convert::TryIntoScriptValue;
-use crate::script_value::ScriptValue;
-use crate::typescript;
-use crate::utils::introspect::ArgumentCaster;
-use crate::Arc;
-use crate::FruityResult;
-use crate::Mutex;
-use crate::RwLock;
-use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::ops::Deref;
-use std::ops::DerefMut;
+use crate::{
+    any::FruityAny,
+    introspect::{IntrospectFields, IntrospectMethods},
+    lazy_static,
+    script_value::{ScriptValue, TryFromScriptValue, TryIntoScriptValue},
+    sync::{Arc, Mutex, RwLock},
+    utils::ArgumentCaster,
+    FruityError, FruityResult,
+};
+use fruity_game_engine_macro::typescript;
+use std::{
+    fmt::{Debug, Formatter},
+    ops::{Deref, DerefMut},
+};
 
 struct IdGenerator {
     incrementer: usize,
@@ -50,7 +47,7 @@ struct InternSignal<T: 'static> {
 /// An observer pattern
 #[derive(FruityAny)]
 #[typescript(
-    "interface Signal<T> {
+    "class Signal<T> {
   send(event: T);
   addObserver(callback: (value: T) => void);
 }"
@@ -220,41 +217,33 @@ where
     }
 }
 
-impl IntrospectMethods for Signal<ScriptValue> {
-    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec!["send".to_string()])
+impl<T> TryIntoScriptValue for Signal<T>
+where
+    T: TryFromScriptValue + TryIntoScriptValue + Clone,
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
     }
+}
 
-    fn call_const_method(&self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        match name {
-            "send" => {
-                let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster.cast_next::<ScriptValue>()?;
-
-                let handle = self.send(arg1);
-
-                handle.into_script_value()
-            }
-            _ => unreachable!(),
-        }
-    }
-
-    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
-        Ok(vec!["add_observer".to_string()])
-    }
-
-    fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
-        match name {
-            "add_observer" => {
-                let mut caster = ArgumentCaster::new(args);
-                let arg1 = caster
-                    .cast_next::<Box<dyn Send + Fn(ScriptValue) -> FruityResult<ScriptValue>>>()?;
-
-                let handle = self.add_observer(move |arg| todo!());
-
-                handle.into_script_value()
-            }
-            _ => unreachable!(),
+impl<T> TryFromScriptValue for Signal<T>
+where
+    T: TryFromScriptValue + TryIntoScriptValue + Clone,
+{
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
         }
     }
 }
@@ -290,7 +279,7 @@ impl<'a, T: Send + Sync + Clone> DerefMut for SignalWriteGuard<'a, T> {
 /// A variable with a signal that is notified on update
 #[derive(Clone, FruityAny)]
 #[typescript(
-    "interface SignalProperty<T> {
+    "class SignalProperty<T> {
   value: T;
   onUpdated: Signal<T>;
 }"
@@ -396,10 +385,41 @@ where
     }
 }
 
+impl<T> TryIntoScriptValue for SignalProperty<T>
+where
+    T: TryIntoScriptValue + TryFromScriptValue + Send + Sync + Clone + Debug,
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl<T> TryFromScriptValue for SignalProperty<T>
+where
+    T: TryIntoScriptValue + TryFromScriptValue + Send + Sync + Clone + Debug,
+{
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
+    }
+}
+
 /// A signal subscription handler, can be used to unsubscribe the signal
 #[derive(FruityAny)]
 #[typescript(
-    "interface ObserverHandler {
+    "class ObserverHandler {
   dispose();
 }"
 )]
@@ -490,6 +510,37 @@ where
         _args: Vec<ScriptValue>,
     ) -> FruityResult<ScriptValue> {
         unreachable!()
+    }
+}
+
+impl<T> TryIntoScriptValue for ObserverHandler<T>
+where
+    T: TryFromScriptValue + TryIntoScriptValue,
+{
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl<T> TryFromScriptValue for ObserverHandler<T>
+where
+    T: TryFromScriptValue + TryIntoScriptValue,
+{
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
     }
 }
 

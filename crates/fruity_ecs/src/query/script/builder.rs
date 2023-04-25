@@ -1,107 +1,138 @@
 use super::{
-    params::{Tuple, With, WithEnabled, WithEntity, WithId, WithName, WithOptional, Without},
-    ScriptQuery, ScriptQueryParam,
+    ScriptQuery, ScriptQueryParam, ScriptTuple, ScriptWith, ScriptWithEnabled,
+    ScriptWithEntityReference, ScriptWithId, ScriptWithName, ScriptWithOptional, ScriptWithout,
 };
-use crate::entity::entity_service::EntityService;
+use crate::entity::{EntityId, EntityLocation, EntityReference, EntityStorage};
 use fruity_game_engine::{
-    any::FruityAny, export, export_impl, export_struct,
-    resource::resource_reference::ResourceReference,
+    any::FruityAny,
+    export, export_impl, export_struct,
+    script_value::ScriptObjectType,
+    signal::Signal,
+    sync::{Arc, RwLock},
 };
 use std::fmt::Debug;
 
+/// Query builder for script queries
 #[derive(FruityAny)]
-#[export_struct(typescript = "interface ScriptQueryBuilder<Args extends any[] = []> {
+#[export_struct(typescript = "class ScriptQueryBuilder<Args extends any[] = []> {
   withEntity(): ScriptQueryBuilder<[...Args, EntityReference]>;
   withId(): ScriptQueryBuilder<[...Args, EntityId]>;
   withName(): ScriptQueryBuilder<[...Args, string]>;
   withEnabled(): ScriptQueryBuilder<[...Args, boolean]>;
-  with<T>(componentIdentifier: string): ScriptQueryBuilder<[...Args, T]>;
+  with<T>(scriptObjectType: ScriptObjectType): ScriptQueryBuilder<[...Args, T]>;
   withOptional<T>(
-    componentIdentifier: string
+    scriptObjectType: ScriptObjectType
   ): ScriptQueryBuilder<[...Args, T | null]>;
   without(
-    componentIdentifier: string
+    scriptObjectType: ScriptObjectType
   ): ScriptQueryBuilder<[...Args, null]>;
   build(): ScriptQuery<[...Args]>
 }")]
 pub struct ScriptQueryBuilder {
-    entity_service: ResourceReference<EntityService>,
+    entity_storage: Arc<RwLock<EntityStorage>>,
+    on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    on_created: Signal<EntityReference>,
+    on_deleted: Signal<EntityId>,
     params: Vec<Box<dyn ScriptQueryParam>>,
 }
 
 #[export_impl]
 impl ScriptQueryBuilder {
     /// Create the entity query
-    pub fn new(entity_service: ResourceReference<EntityService>) -> Self {
+    pub fn new(
+        entity_storage: Arc<RwLock<EntityStorage>>,
+        on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+        on_created: Signal<EntityReference>,
+        on_deleted: Signal<EntityId>,
+    ) -> Self {
         ScriptQueryBuilder {
-            entity_service,
+            entity_storage,
+            on_entity_location_moved,
+            on_created,
+            on_deleted,
             params: Vec::default(),
         }
     }
 
+    /// Inject the entity reference as next item of the query
     #[export]
     pub fn with_entity(&self) -> Self {
         let mut query = self.clone();
-        query.params.push(Box::new(WithEntity {}));
+        query.params.push(Box::new(ScriptWithEntityReference {
+            entity_storage: self.entity_storage.clone(),
+            on_entity_location_moved: self.on_entity_location_moved.clone(),
+        }));
         query
     }
 
+    /// Inject the entity id as next item of the query
     #[export]
     pub fn with_id(&self) -> Self {
         let mut query = self.clone();
-        query.params.push(Box::new(WithId {}));
+        query.params.push(Box::new(ScriptWithId {}));
         query
     }
 
+    /// Inject the entity name as next item of the query
     #[export]
     pub fn with_name(&self) -> Self {
         let mut query = self.clone();
-        query.params.push(Box::new(WithName {}));
+        query.params.push(Box::new(ScriptWithName {}));
         query
     }
 
+    /// Inject the entity enabled state as next item of the query
     #[export]
     pub fn with_enabled(&self) -> Self {
         let mut query = self.clone();
-        query.params.push(Box::new(WithEnabled {}));
+        query.params.push(Box::new(ScriptWithEnabled {}));
         query
     }
 
+    /// Inject a component as next item of the query
     #[export]
-    pub fn with(&self, component_identifier: String) -> Self {
+    pub fn with(&self, script_object_type: ScriptObjectType) -> Self {
         let mut query = self.clone();
-        query.params.push(Box::new(With {
-            identifier: component_identifier,
+        query.params.push(Box::new(ScriptWith {
+            entity_storage: self.entity_storage.clone(),
+            on_entity_location_moved: self.on_entity_location_moved.clone(),
+            script_object_type,
         }));
         query
     }
 
+    /// Inject an optional component as next item of the query
     #[export]
-    pub fn with_optional(&self, component_identifier: String) -> Self {
+    pub fn with_optional(&self, script_object_type: ScriptObjectType) -> Self {
         let mut query = self.clone();
-        query.params.push(Box::new(WithOptional {
-            identifier: component_identifier,
+        query.params.push(Box::new(ScriptWithOptional {
+            entity_storage: self.entity_storage.clone(),
+            on_entity_location_moved: self.on_entity_location_moved.clone(),
+            script_object_type,
         }));
         query
     }
 
+    /// Filter out entities that have a component
     #[export]
-    pub fn without(&self, component_identifier: String) -> Self {
+    pub fn without(&self, script_object_type: ScriptObjectType) -> Self {
         let mut query = self.clone();
-        query.params.push(Box::new(Without {
-            identifier: component_identifier,
-        }));
+        query
+            .params
+            .push(Box::new(ScriptWithout { script_object_type }));
         query
     }
 
+    /// Build the query
     #[export]
     pub fn build(&self) -> ScriptQuery {
-        let entity_service_reader = self.entity_service.read();
         ScriptQuery::new(
-            &entity_service_reader,
-            Box::new(Tuple {
+            Box::new(ScriptTuple {
                 params: self.params.iter().map(|param| param.duplicate()).collect(),
             }),
+            &self.entity_storage.read(),
+            self.on_created.clone(),
+            self.on_deleted.clone(),
         )
     }
 }
@@ -109,7 +140,10 @@ impl ScriptQueryBuilder {
 impl Clone for ScriptQueryBuilder {
     fn clone(&self) -> Self {
         Self {
-            entity_service: self.entity_service.clone(),
+            entity_storage: self.entity_storage.clone(),
+            on_entity_location_moved: self.on_entity_location_moved.clone(),
+            on_created: self.on_created.clone(),
+            on_deleted: self.on_deleted.clone(),
             params: self.params.iter().map(|param| param.duplicate()).collect(),
         }
     }

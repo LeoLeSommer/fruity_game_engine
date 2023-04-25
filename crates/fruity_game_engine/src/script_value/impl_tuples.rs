@@ -1,9 +1,5 @@
-use super::ScriptValue;
-use crate::script_value::convert::TryFromScriptValue;
-use crate::script_value::convert::TryIntoScriptValue;
-use crate::utils::introspect::ArgumentCaster;
-use crate::FruityError;
-use crate::FruityResult;
+use super::{ScriptValue, TryFromScriptValue, TryIntoScriptValue};
+use crate::{utils::ArgumentCaster, FruityError, FruityResult};
 
 impl TryIntoScriptValue for () {
     fn into_script_value(self) -> FruityResult<ScriptValue> {

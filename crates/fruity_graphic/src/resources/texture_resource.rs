@@ -2,9 +2,9 @@ use crate::graphic_service::GraphicService;
 use fruity_game_engine::{
     export, export_trait,
     introspect::{IntrospectFields, IntrospectMethods},
-    resource::resource_container::ResourceContainer,
+    resource::ResourceContainer,
     settings::Settings,
-    utils::file::read_file_to_bytes_async,
+    utils::read_file_to_bytes_async,
     FruityResult,
 };
 use std::{future::Future, pin::Pin};

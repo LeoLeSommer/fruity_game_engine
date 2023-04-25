@@ -1,13 +1,11 @@
-use crate::any::FruityAny;
-use crate::introspect::IntrospectFields;
-use crate::introspect::IntrospectMethods;
-use crate::script_value::convert::TryFromScriptValue;
-use crate::script_value::convert::TryIntoScriptValue;
-use crate::script_value::ScriptValue;
-use crate::typescript;
-use crate::utils::encode_decode::decode_base_64;
-use crate::FruityError;
-use crate::FruityResult;
+use crate::{
+    any::FruityAny,
+    introspect::{IntrospectFields, IntrospectMethods},
+    script_value::{ScriptValue, TryFromScriptValue, TryIntoScriptValue},
+    utils::decode_base_64,
+    FruityError, FruityResult,
+};
+use fruity_game_engine_macro::typescript;
 use std::collections::HashMap;
 
 /// Settings collection
@@ -296,5 +294,33 @@ impl IntrospectMethods for SettingsHashMap {
         _args: Vec<ScriptValue>,
     ) -> FruityResult<ScriptValue> {
         unreachable!()
+    }
+}
+
+impl TryIntoScriptValue for SettingsHashMap {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl TryFromScriptValue for SettingsHashMap {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => Ok(SettingsHashMap(
+                value
+                    .get_field_names()?
+                    .into_iter()
+                    .map(|name| {
+                        let field_value = value.get_field_value(&name)?;
+                        TryFromScriptValue::from_script_value(field_value)
+                            .map(|value| (name, value))
+                    })
+                    .try_collect::<HashMap<_, _>>()?,
+            )),
+            _ => Err(FruityError::from(FruityError::GenericFailure(format!(
+                "Couldn't convert {:?} to object",
+                value
+            )))),
+        }
     }
 }

@@ -1,9 +1,9 @@
 use crate::Graphic2dService;
 use crate::Sprite;
 use crate::Transform2D;
-use fruity_ecs::entity::entity_query::with::With;
-use fruity_ecs::entity::entity_query::with::WithId;
-use fruity_ecs::entity::entity_query::Query;
+use fruity_ecs::query::Query;
+use fruity_ecs::query::With;
+use fruity_ecs::query::WithId;
 use fruity_game_engine::inject::Ref;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::graphic_service::MaterialParam;

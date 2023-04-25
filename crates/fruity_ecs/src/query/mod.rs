@@ -2,13 +2,14 @@ use crate::entity::EntityId;
 use crate::entity::EntityReference;
 use crate::entity::EntityService;
 use fruity_game_engine::inject::Injectable;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::resource::ResourceContainer;
 use fruity_game_engine::signal::ObserverHandler;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityResult;
 
-// /// Queries for scripting languages
-// pub mod script;
+/// Queries for scripting languages
+mod script;
+pub use script::*;
 
 /// Queries for tuples
 mod tuple;
@@ -80,7 +81,7 @@ impl<'a, T: QueryParam<'a> + 'static> Query<T> {
                 let matches_query = {
                     let entity_storage_inner = entity_reference_inner.entity_storage.read();
                     let archetype = &entity_storage_inner.archetypes
-                        [entity_reference_inner.location.archetype.0];
+                        [entity_reference_inner.location.archetype_index];
 
                     T::filter_archetype(archetype.get_component_types())
                 };

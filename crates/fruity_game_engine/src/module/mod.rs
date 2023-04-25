@@ -1,6 +1,6 @@
 use crate::settings::Settings;
 use crate::world::{RunWorldMiddleware, SetupWorldMiddleware, World};
-use crate::{Arc, FruityResult};
+use crate::{sync::Arc, FruityResult};
 use fruity_game_engine_macro::{export_impl, export_struct, FruityAny};
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -8,11 +8,12 @@ use std::future::Future;
 use std::pin::Pin;
 
 /// A service to manage modules loading
-pub mod modules_service;
+mod modules_service;
+pub use modules_service::*;
 
 /// A module for the engine
 #[derive(Default, Clone, FruityAny)]
-#[export_struct]
+#[export_struct(from_raw_js_object = true)]
 pub struct Module {
     /// The name of the module
     pub name: String,

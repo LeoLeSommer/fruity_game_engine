@@ -1,17 +1,15 @@
 use super::{Deserialize, Serialize};
-use crate::entity::{EntityId, EntityReference, EntityService};
-// use crate::entity::{entity_reference::EntityReference, entity_service::EntityService, EntityId};
+use crate::{
+    component::Component,
+    entity::{EntityId, EntityReference, EntityService},
+};
 use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
     resource::{
-        resource_container::ResourceContainer,
-        resource_reference::{AnyResourceReference, ResourceReference},
+        ResourceContainer, {AnyResourceReference, ResourceReference},
     },
-    script_value::{
-        convert::{TryFromScriptValue, TryIntoScriptValue},
-        ScriptValue,
-    },
+    script_value::{ScriptValue, TryFromScriptValue, TryIntoScriptValue},
     settings::Settings,
     signal::SignalProperty,
     FruityError, FruityResult,
@@ -298,5 +296,55 @@ impl IntrospectMethods for SettingsHashMap {
         _args: Vec<ScriptValue>,
     ) -> FruityResult<ScriptValue> {
         unimplemented!()
+    }
+}
+
+impl TryIntoScriptValue for Box<dyn Component> {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl TryFromScriptValue for Box<dyn Component> {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
+    }
+}
+
+impl TryIntoScriptValue for SettingsHashMap {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl TryFromScriptValue for SettingsHashMap {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
     }
 }

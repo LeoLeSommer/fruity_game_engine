@@ -1,6 +1,6 @@
 use crate::components::parry_circle_collider::ParryCircleCollider;
-use fruity_ecs::entity::entity_query::with::WithExtensionMut;
-use fruity_ecs::entity::entity_query::Query;
+use fruity_ecs::query::Query;
+use fruity_ecs::query::WithExtensionMut;
 use fruity_game_engine::FruityResult;
 use fruity_physic_2d::components::circle_collider::CircleCollider;
 

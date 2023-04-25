@@ -1,13 +1,15 @@
 use crate::{
-    entity::{ArchetypeId, EntityId},
+    entity::EntityId,
     serialization::{Deserialize, SerializationService, Serialize},
 };
 use fruity_game_engine::{
+    any::FruityAny,
+    external,
     introspect::{IntrospectFields, IntrospectMethods},
-    resource::resource_container::ResourceContainer,
-    script_value::ScriptValue,
+    resource::ResourceContainer,
+    script_value::{ScriptObjectType, ScriptValue},
     settings::Settings,
-    FruityError, FruityResult,
+    typescript, FruityError, FruityResult,
 };
 use maplit::hashmap;
 use std::{collections::HashMap, fmt::Debug};
@@ -36,36 +38,23 @@ pub use component_reference::*;
 pub use fruity_ecs_macro::Component;
 
 /// A component is a piece of data that can be attached to an entity.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, FruityAny)]
+#[external]
 pub enum ComponentTypeId {
     /// A component that is implemented in Rust
-    Rust(std::any::TypeId),
+    Normal(ScriptObjectType),
     /// A component that is implemented in Rust and have an archetype order
-    OrderedRust(std::any::TypeId, u8),
-    /// A component that is implemented in JavaScript
-    Script(String),
+    OrderedRust(ScriptObjectType, u8),
 }
 
 impl ComponentTypeId {
-    /// Create a new component type id from a rust type
-    pub fn from_identifier(string: &str) -> Self {
-        Self::Script(string.to_string())
+    /// Get the script object type of the component type id
+    pub fn get_script_object_type(self) -> ScriptObjectType {
+        match self {
+            ComponentTypeId::Normal(script_object_type) => script_object_type,
+            ComponentTypeId::OrderedRust(script_object_type, _) => script_object_type,
+        }
     }
-
-    /// Create a new component type id from a rust type
-    pub fn of<T: 'static>() -> Self {
-        Self::Rust(std::any::TypeId::of::<T>())
-    }
-}
-
-/// The location of a component in the world
-pub struct ComponentLocation {
-    /// The archetype id
-    pub archetype_id: ArchetypeId,
-    /// Component type id
-    pub component_type_id: ComponentTypeId,
-    /// Index in the component storage
-    pub index: usize,
 }
 
 /// An abstraction over a component, should be implemented for every component

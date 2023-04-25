@@ -1,7 +1,6 @@
-use crate::export;
-use crate::module::Module;
-use crate::FruityResult;
-use crate::ResourceContainer;
+use super::Module;
+use crate::{resource::ResourceContainer, FruityResult};
+use fruity_game_engine_macro::export;
 
 /// A service for frame management
 pub struct ModulesService {

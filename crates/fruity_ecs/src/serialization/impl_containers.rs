@@ -1,7 +1,7 @@
 use super::{Deserialize, Serialize};
 use crate::entity::EntityId;
 use fruity_game_engine::{
-    resource::resource_container::ResourceContainer, settings::Settings, FruityError, FruityResult,
+    resource::ResourceContainer, settings::Settings, FruityError, FruityResult,
 };
 use std::{
     collections::{HashMap, HashSet},

@@ -3,10 +3,13 @@ use crate::serialization::Serialize;
 use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
-    resource::resource_container::ResourceContainer,
-    script_value::{ScriptObject, ScriptValue},
+    resource::ResourceContainer,
+    script_value::{
+        ScriptObject, ScriptObjectType, ScriptValue, TryFromScriptValue, TryIntoScriptValue,
+    },
     settings::Settings,
-    Arc, FruityResult,
+    sync::Arc,
+    FruityError, FruityResult,
 };
 use std::ops::Deref;
 
@@ -66,13 +69,40 @@ impl IntrospectMethods for ScriptComponent {
     }
 }
 
+impl TryIntoScriptValue for ScriptComponent {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl TryFromScriptValue for ScriptComponent {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
+    }
+}
+
 impl Component for ScriptComponent {
     fn duplicate(&self) -> Box<dyn Component> {
         Box::new(self.clone())
     }
 
     fn get_component_type_id(&self) -> FruityResult<ComponentTypeId> {
-        Ok(ComponentTypeId::Script(self.0.get_class_name()?))
+        Ok(ComponentTypeId::Normal(ScriptObjectType::from_identifier(
+            self.0.get_class_name()?,
+        )))
     }
 
     fn get_storage(&self) -> Box<dyn ComponentStorage> {

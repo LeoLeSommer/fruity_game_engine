@@ -2,21 +2,23 @@ export type ScriptValue = any
 
 export type ScriptObject = {[key: string]: ScriptValue}
 
+export type ScriptObjectType = string | number
+
 export type JsIntrospectObject = { [key: string]: any }
 
 export type ResourceReference<T> = T
 
-export interface Signal<T> {
-  notify(event: T);
+export class Signal<T> {
+  send(event: T);
   addObserver(callback: (value: T) => void);
 }
 
-export interface SignalProperty<T> {
+export class SignalProperty<T> {
   value: T;
   onUpdated: Signal<T>;
 }
 
-export interface ObserverHandler {
+export class ObserverHandler {
   dispose();
 }
 
@@ -44,7 +46,7 @@ export type SetupWorldMiddleware = (world: World, settings: Settings, next: Setu
 
 export type RunWorldMiddleware = (world: World, settings: Settings, next: RunWorldMiddlewareNext) => void
 
-export interface FrameService {
+export class FrameService {
 
   getDelta(): number
   getElapsed(): number
@@ -61,7 +63,7 @@ export interface Module {
   runWorldMiddleware?: RunWorldMiddleware | null | undefined | void
 }
 
-export interface ResourceContainer {
+export class ResourceContainer {
 
   require<T>(identifier: string): T
   get<T>(identifier: string): T | null

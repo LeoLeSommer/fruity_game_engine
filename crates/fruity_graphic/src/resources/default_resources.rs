@@ -14,7 +14,7 @@ use crate::resources::shader_resource::ShaderInstanceAttributeType;
 use crate::resources::shader_resource::ShaderResource;
 use crate::resources::shader_resource::ShaderResourceSettings;
 use crate::Vector2D;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::resource::ResourceContainer;
 use fruity_game_engine::FruityResult;
 use maplit::hashmap;
 

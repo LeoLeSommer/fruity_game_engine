@@ -25,6 +25,11 @@ impl<T> SlicedVec<T> {
     }
 
     /// Returns the number of slices
+    pub fn slice_count(&self) -> usize {
+        self.lengths.len()
+    }
+
+    /// Returns the number of elem in a giver slice
     pub fn slice_len(&self, slice_index: usize) -> usize {
         self.lengths[slice_index]
     }
@@ -131,6 +136,16 @@ impl<T> SlicedVec<T> {
     /// Reserve capacity for at least `additional` more elements to be inserted in the storage
     pub fn reserve(&mut self, additional: usize) {
         self.data.reserve(additional);
+    }
+
+    /// Returns a raw pointer to the data
+    pub fn as_ptr(&self) -> *mut T {
+        self.data.as_ptr() as *mut T
+    }
+
+    /// Returns a raw pointer to the lengths of slices
+    pub fn as_slice_lengths_ptr(&self) -> *mut usize {
+        self.lengths.as_ptr() as *mut usize
     }
 
     /// Returns the capacity of the storage

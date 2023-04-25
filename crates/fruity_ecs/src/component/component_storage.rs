@@ -43,14 +43,23 @@ pub trait ComponentStorage: Debug + FruityAny + Send + Sync {
     /// Appends the components of another storage to this storage
     fn append(&mut self, other: &mut dyn ComponentStorage) -> FruityResult<()>;
 
-    /// Returns the number of components in the storage in a given entity
-    fn len(&self, entity_index: usize) -> usize;
+    /// Returns the number of components in the storage
+    fn len(&self) -> usize;
+
+    /// Returns the number of entities in the storage
+    fn slice_count(&self) -> usize;
 
     /// Clear the storage
     fn clear(&mut self);
 
     /// Reserves capacity for at least `additional` more components to be inserted in the storage
     fn reserve(&mut self, additional: usize);
+
+    /// Returns a raw pointer to the data
+    fn as_ptr(&self) -> *mut dyn Component;
+
+    /// Returns a raw pointer to the lengths of slices
+    fn as_slice_lengths_ptr(&self) -> *mut usize;
 
     /// Returns the capacity of the storage
     fn capacity(&self) -> usize;
@@ -171,8 +180,12 @@ impl<T: Component> ComponentStorage for VecComponentStorage<T> {
         Ok(())
     }
 
-    fn len(&self, entity_index: usize) -> usize {
-        self.data.slice_len(entity_index)
+    fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    fn slice_count(&self) -> usize {
+        self.data.slice_count()
     }
 
     fn clear(&mut self) {
@@ -181,6 +194,14 @@ impl<T: Component> ComponentStorage for VecComponentStorage<T> {
 
     fn reserve(&mut self, additional: usize) {
         self.data.reserve(additional);
+    }
+
+    fn as_ptr(&self) -> *mut dyn Component {
+        self.data.as_ptr() as *mut dyn Component
+    }
+
+    fn as_slice_lengths_ptr(&self) -> *mut usize {
+        self.data.as_slice_lengths_ptr() as *mut usize
     }
 
     fn capacity(&self) -> usize {

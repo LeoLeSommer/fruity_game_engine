@@ -1,200 +1,96 @@
-use super::ArchetypePtr;
-use super::BidirectionalIterator;
-use crate::entity::archetype::Archetype;
-use crate::entity::entity_reference::EntityReference;
-use crate::entity::entity_service::EntityService;
-use crate::entity::entity_service::OnArchetypeAddressMoved;
-use crate::entity::entity_service::OnEntityAddressAdded;
-use crate::entity::entity_service::OnEntityAddressRemoved;
-use crate::entity::EntityId;
-use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::script_value::ScriptValue;
-use fruity_game_engine::signal::ObserverHandler;
-use fruity_game_engine::signal::Signal;
-use fruity_game_engine::Arc;
-use fruity_game_engine::FruityError;
-use fruity_game_engine::FruityResult;
-use fruity_game_engine::RwLock;
-use fruity_game_engine::{export, export_impl, export_struct};
+use super::{ArchetypePtr, EntityIterator, InnerEntityStorageQuery};
+use crate::entity::{Archetype, ArchetypeComponentTypes, EntityId, EntityReference, EntityStorage};
+use fruity_game_engine::{
+    any::FruityAny,
+    export, export_impl, export_struct,
+    script_value::ScriptValue,
+    signal::{ObserverHandler, Signal},
+    sync::{Arc, RwLock},
+    FruityError, FruityResult,
+};
 use sorted_vec::SortedVec;
-use std::fmt::Debug;
-use std::ptr::NonNull;
+use std::{fmt::Debug, ptr::NonNull};
 
-pub(crate) mod builder;
+mod builder;
+pub use builder::*;
 
-pub(crate) mod params;
+mod params;
+pub use params::*;
 
 /// A trait that should be implement for everything that can be queried from ['EntityService']
-pub trait ScriptQueryParam: FruityAny + Send + Sync {
-    /// Create a new query param that is a clone of self
-    fn duplicate(&self) -> Box<dyn ScriptQueryParam>;
-
+pub trait ScriptQueryParam: Send + Sync {
     /// A filter over the archetypes
-    fn filter_archetype(&self, archetype: &Archetype) -> bool;
-
-    /// How many item are iterated for a given entity
-    fn items_per_entity(&self, archetype: &Archetype) -> usize;
+    fn filter_archetype(&self, component_types: &ArchetypeComponentTypes) -> bool;
 
     /// Iter over the queried components into a given archetype
     /// The iterator should not lock the entity guard, the query will take care of it
     fn iter<'a>(
         &self,
         archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a>;
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a>;
 
     /// Iter over the queried components into a given entity
     /// It should not lock the entity guard, the query will take care of it
     fn from_entity_reference<'a>(
         &self,
         entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a>;
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a>;
+
+    /// Duplicate the query param
+    fn duplicate(&self) -> Box<dyn ScriptQueryParam>;
 }
 
 /// A query over entities
 #[derive(FruityAny)]
-#[export_struct(typescript = "interface ScriptQuery<Args extends any[] = []> {
+#[export_struct(typescript = "class ScriptQuery<Args extends any[] = []> {
   forEach(callback: (args: Args) => void);
   onCreated(callback: (args: Args) => undefined | (() => void)): ObserverHandler;
 }")]
 pub struct ScriptQuery {
-    /// A signal raised when an entity that match the query is created
-    pub on_entity_created: Signal<EntityReference>,
-
-    /// A signal raised when an entity that match the query is deleted
-    pub on_entity_deleted: Signal<EntityId>,
-
-    archetypes: Arc<RwLock<SortedVec<ArchetypePtr>>>,
-    on_archetype_address_added_handle: ObserverHandler<NonNull<Archetype>>,
-    on_archetype_address_moved_handle: ObserverHandler<OnArchetypeAddressMoved>,
-    on_entity_address_added_handle: ObserverHandler<OnEntityAddressAdded>,
-    on_entity_address_removed_handle: ObserverHandler<OnEntityAddressRemoved>,
+    inner: Arc<RwLock<InnerEntityStorageQuery>>,
+    on_created: Signal<EntityReference>,
+    on_deleted: Signal<EntityId>,
     params: Box<dyn ScriptQueryParam>,
-}
-
-impl Drop for ScriptQuery {
-    fn drop(&mut self) {
-        self.on_archetype_address_added_handle.dispose_by_ref();
-        self.on_archetype_address_moved_handle.dispose_by_ref();
-        self.on_entity_address_added_handle.dispose_by_ref();
-        self.on_entity_address_removed_handle.dispose_by_ref();
-    }
 }
 
 #[export_impl]
 impl ScriptQuery {
     /// Create the entity query
-    pub fn new(entity_service: &EntityService, params: Box<dyn ScriptQueryParam>) -> Self {
+    pub fn new(
+        params: Box<dyn ScriptQueryParam>,
+        entity_storage: &EntityStorage,
+        on_created: Signal<EntityReference>,
+        on_deleted: Signal<EntityId>,
+    ) -> Self {
+        let params_2 = params.duplicate();
+
         // Filter existing archetypes
-        let archetypes = Arc::new(RwLock::new(SortedVec::from(
-            entity_service
-                .archetypes
-                .iter()
-                .map(|archetype| unsafe {
-                    ArchetypePtr(NonNull::new_unchecked(
-                        archetype as *const Archetype as *mut Archetype,
-                    ))
-                })
-                .collect::<Vec<_>>(),
-        )));
+        let inner = Arc::new(RwLock::new(InnerEntityStorageQuery {
+            archetypes: SortedVec::from(
+                entity_storage
+                    .archetypes
+                    .iter()
+                    .filter(move |archetype| {
+                        params_2.filter_archetype(archetype.get_component_types())
+                    })
+                    .map(|archetype| unsafe {
+                        ArchetypePtr(NonNull::new_unchecked(
+                            archetype as *const Archetype as *mut Archetype,
+                        ))
+                    })
+                    .collect::<Vec<_>>(),
+            ),
+            on_archetype_created_handle: None,
+            on_archetypes_reallocated_handle: None,
+        }));
 
-        // Listen to entity service archetypes vec reallocations
-        // Register memory move observers to update the entity reference inner pointers when the memory is moved
-        let (
-            on_entity_created,
-            on_entity_deleted,
-            on_archetype_address_added_handle,
-            on_archetype_address_moved_handle,
-            on_entity_address_added_handle,
-            on_entity_address_removed_handle,
-        ) = {
-            let params_2 = params.duplicate();
-            let archetypes_2 = archetypes.clone();
-            let on_archetype_address_added_handle = entity_service
-                .on_archetype_address_added
-                .add_observer(move |archetype| {
-                    if params_2.filter_archetype(unsafe { archetype.as_ref() }) {
-                        let mut archetypes_writer = archetypes_2.write();
-                        archetypes_writer.push(ArchetypePtr(*archetype));
-                    }
-
-                    Ok(())
-                });
-
-            let archetypes_3 = archetypes.clone();
-            let on_archetype_address_moved_handle = entity_service
-                .on_archetype_address_moved
-                .add_observer(move |event| {
-                    let mut archetypes_writer = archetypes_3.write();
-                    *archetypes_writer = SortedVec::from(
-                        archetypes_writer
-                            .drain(..)
-                            .filter_map(|archetype| {
-                                if archetype.0 == event.old {
-                                    if let Some(new_archetype) = unsafe { event.new.as_mut() } {
-                                        Some(unsafe {
-                                            ArchetypePtr(NonNull::new_unchecked(
-                                                new_archetype as *mut Archetype,
-                                            ))
-                                        })
-                                    } else {
-                                        None
-                                    }
-                                } else {
-                                    Some(archetype)
-                                }
-                            })
-                            .collect::<Vec<_>>(),
-                    );
-
-                    Ok(())
-                });
-
-            // Listen the entity create and remove events
-            let params_2 = params.duplicate();
-            let on_entity_created = Signal::<EntityReference>::new();
-            let on_entity_created_2 = on_entity_created.clone();
-            let on_entity_address_added_handle = entity_service
-                .on_entity_address_added
-                .add_observer(move |event| {
-                    if params_2.filter_archetype(unsafe { event.archetype.as_ref() }) {
-                        on_entity_created_2.send(event.entity_reference.clone())?;
-                    }
-
-                    Ok(())
-                });
-
-            let params_2 = params.duplicate();
-            let on_entity_deleted = Signal::<EntityId>::new();
-            let on_entity_deleted_2 = on_entity_deleted.clone();
-            let on_entity_address_removed_handle = entity_service
-                .on_entity_address_removed
-                .add_observer(move |event| {
-                    if params_2.filter_archetype(unsafe { event.archetype.as_ref() }) {
-                        on_entity_deleted_2.send(event.entity_id)?;
-                    }
-
-                    Ok(())
-                });
-
-            (
-                on_entity_created,
-                on_entity_deleted,
-                on_archetype_address_added_handle,
-                on_archetype_address_moved_handle,
-                on_entity_address_added_handle,
-                on_entity_address_removed_handle,
-            )
-        };
+        Self::generate_storage_observers(params.duplicate(), &inner, entity_storage);
 
         // Returns the query
         Self {
-            archetypes,
-            on_entity_created,
-            on_entity_deleted,
-            on_archetype_address_added_handle,
-            on_archetype_address_moved_handle,
-            on_entity_address_added_handle,
-            on_entity_address_removed_handle,
+            inner,
+            on_created: on_created.clone(),
+            on_deleted: on_deleted.clone(),
             params,
         }
     }
@@ -205,8 +101,8 @@ impl ScriptQuery {
         &self,
         callback: Arc<dyn Send + Sync + Fn(ScriptValue) -> FruityResult<ScriptValue>>,
     ) -> FruityResult<()> {
-        let archetypes_reader = self.archetypes.read();
-        let mut iterator = archetypes_reader.iter();
+        let inner_reader = self.inner.read();
+        let mut iterator = inner_reader.archetypes.iter();
 
         iterator.try_for_each(|archetype| {
             let archetype = unsafe { archetype.0.as_ref() };
@@ -221,56 +117,125 @@ impl ScriptQuery {
     #[export]
     pub fn on_created(
         &self,
-        callback: Arc<
+        callback: Box<
             dyn Send
                 + Sync
                 + Fn(
                     ScriptValue,
                 )
-                    -> FruityResult<Option<Arc<dyn Send + Sync + Fn() -> FruityResult<()>>>>,
+                    -> FruityResult<Option<Box<dyn Send + Sync + Fn() -> FruityResult<()>>>>,
         >,
     ) -> ObserverHandler<EntityReference> {
         let params = self.params.duplicate();
-        let on_entity_deleted = self.on_entity_deleted.clone();
-        self.on_entity_created
-            .add_observer(move |entity_reference| {
-                let entity_id = entity_reference.get_entity_id()?;
-                let mut iterator = params.from_entity_reference(&entity_reference);
+        let on_deleted = self.on_deleted.clone();
+        self.on_created.add_observer(move |entity_reference| {
+            if let Some(entity_reference_inner) = entity_reference.inner.read().as_ref() {
+                let matches_query = {
+                    let entity_storage_inner = entity_reference_inner.entity_storage.read();
+                    let archetype = &entity_storage_inner.archetypes
+                        [entity_reference_inner.location.archetype_index];
 
-                iterator.try_for_each(|item| {
-                    let dispose_callback = callback(item)?;
+                    params.filter_archetype(archetype.get_component_types())
+                };
 
-                    if let Some(dispose_callback) = dispose_callback {
-                        on_entity_deleted.add_self_dispose_observer(
-                            move |signal_entity_id, handler| {
-                                if entity_id == *signal_entity_id {
-                                    dispose_callback()?;
-                                    handler.dispose_by_ref();
+                if matches_query {
+                    let entity_id = entity_reference.get_entity_id()?;
+                    let mut iterator = params.from_entity_reference(&entity_reference);
+
+                    iterator.try_for_each(|item| {
+                        let dispose_callback = callback(item)?;
+
+                        if let Some(dispose_callback) = dispose_callback {
+                            on_deleted.add_self_dispose_observer(
+                                move |signal_entity_id, handler| {
+                                    if entity_id == *signal_entity_id {
+                                        dispose_callback()?;
+                                        handler.dispose_by_ref();
+                                    }
+
+                                    Ok(())
+                                },
+                            )
+                        }
+
+                        Ok(())
+                    })
+                } else {
+                    Ok(())
+                }
+            } else {
+                Ok(())
+            }
+        })
+    }
+
+    pub(crate) fn generate_storage_observers(
+        params: Box<dyn ScriptQueryParam>,
+        inner: &Arc<RwLock<InnerEntityStorageQuery>>,
+        entity_storage: &EntityStorage,
+    ) {
+        // Listen to entity storage archetype create event
+        let on_archetype_created_handle = {
+            let inner_2 = inner.clone();
+            entity_storage
+                .on_archetype_created
+                .add_observer(move |archetype_ptr| {
+                    let mut inner_writer = inner_2.write();
+
+                    // The archetypes after this one are moved cause archetypes are ordered
+                    inner_writer.archetypes = SortedVec::from(
+                        inner_writer
+                            .archetypes
+                            .iter()
+                            .map(|archetype| unsafe {
+                                if archetype.0.as_ref() <= archetype_ptr.as_ref() {
+                                    archetype.clone()
+                                } else {
+                                    ArchetypePtr(NonNull::new_unchecked(
+                                        archetype.0.as_ptr().add(1) as *mut Archetype,
+                                    ))
                                 }
+                            })
+                            .collect::<Vec<_>>(),
+                    );
 
-                                Ok(())
-                            },
-                        )
+                    // Add the archetype to the query list if it match the filter
+                    if params
+                        .filter_archetype(unsafe { archetype_ptr.as_ref().get_component_types() })
+                    {
+                        inner_writer.archetypes.push(ArchetypePtr(*archetype_ptr));
                     }
 
                     Ok(())
                 })
-            })
-    }
-}
+        };
 
-impl Clone for ScriptQuery {
-    fn clone(&self) -> Self {
-        Self {
-            on_entity_created: self.on_entity_created.clone(),
-            on_entity_deleted: self.on_entity_deleted.clone(),
-            archetypes: self.archetypes.clone(),
-            on_archetype_address_added_handle: self.on_archetype_address_added_handle.clone(),
-            on_archetype_address_moved_handle: self.on_archetype_address_moved_handle.clone(),
-            on_entity_address_added_handle: self.on_entity_address_added_handle.clone(),
-            on_entity_address_removed_handle: self.on_entity_address_removed_handle.clone(),
-            params: self.params.duplicate(),
-        }
+        // Listen to entity storage archetype reallocated event
+        let on_archetypes_reallocated_handle = {
+            let inner_2 = inner.clone();
+            entity_storage
+                .on_archetypes_reallocated
+                .add_observer(move |addr_diff| {
+                    let mut inner_writer = inner_2.write();
+
+                    inner_writer.archetypes = SortedVec::from(
+                        inner_writer
+                            .archetypes
+                            .iter()
+                            .map(|archetype| unsafe {
+                                ArchetypePtr(NonNull::new_unchecked(
+                                    archetype.0.as_ptr().byte_offset(*addr_diff) as *mut Archetype,
+                                ))
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+
+                    Ok(())
+                })
+        };
+
+        inner.write().on_archetype_created_handle = Some(on_archetype_created_handle);
+        inner.write().on_archetypes_reallocated_handle = Some(on_archetypes_reallocated_handle);
     }
 }
 

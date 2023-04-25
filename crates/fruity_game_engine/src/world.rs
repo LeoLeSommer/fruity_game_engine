@@ -1,21 +1,19 @@
-use crate::any::FruityAny;
-use crate::console_log;
-use crate::export;
-use crate::frame_service::FrameService;
-use crate::module::Module;
-use crate::profile_scope;
-use crate::settings::Settings;
-use crate::Arc;
-use crate::FruityResult;
-use crate::ModulesService;
-use crate::ResourceContainer;
-use crate::RwLock;
-use crate::{export_constructor, export_impl, export_struct};
-use fruity_game_engine_macro::typescript;
-use std::fmt::Debug;
-use std::future::Future;
-use std::ops::Deref;
-use std::pin::Pin;
+use crate::{
+    any::FruityAny,
+    console_log,
+    frame_service::FrameService,
+    module::{Module, ModulesService},
+    profile_scope,
+    resource::ResourceContainer,
+    settings::Settings,
+    sync::{Arc, RwLock},
+    FruityResult,
+};
+use fruity_game_engine_macro::{
+    export, export_constructor, export_impl, export_struct, typescript,
+};
+use futures::Future;
+use std::{fmt::Debug, ops::Deref, pin::Pin};
 
 /// A middleware that occurs when entering into the loop
 #[typescript("type StartMiddleware = (world: World) => void")]
@@ -323,7 +321,7 @@ mod test {
     use super::*;
     use crate::module::Module;
     use crate::settings::Settings;
-    use crate::Arc;
+    use crate::sync::Arc;
 
     #[test]
     fn test_module_run_world_middleware() {

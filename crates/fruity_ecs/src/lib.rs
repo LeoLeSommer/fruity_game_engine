@@ -14,7 +14,7 @@
 
 use component::ExtensionComponentService;
 use entity::{EntityId, EntityService};
-use fruity_game_engine::{export_function, module::Module, typescript_import, Arc};
+use fruity_game_engine::{export_function, module::Module, sync::Arc, typescript_import};
 use serialization::SerializationService;
 use system::SystemService;
 

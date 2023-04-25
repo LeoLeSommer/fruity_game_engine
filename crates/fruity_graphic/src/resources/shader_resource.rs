@@ -1,12 +1,11 @@
 use crate::graphic_service::GraphicService;
 use fruity_game_engine::{
     any::FruityAny,
-    export_enum, export_trait,
+    export_enum, export_impl, export_struct, export_trait,
     introspect::{IntrospectFields, IntrospectMethods},
-    resource::resource_container::ResourceContainer,
-    script_value::convert::{TryFromScriptValue, TryIntoScriptValue},
+    resource::ResourceContainer,
     settings::Settings,
-    utils::file::read_file_to_string_async,
+    utils::read_file_to_string_async,
     FruityResult,
 };
 use std::{future::Future, pin::Pin};
@@ -14,22 +13,34 @@ use std::{future::Future, pin::Pin};
 #[export_trait]
 pub trait ShaderResource: IntrospectFields + IntrospectMethods + Send + Sync {}
 
-#[derive(Debug, Default, TryFromScriptValue, TryIntoScriptValue, Clone, FruityAny)]
+#[derive(Debug, Default, Clone, FruityAny)]
+#[export_struct(from_raw_js_object = true)]
 pub struct ShaderResourceSettings {
     pub binding_groups: Vec<ShaderBindingGroup>,
     pub instance_attributes: Vec<ShaderInstanceAttribute>,
 }
 
-#[derive(Debug, Default, TryFromScriptValue, TryIntoScriptValue, Clone, FruityAny)]
+#[export_impl]
+impl ShaderResourceSettings {}
+
+#[derive(Debug, Default, Clone, FruityAny)]
+#[export_struct(from_raw_js_object = true)]
 pub struct ShaderBindingGroup {
     pub bindings: Vec<ShaderBinding>,
 }
 
-#[derive(Debug, Default, TryFromScriptValue, TryIntoScriptValue, Clone, FruityAny)]
+#[export_impl]
+impl ShaderBindingGroup {}
+
+#[derive(Debug, Default, Clone, FruityAny)]
+#[export_struct(from_raw_js_object = true)]
 pub struct ShaderBinding {
     pub visibility: ShaderBindingVisibility,
     pub ty: ShaderBindingType,
 }
+
+#[export_impl]
+impl ShaderBinding {}
 
 #[derive(Debug, Clone)]
 #[export_enum]
@@ -58,11 +69,15 @@ impl Default for ShaderBindingType {
     }
 }
 
-#[derive(Debug, Default, Clone, FruityAny, TryFromScriptValue, TryIntoScriptValue)]
+#[derive(Debug, Default, Clone, FruityAny)]
+#[export_struct(from_raw_js_object = true)]
 pub struct ShaderInstanceAttribute {
     pub location: u32,
     pub ty: ShaderInstanceAttributeType,
 }
+
+#[export_impl]
+impl ShaderInstanceAttribute {}
 
 #[derive(Debug, Clone)]
 #[export_enum]

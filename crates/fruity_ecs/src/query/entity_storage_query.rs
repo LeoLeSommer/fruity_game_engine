@@ -1,5 +1,9 @@
 use crate::entity::{Archetype, ArchetypeComponentTypes, EntityReference, EntityStorage};
-use fruity_game_engine::{signal::ObserverHandler, Arc, FruityResult, RwLock};
+use fruity_game_engine::{
+    signal::ObserverHandler,
+    sync::{Arc, RwLock},
+    FruityResult,
+};
 use sorted_vec::SortedVec;
 use std::{marker::PhantomData, ptr::NonNull};
 
@@ -107,7 +111,7 @@ pub trait QueryParam<'a> {
 }
 
 #[derive(Clone)]
-pub(crate) struct ArchetypePtr(NonNull<Archetype>);
+pub(crate) struct ArchetypePtr(pub(crate) NonNull<Archetype>);
 
 impl PartialEq for ArchetypePtr {
     fn eq(&self, other: &Self) -> bool {
@@ -139,10 +143,10 @@ unsafe impl Sync for ArchetypePtr {}
 // Safe cause archetypes are updated when an archetype is moved trough memory
 unsafe impl Send for ArchetypePtr {}
 
-struct InnerEntityStorageQuery {
-    archetypes: SortedVec<ArchetypePtr>,
-    on_archetype_created_handle: Option<ObserverHandler<NonNull<Archetype>>>,
-    on_archetypes_reallocated_handle: Option<ObserverHandler<isize>>,
+pub(crate) struct InnerEntityStorageQuery {
+    pub(crate) archetypes: SortedVec<ArchetypePtr>,
+    pub(crate) on_archetype_created_handle: Option<ObserverHandler<NonNull<Archetype>>>,
+    pub(crate) on_archetypes_reallocated_handle: Option<ObserverHandler<isize>>,
 }
 
 impl Drop for InnerEntityStorageQuery {
@@ -228,7 +232,7 @@ impl<'a, T: QueryParam<'a> + 'static> EntityStorageQuery<T> {
         })
     }
 
-    fn generate_storage_observers(
+    pub(crate) fn generate_storage_observers(
         inner: &Arc<RwLock<InnerEntityStorageQuery>>,
         entity_storage: &EntityStorage,
     ) {

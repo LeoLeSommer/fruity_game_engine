@@ -1,4 +1,4 @@
-use fruity_ecs::Component;
+use fruity_ecs::component::Component;
 use fruity_game_engine::{any::FruityAny, export_impl, export_struct};
 use parry2d::shape::Ball;
 

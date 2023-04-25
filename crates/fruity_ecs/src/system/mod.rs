@@ -1,11 +1,10 @@
 use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::inject::Inject;
 use fruity_game_engine::profile_scope;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
-use fruity_game_engine::script_value::convert::TryFromScriptValue;
-use fruity_game_engine::Arc;
+use fruity_game_engine::resource::ResourceContainer;
+use fruity_game_engine::sync::Arc;
+use fruity_game_engine::sync::Mutex;
 use fruity_game_engine::FruityResult;
-use fruity_game_engine::Mutex;
 use fruity_game_engine::{export, export_impl, export_struct};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
@@ -33,7 +32,8 @@ pub type StartupSystemCallback =
     dyn Fn() -> FruityResult<StartupDisposeSystemCallback> + Send + Sync + 'static;
 
 /// Params for a system
-#[derive(Debug, Clone, TryFromScriptValue, Default)]
+#[derive(Debug, Clone, FruityAny, Default)]
+#[export_struct(from_raw_js_object = true)]
 pub struct SystemParams {
     /// The pool index
     pub pool_index: Option<usize>,
@@ -45,8 +45,12 @@ pub struct SystemParams {
     pub execute_in_main_thread: Option<bool>,
 }
 
+#[export_impl]
+impl SystemParams {}
+
 /// Params for a system
-#[derive(Debug, Clone, TryFromScriptValue, Default)]
+#[derive(Debug, Clone, FruityAny, Default)]
+#[export_struct(from_raw_js_object = true)]
 pub struct StartupSystemParams {
     /// If true, the system is still running while pause
     pub ignore_pause: Option<bool>,
@@ -54,6 +58,9 @@ pub struct StartupSystemParams {
     /// If true, the system will be executed in the main thread
     pub execute_in_main_thread: Option<bool>,
 }
+
+#[export_impl]
+impl StartupSystemParams {}
 
 struct StartupDisposeSystem {
     identifier: String,

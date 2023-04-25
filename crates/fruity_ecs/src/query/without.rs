@@ -1,8 +1,9 @@
 use super::{InfiniteEntityIterator, QueryParam, SingleEntityIterator};
 use crate::{
-    component::{Component, ComponentTypeId},
+    component::Component,
     entity::{Archetype, ArchetypeComponentTypes, EntityReference},
 };
+use fruity_game_engine::script_value::ScriptObjectType;
 use std::marker::PhantomData;
 
 /// Exclude a component from a query
@@ -16,7 +17,7 @@ impl<'a, T: Component + 'static> QueryParam<'a> for Without<T> {
     type FromEntityReferenceIterator = SingleEntityIterator<Self::Item>;
 
     fn filter_archetype(component_types: &ArchetypeComponentTypes) -> bool {
-        !component_types.contains(ComponentTypeId::of::<T>())
+        !component_types.contains(&ScriptObjectType::of::<T>())
     }
 
     fn iter(_archetype: &'a Archetype) -> Self::Iterator {

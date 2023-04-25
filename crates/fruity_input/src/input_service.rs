@@ -2,7 +2,7 @@ use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::export;
 use fruity_game_engine::export_impl;
 use fruity_game_engine::export_struct;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::resource::ResourceContainer;
 use fruity_game_engine::settings::Settings;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::FruityResult;

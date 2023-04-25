@@ -38,7 +38,7 @@
 - [ ] Find a way to move the introspect declaration into the associated traits
 - [ ] Allow to access entities created in the current frame
 - [ ] Put permission into the component type instead of the entity
-- [ ] Use uint id instead of string for component types, register components on js side
+- [ ] Use uint id instead of string for component types
 - [ ] Separate data (with) and filter (without) in queries
 - [ ] Remove the pointer reallocation signals, replace it with shared containers
 - [ ] Re-parallelize archetype mutations

@@ -6,10 +6,12 @@ use convert::intern_derive_try_into_script_value;
 use convert_case::Case;
 use fruity_any::intern_derive_fruity_any;
 use fruity_game_engine_code_parser::parse_fn_item;
+use introspect::inner_extern;
 use introspect::intern_export_enum;
 use introspect::{intern_export_impl, intern_export_struct};
 use proc_macro::{self, TokenStream};
 use quote::quote;
+use syn::Item;
 use syn::ItemEnum;
 use syn::ItemFn;
 use syn::__private::TokenStream2;
@@ -110,16 +112,32 @@ pub fn export_function(_attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn export_struct(_attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn export_struct(attr: TokenStream, input: TokenStream) -> TokenStream {
     let input2 = input.clone();
     let struct_input: ItemStruct = parse_macro_input!(input2);
 
-    let export_struct = intern_export_struct(struct_input);
+    let export_struct = intern_export_struct(attr, struct_input);
 
     let input: TokenStream2 = input.clone().into();
     let output = quote! {
         #input
         #export_struct
+    };
+
+    output.into()
+}
+
+#[proc_macro_attribute]
+pub fn external(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    let input2 = input.clone();
+    let item: Item = parse_macro_input!(input2);
+
+    let export_extern = inner_extern(item);
+
+    let input: TokenStream2 = input.clone().into();
+    let output = quote! {
+        #input
+        #export_extern
     };
 
     output.into()
@@ -146,12 +164,12 @@ pub fn export_impl(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input2 = input.clone();
     let impl_input: ItemImpl = parse_macro_input!(input2);
 
-    let export_struct = intern_export_impl(impl_input);
+    let export_impl = intern_export_impl(impl_input);
 
     let input: TokenStream2 = input.clone().into();
     let output = quote! {
         #input
-        #export_struct
+        #export_impl
     };
 
     output.into()

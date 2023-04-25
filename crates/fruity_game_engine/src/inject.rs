@@ -1,9 +1,7 @@
-use crate::introspect::IntrospectFields;
-use crate::introspect::IntrospectMethods;
-use crate::resource::resource_container::ResourceContainer;
-use crate::resource::resource_reference::ResourceReadGuard;
-use crate::resource::resource_reference::ResourceReference;
-use crate::resource::resource_reference::ResourceWriteGuard;
+use crate::{
+    introspect::{IntrospectFields, IntrospectMethods},
+    resource::{ResourceContainer, ResourceReadGuard, ResourceReference, ResourceWriteGuard},
+};
 
 /// A reference over a resource
 pub type Ref<T> = ResourceReference<T>;

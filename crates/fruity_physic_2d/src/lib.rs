@@ -1,9 +1,7 @@
 use crate::components::circle_collider::CircleCollider;
 use crate::components::rect_collider::RectCollider;
-use fruity_ecs::serialization_service::SerializationService;
-use fruity_game_engine::module::Module;
-use fruity_game_engine::Arc;
-use fruity_game_engine::{export_function, typescript_import};
+use fruity_ecs::serialization::SerializationService;
+use fruity_game_engine::{export_function, module::Module, sync::Arc, typescript_import};
 
 pub mod components;
 

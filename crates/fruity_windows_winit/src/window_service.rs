@@ -1,5 +1,5 @@
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::resource::resource_container::ResourceContainer;
+use fruity_game_engine::resource::ResourceContainer;
 use fruity_game_engine::send_wrapper::SendWrapper;
 use fruity_game_engine::signal::Signal;
 use fruity_game_engine::{export, export_impl, export_struct, FruityResult};

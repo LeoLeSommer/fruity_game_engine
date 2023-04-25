@@ -1,4 +1,4 @@
-use fruity_ecs::Component;
+use fruity_ecs::component::Component;
 use fruity_game_engine::{any::FruityAny, export_constructor, export_impl, export_struct};
 use fruity_graphic::math::vector2d::Vector2D;
 

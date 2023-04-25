@@ -1,9 +1,6 @@
 use crate::serialization::{Deserialize, Serialize};
 use fruity_game_engine::{
-    script_value::{
-        convert::{TryFromScriptValue, TryIntoScriptValue},
-        ScriptValue,
-    },
+    script_value::{ScriptValue, TryFromScriptValue, TryIntoScriptValue},
     settings::Settings,
     FruityError, FruityResult,
 };
@@ -57,9 +54,9 @@ impl TryFromScriptValue for EntityId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntityLocation {
     /// Archetype id
-    pub(crate) archetype: ArchetypeId,
+    pub(crate) archetype_index: usize,
     /// Index in the archetype
-    pub(crate) index: usize,
+    pub(crate) entity_index: usize,
 }
 
 /// A module for the engine

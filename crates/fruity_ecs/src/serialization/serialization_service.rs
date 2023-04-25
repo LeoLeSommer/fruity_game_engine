@@ -3,8 +3,8 @@ use crate::{component::Component, entity::EntityId};
 use fruity_game_engine::{
     any::FruityAny,
     export_impl, export_struct,
-    resource::resource_container::ResourceContainer,
-    script_value::{convert::TryIntoScriptValue, ScriptValue},
+    resource::ResourceContainer,
+    script_value::{ScriptValue, TryIntoScriptValue},
     settings::Settings,
     FruityResult,
 };

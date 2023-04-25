@@ -48,7 +48,11 @@ fn derive_component_trait(input: TokenStream) -> TokenStream {
             }
 
             fn get_component_type_id(&self) -> fruity_game_engine::FruityResult<#fruity_ecs_crate::component::ComponentTypeId> {
-                Ok(#fruity_ecs_crate::component::ComponentTypeId::Rust(std::any::TypeId::of::<Self>()))
+                Ok(
+                    #fruity_ecs_crate::component::ComponentTypeId::Normal(
+                        fruity_game_engine::script_value::ScriptObjectType::Rust(std::any::TypeId::of::<Self>())
+                    )
+                )
             }
 
             fn get_storage(&self) -> Box<dyn #fruity_ecs_crate::component::ComponentStorage> {
@@ -105,7 +109,7 @@ fn intern_derive_serialize(input: TokenStream) -> TokenStream {
         impl #fruity_ecs_crate::serialization::Serialize for #ident {
             fn serialize(
                 &self,
-                resource_container: &fruity_game_engine::resource::resource_container::ResourceContainer
+                resource_container: &fruity_game_engine::resource::ResourceContainer
             ) -> fruity_game_engine::FruityResult<fruity_game_engine::settings::Settings> {
                 let mut result = std::collections::HashMap::<String, fruity_game_engine::settings::Settings>::new();
                 #fields_initializer
@@ -180,7 +184,7 @@ fn intern_derive_deserialize(input: TokenStream) -> TokenStream {
 
             fn deserialize(
                 serialized: &fruity_game_engine::settings::Settings,
-                resource_container: &fruity_game_engine::resource::resource_container::ResourceContainer,
+                resource_container: &fruity_game_engine::resource::ResourceContainer,
                 local_id_to_entity_id: &std::collections::HashMap<u64, #fruity_ecs_crate::entity::EntityId>,
             ) -> fruity_game_engine::FruityResult<Self> {
                 if let fruity_game_engine::settings::Settings::Object(serialized) = serialized {

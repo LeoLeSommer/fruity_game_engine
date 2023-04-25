@@ -3,7 +3,7 @@ import {
   Module,
 } from "fruity_game_engine"
 
-export interface WinitWindowService {
+export class WinitWindowService {
   cursorPosition: [number, number]
   onStartUpdate: Signal<void>
   onEndUpdate: Signal<void>

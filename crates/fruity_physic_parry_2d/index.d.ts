@@ -2,15 +2,15 @@ import {
   Module,
 } from "fruity_game_engine"
 
-export interface ParryCircleCollider {
+export class ParryCircleCollider {
 
 }
 
-export interface ParryRectCollider {
+export class ParryRectCollider {
 
 }
 
-export interface RigidBody {
+export class RigidBody {
 
 }
 

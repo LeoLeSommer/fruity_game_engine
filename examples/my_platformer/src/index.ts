@@ -7,12 +7,6 @@ import {
   EntityService,
   SystemService,
 } from "fruity_ecs";
-import { createEditorModule } from "fruity_editor";
-import { createFruityEditorEguiModule } from "fruity_editor_egui";
-import { createFruityEditorGraphicModule } from "fruity_editor_graphic";
-import { createFruityEditorGraphic2DModule } from "fruity_editor_graphic_2d";
-import { createFruityEditorHierarchyModule } from "fruity_editor_hierarchy";
-import { createFruityEditorPhysic2DModule } from "fruity_editor_physic_2d";
 import {
   createFruityGraphicModule,
   MaterialResource,
@@ -60,12 +54,6 @@ const world = new World(settings as any);
 
 world.registerModule(createFruityNativeBundleModule());
 world.registerModule(createFruityEcsModule());
-world.registerModule(createEditorModule());
-world.registerModule(createFruityEditorEguiModule());
-world.registerModule(createFruityEditorGraphicModule());
-world.registerModule(createFruityEditorGraphic2DModule());
-world.registerModule(createFruityEditorHierarchyModule());
-world.registerModule(createFruityEditorPhysic2DModule());
 world.registerModule(createFruityGraphicModule());
 world.registerModule(createFruityGraphic2DModule());
 world.registerModule(createFruityGraphicWgpuModule());
@@ -138,8 +126,8 @@ world.registerModule({
     /*const testStartup2Query = entityService
       .query()
       .withName()
-      .with("Translate2D")
-      .with("Velocity")
+      .with(Translate2D.getType())
+      .with(Velocity.getType())
       .build();
 
     systemService.addStartupSystem("test startup 2", () => {
@@ -181,14 +169,18 @@ world.registerModule({
           ];
           console.log("Create 2");
 
-          createdEntityId = entityService.create("New Entity", true, test);
+          createdEntityId = entityService.createEntity(
+            "New Entity",
+            true,
+            test
+          );
         }
       });
 
       let handle2 = inputService.onReleased.addObserver((input) => {
         if (input === "Action 1" && createdEntityId) {
           console.log("Remove");
-          entityService.remove(createdEntityId);
+          entityService.removeEntity(createdEntityId);
         }
       });
 
@@ -200,7 +192,7 @@ world.registerModule({
 
     let test1Query = entityService
       .query()
-      .with<Translate2D>("Translate2D")
+      .with<Translate2D>(Translate2D.getType())
       .with<Velocity>("Velocity")
       .build();
 
@@ -216,7 +208,7 @@ world.registerModule({
     const test2Query = entityService
       .query()
       .withEntity()
-      .with<Translate2D>("Translate2D")
+      .with<Translate2D>(Translate2D.getType())
       .with<Move>("Move")
       .build();
 
@@ -245,7 +237,7 @@ world.registerModule({
 
     const test3Query = entityService
       .query()
-      .with<Rotate2D>("Rotate2D")
+      .with<Rotate2D>(Rotate2D.getType())
       .with<Move>("Move")
       .build();
 

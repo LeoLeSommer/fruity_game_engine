@@ -14,7 +14,7 @@ import {
   ShaderResourceSettings,
 } from "fruity_graphic"
 
-export interface WgpuGraphicService {
+export class WgpuGraphicService {
 
   startDraw(): void
   endDraw()
@@ -31,20 +31,20 @@ export interface WgpuGraphicService {
   setViewportSize(x: number, y: number)
 }
 
-export interface WgpuMaterialResource {
+export class WgpuMaterialResource {
 
   getShader(): ResourceReference<ShaderResource> | null
 }
 
-export interface WgpuMeshResource {
+export class WgpuMeshResource {
   params: MeshResourceSettings
 }
 
-export interface WgpuShaderResource {
+export class WgpuShaderResource {
   params: ShaderResourceSettings
 }
 
-export interface WgpuTextureResource {
+export class WgpuTextureResource {
 
   getSize(): [number, number]
 }

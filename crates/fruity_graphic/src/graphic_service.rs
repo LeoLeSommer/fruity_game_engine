@@ -9,17 +9,20 @@ use crate::resources::shader_resource::ShaderResourceSettings;
 use crate::resources::texture_resource::TextureResource;
 use crate::resources::texture_resource::TextureResourceSettings;
 use crate::Vector2D;
+use fruity_game_engine::any::FruityAny;
 use fruity_game_engine::introspect::IntrospectFields;
 use fruity_game_engine::introspect::IntrospectMethods;
-use fruity_game_engine::resource::resource_reference::ResourceReference;
-use fruity_game_engine::script_value::convert::{TryFromScriptValue, TryIntoScriptValue};
+use fruity_game_engine::resource::ResourceReference;
 use fruity_game_engine::script_value::ScriptValue;
+use fruity_game_engine::script_value::TryFromScriptValue;
+use fruity_game_engine::script_value::TryIntoScriptValue;
 use fruity_game_engine::FruityError;
 use fruity_game_engine::{export, export_trait};
 use fruity_game_engine::{typescript, FruityResult};
 use maplit::hashmap;
 use std::collections::HashMap;
 
+#[derive(Debug, FruityAny)]
 #[typescript(
     "type MaterialParam =
   | { type: 'uint', value: number }
@@ -46,122 +49,172 @@ pub enum MaterialParam {
     Matrix4(Matrix4),
 }
 
+impl Default for MaterialParam {
+    fn default() -> Self {
+        MaterialParam::Uint(0)
+    }
+}
+
+impl IntrospectFields for MaterialParam {
+    fn is_static(&self) -> FruityResult<bool> {
+        Ok(true)
+    }
+
+    fn get_class_name(&self) -> FruityResult<String> {
+        Ok("MaterialParam".to_string())
+    }
+
+    fn get_field_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec!["type".to_string(), "value".to_string()])
+    }
+
+    fn set_field_value(&mut self, name: &str, value: ScriptValue) -> FruityResult<()> {
+        match name {
+            "type" => match String::from_script_value(value)?.as_str() {
+                "uint" => {
+                    *self = MaterialParam::Uint(0);
+                }
+                "int" => {
+                    *self = MaterialParam::Int(0);
+                }
+                "float" => {
+                    *self = MaterialParam::Float(0.0);
+                }
+                "vector2d" => {
+                    *self = MaterialParam::Vector2D(Vector2D::default());
+                }
+                "color" => {
+                    *self = MaterialParam::Color(Color::default());
+                }
+                "rect" => {
+                    *self = MaterialParam::Rect {
+                        bottom_left: Vector2D::default(),
+                        top_right: Vector2D::default(),
+                    };
+                }
+                _ => unreachable!(),
+            },
+            "value" => match self {
+                MaterialParam::Uint(self_value) => {
+                    *self_value = u32::from_script_value(value)?;
+                }
+                MaterialParam::Int(self_value) => {
+                    *self_value = i32::from_script_value(value)?;
+                }
+                MaterialParam::Float(self_value) => {
+                    *self_value = f32::from_script_value(value)?;
+                }
+                MaterialParam::Vector2D(self_value) => {
+                    *self_value = Vector2D::from_script_value(value)?;
+                }
+                MaterialParam::Color(self_value) => {
+                    *self_value = Color::from_script_value(value)?;
+                }
+                MaterialParam::Rect {
+                    bottom_left,
+                    top_right,
+                } => match value {
+                    ScriptValue::Object(script_object) => {
+                        *bottom_left = Vector2D::from_script_value(
+                            script_object.get_field_value("bottom_left")?,
+                        )?;
+                        *top_right = Vector2D::from_script_value(
+                            script_object.get_field_value("top_right")?,
+                        )?;
+                    }
+                    _ => unreachable!(),
+                },
+                MaterialParam::Matrix4(self_value) => {
+                    *self_value = Matrix4::from_script_value(value)?
+                }
+            },
+            _ => unreachable!(),
+        };
+
+        FruityResult::Ok(())
+    }
+
+    fn get_field_value(&self, name: &str) -> FruityResult<ScriptValue> {
+        match name {
+            "type" => match self {
+                MaterialParam::Uint(_) => Ok("uint".into_script_value()?),
+                MaterialParam::Int(_) => Ok("int".into_script_value()?),
+                MaterialParam::Float(_) => Ok("float".into_script_value()?),
+                MaterialParam::Vector2D(_) => Ok("vector2d".into_script_value()?),
+                MaterialParam::Color(_) => Ok("color".into_script_value()?),
+                MaterialParam::Rect {
+                    bottom_left: _,
+                    top_right: _,
+                } => Ok("rect".into_script_value()?),
+                MaterialParam::Matrix4(_) => Ok("matrix4".into_script_value()?),
+            },
+            "value" => match self {
+                MaterialParam::Uint(value) => Ok(value.into_script_value()?),
+                MaterialParam::Int(value) => Ok(value.into_script_value()?),
+                MaterialParam::Float(value) => Ok(value.into_script_value()?),
+                MaterialParam::Vector2D(value) => Ok(value.into_script_value()?),
+                MaterialParam::Color(value) => Ok(value.into_script_value()?),
+                MaterialParam::Rect {
+                    bottom_left,
+                    top_right,
+                } => {
+                    let hashmap = hashmap! {
+                        "bottom_left".to_string() => bottom_left.clone(),
+                        "top_right".to_string() => top_right.clone(),
+                    };
+
+                    Ok(hashmap.into_script_value()?)
+                }
+                MaterialParam::Matrix4(value) => Ok(value.into_script_value()?),
+            },
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl IntrospectMethods for MaterialParam {
+    fn get_const_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_const_method(&self, _name: &str, _args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+
+    fn get_mut_method_names(&self) -> FruityResult<Vec<String>> {
+        Ok(vec![])
+    }
+
+    fn call_mut_method(
+        &mut self,
+        _name: &str,
+        _args: Vec<ScriptValue>,
+    ) -> FruityResult<ScriptValue> {
+        unreachable!()
+    }
+}
+
 impl TryIntoScriptValue for MaterialParam {
     fn into_script_value(self) -> FruityResult<ScriptValue> {
-        Ok(match self {
-            MaterialParam::Uint(value) => hashmap! {
-                "type".to_string() => "uint".to_string().into_script_value()?,
-                "value".to_string() => value.into_script_value()?,
-            }
-            .into_script_value()?,
-            MaterialParam::Int(value) => hashmap! {
-                "type".to_string() => "int".to_string().into_script_value()?,
-                "value".to_string() => value.into_script_value()?,
-            }
-            .into_script_value()?,
-            MaterialParam::Float(value) => hashmap! {
-                "type".to_string() => "float".to_string().into_script_value()?,
-                "value".to_string() => value.into_script_value()?,
-            }
-            .into_script_value()?,
-            MaterialParam::Vector2D(value) => hashmap! {
-                "type".to_string() => "vector2d".to_string().into_script_value()?,
-                "value".to_string() => value.into_script_value()?,
-            }
-            .into_script_value()?,
-            MaterialParam::Color(value) => hashmap! {
-                "type".to_string() => "color".to_string().into_script_value()?,
-                "value".to_string() => value.into_script_value()?,
-            }
-            .into_script_value()?,
-            MaterialParam::Rect {
-                bottom_left,
-                top_right,
-            } => hashmap! {
-                "type".to_string() => "rect".to_string().into_script_value()?,
-                "value".to_string() => hashmap! {
-                    "bottomLeft".to_string() => bottom_left.into_script_value()?,
-                    "topRight".to_string() => top_right.into_script_value()?,
-                }.into_script_value()?,
-            }
-            .into_script_value()?,
-            MaterialParam::Matrix4(value) => hashmap! {
-                "type".to_string() => "matrix4".to_string().into_script_value()?,
-                "value".to_string() => value.into_script_value()?,
-            }
-            .into_script_value()?,
-        })
+        Ok(ScriptValue::Object(Box::new(self)))
     }
 }
 
 impl TryFromScriptValue for MaterialParam {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
-        match &value {
-            ScriptValue::Object(script_object) => {
-                let field_names = script_object.get_field_names()?;
+        use std::ops::Deref;
 
-                if field_names.contains(&"type".to_string())
-                    && field_names.contains(&"value".to_string())
-                {
-                    let ty = String::from_script_value(script_object.get_field_value("type")?)?;
-                    let ty = ty.as_str();
-                    let value = script_object.get_field_value("value")?;
-
-                    match ty {
-                        "uint" => Ok(MaterialParam::Uint(u32::from_script_value(value)?)),
-                        "int" => Ok(MaterialParam::Int(i32::from_script_value(value)?)),
-                        "float" => Ok(MaterialParam::Float(f32::from_script_value(value)?)),
-                        "vector2d" => {
-                            Ok(MaterialParam::Vector2D(Vector2D::from_script_value(value)?))
-                        }
-                        "color" => Ok(MaterialParam::Color(Color::from_script_value(value)?)),
-                        "rect" => {
-                            if let ScriptValue::Object(value_object) = &value {
-                                let field_names = value_object.get_field_names()?;
-
-                                if field_names.contains(&"bottomLeft".to_string())
-                                    && field_names.contains(&"topRight".to_string())
-                                {
-                                    let bottom_left = Vector2D::from_script_value(
-                                        script_object.get_field_value("bottomLeft")?,
-                                    )?;
-
-                                    let top_right = Vector2D::from_script_value(
-                                        script_object.get_field_value("topRight")?,
-                                    )?;
-
-                                    Ok(MaterialParam::Rect {
-                                        bottom_left,
-                                        top_right,
-                                    })
-                                } else {
-                                    Err(FruityError::InvalidArg(format!(
-                                        "Couldn't convert {:?} to MaterialParam",
-                                        &value
-                                    )))
-                                }
-                            } else {
-                                Err(FruityError::InvalidArg(format!(
-                                    "Couldn't convert {:?} to MaterialParam",
-                                    &value
-                                )))
-                            }
-                        }
-                        "matrix4" => Ok(MaterialParam::Matrix4(Matrix4::from_script_value(value)?)),
-                        _ => Err(FruityError::InvalidArg(format!(
-                            "Couldn't convert {:?} to MaterialParam",
-                            &value
-                        ))),
-                    }
-                } else {
-                    Err(FruityError::InvalidArg(format!(
-                        "Couldn't convert {:?} to MaterialParam",
-                        &value
-                    )))
-                }
-            }
-            _ => Err(FruityError::InvalidArg(format!(
-                "Couldn't convert {:?} to MaterialParam",
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
                 value
             ))),
         }

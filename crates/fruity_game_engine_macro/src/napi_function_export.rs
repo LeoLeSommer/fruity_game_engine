@@ -76,8 +76,8 @@ pub(crate) fn napi_function_export(
             cb: #fruity_crate::napi::bindgen_prelude::sys::napi_callback_info,
         ) -> #fruity_crate::napi::bindgen_prelude::sys::napi_value {
             use #fruity_crate::napi::NapiValue;
-            use #fruity_crate::script_value::convert::TryFromScriptValue;
-            use #fruity_crate::script_value::convert::TryIntoScriptValue;
+            use #fruity_crate::script_value::TryFromScriptValue;
+            use #fruity_crate::script_value::TryIntoScriptValue;
 
             unsafe {
                 let env = #fruity_crate::napi::Env::from_raw(raw_env);

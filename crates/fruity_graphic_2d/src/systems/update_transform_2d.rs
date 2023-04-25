@@ -2,9 +2,9 @@ use crate::Rotate2D;
 use crate::Scale2D;
 use crate::Transform2D;
 use crate::Translate2D;
-use fruity_ecs::entity::entity_query::with::WithMut;
-use fruity_ecs::entity::entity_query::with::WithOptional;
-use fruity_ecs::entity::entity_query::Query;
+use fruity_ecs::query::Query;
+use fruity_ecs::query::WithMut;
+use fruity_ecs::query::WithOptional;
 use fruity_game_engine::FruityResult;
 use fruity_graphic::math::matrix3::Matrix3;
 

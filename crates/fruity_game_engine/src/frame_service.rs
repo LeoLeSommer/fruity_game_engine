@@ -1,6 +1,4 @@
-use crate::any::FruityAny;
-use crate::resource::resource_container::ResourceContainer;
-use crate::{export_impl, export_struct};
+use crate::{any::FruityAny, export_impl, export_struct, resource::ResourceContainer};
 pub use fruity_game_engine_macro::export;
 use std::fmt::Debug;
 

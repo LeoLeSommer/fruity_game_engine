@@ -4,12 +4,10 @@ use crate::components::rigid_body::RigidBody;
 use crate::systems::update_circle_collider::update_circle_collider;
 use crate::systems::update_rect_collider::update_rect_collider;
 use crate::systems::update_rigid_body::update_rigid_body;
-use fruity_ecs::extension_component_service::ExtensionComponentService;
-use fruity_ecs::serialization_service::SerializationService;
+use fruity_ecs::component::ExtensionComponentService;
+use fruity_ecs::serialization::SerializationService;
 use fruity_ecs::system::{SystemParams, SystemService};
-use fruity_game_engine::module::Module;
-use fruity_game_engine::Arc;
-use fruity_game_engine::{export_function, typescript_import};
+use fruity_game_engine::{export_function, module::Module, sync::Arc, typescript_import};
 use fruity_physic_2d::components::circle_collider::CircleCollider;
 use fruity_physic_2d::components::rect_collider::RectCollider;
 

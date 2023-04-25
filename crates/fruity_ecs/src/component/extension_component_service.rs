@@ -1,7 +1,7 @@
-use super::{Component, ComponentTypeId};
+use super::Component;
 use fruity_game_engine::{
-    any::FruityAny, export_impl, export_struct, resource::resource_container::ResourceContainer,
-    FruityResult,
+    any::FruityAny, export_impl, export_struct, resource::ResourceContainer,
+    script_value::ScriptObjectType, FruityResult,
 };
 use std::{
     collections::HashMap,
@@ -18,7 +18,7 @@ use std::{
 #[export_struct]
 pub struct ExtensionComponentService {
     extension_constructors:
-        HashMap<ComponentTypeId, Vec<Box<dyn Fn() -> Box<dyn Component> + Send + Sync>>>,
+        HashMap<ScriptObjectType, Vec<Box<dyn Fn() -> Box<dyn Component> + Send + Sync>>>,
 }
 
 #[export_impl]
@@ -35,14 +35,14 @@ impl ExtensionComponentService {
         let constructor = Box::new(|| Box::new(E::default()) as Box<dyn Component>);
         match self
             .extension_constructors
-            .get_mut(&ComponentTypeId::of::<T>())
+            .get_mut(&ScriptObjectType::of::<T>())
         {
             Some(constructors) => {
                 constructors.push(constructor);
             }
             None => {
                 self.extension_constructors
-                    .insert(ComponentTypeId::of::<T>(), vec![constructor]);
+                    .insert(ScriptObjectType::of::<T>(), vec![constructor]);
             }
         }
     }
@@ -50,9 +50,9 @@ impl ExtensionComponentService {
     /// Create extensions from a component
     pub fn instantiate_component_extension(
         &self,
-        component_type_id: &ComponentTypeId,
+        script_object_type: &ScriptObjectType,
     ) -> FruityResult<Vec<Box<dyn Component>>> {
-        Ok(match self.extension_constructors.get(component_type_id) {
+        Ok(match self.extension_constructors.get(script_object_type) {
             Some(constructors) => constructors
                 .iter()
                 .map(|constructor| constructor())

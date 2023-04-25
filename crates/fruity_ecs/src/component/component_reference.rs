@@ -1,12 +1,12 @@
 use super::{
-    AnyComponentReadGuard, AnyComponentWriteGuard, Component, ComponentReadGuard, ComponentTypeId,
+    AnyComponentReadGuard, AnyComponentWriteGuard, Component, ComponentReadGuard,
     ComponentWriteGuard,
 };
 use crate::entity::EntityReference;
 use fruity_game_engine::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
-    script_value::ScriptValue,
+    script_value::{ScriptObjectType, ScriptValue, TryFromScriptValue, TryIntoScriptValue},
     FruityError, FruityResult,
 };
 use std::ptr::NonNull;
@@ -38,19 +38,19 @@ impl<T: Component> ComponentReference<T> {
 
                 let archetype = entity_storage_reader
                     .archetypes
-                    .get_unchecked(entity_reference_inner.location.archetype.0);
+                    .get_unchecked(entity_reference_inner.location.archetype_index);
                 let archetype = NonNull::from(archetype).as_ref();
 
                 let storage = archetype
                     .component_storages
-                    .get(&ComponentTypeId::of::<T>())
+                    .get(&ScriptObjectType::of::<T>())
                     .unwrap();
                 let storage_reader = storage.read();
 
-                let component_ptr = NonNull::from(
-                    storage_reader
-                        .get_unchecked(entity_reference_inner.location.index, self.component_index),
-                );
+                let component_ptr = NonNull::from(storage_reader.get_unchecked(
+                    entity_reference_inner.location.entity_index,
+                    self.component_index,
+                ));
 
                 Ok(ComponentReadGuard {
                     storage_guard: storage_reader,
@@ -73,19 +73,19 @@ impl<T: Component> ComponentReference<T> {
 
                 let archetype = entity_storage_reader
                     .archetypes
-                    .get_unchecked(entity_reference_inner.location.archetype.0);
+                    .get_unchecked(entity_reference_inner.location.archetype_index);
                 let archetype = NonNull::from(archetype).as_ref();
 
                 let storage = archetype
                     .component_storages
-                    .get(&ComponentTypeId::of::<T>())
+                    .get(&ScriptObjectType::of::<T>())
                     .unwrap();
                 let storage_writer = storage.write();
 
-                let component_ptr = NonNull::from(
-                    storage_writer
-                        .get_unchecked(entity_reference_inner.location.index, self.component_index),
-                );
+                let component_ptr = NonNull::from(storage_writer.get_unchecked(
+                    entity_reference_inner.location.entity_index,
+                    self.component_index,
+                ));
 
                 Ok(ComponentWriteGuard {
                     storage_guard: storage_writer,
@@ -108,19 +108,19 @@ impl<T: Component> ComponentReference<T> {
 
                 let archetype = entity_storage_reader
                     .archetypes
-                    .get_unchecked(entity_reference_inner.location.archetype.0);
+                    .get_unchecked(entity_reference_inner.location.archetype_index);
                 let archetype = NonNull::from(archetype).as_ref();
 
                 let storage = archetype
                     .component_storages
-                    .get(&ComponentTypeId::of::<T>())
+                    .get(&ScriptObjectType::of::<T>())
                     .unwrap();
                 let storage_reader = storage.read();
 
-                let component_ptr = NonNull::from(
-                    storage_reader
-                        .get_unchecked(entity_reference_inner.location.index, self.component_index),
-                );
+                let component_ptr = NonNull::from(storage_reader.get_unchecked(
+                    entity_reference_inner.location.entity_index,
+                    self.component_index,
+                ));
 
                 Ok(AnyComponentReadGuard {
                     storage_guard: storage_reader,
@@ -143,19 +143,19 @@ impl<T: Component> ComponentReference<T> {
 
                 let archetype = entity_storage_reader
                     .archetypes
-                    .get_unchecked(entity_reference_inner.location.archetype.0);
+                    .get_unchecked(entity_reference_inner.location.archetype_index);
                 let archetype = NonNull::from(archetype).as_ref();
 
                 let storage = archetype
                     .component_storages
-                    .get(&ComponentTypeId::of::<T>())
+                    .get(&ScriptObjectType::of::<T>())
                     .unwrap();
                 let storage_writer = storage.write();
 
-                let component_ptr = NonNull::from(
-                    storage_writer
-                        .get_unchecked(entity_reference_inner.location.index, self.component_index),
-                );
+                let component_ptr = NonNull::from(storage_writer.get_unchecked(
+                    entity_reference_inner.location.entity_index,
+                    self.component_index,
+                ));
 
                 Ok(AnyComponentWriteGuard {
                     storage_guard: storage_writer,
@@ -174,7 +174,7 @@ impl<T: Component> ComponentReference<T> {
 #[derive(Debug, Clone, FruityAny)]
 pub struct AnyComponentReference {
     entity_reference: EntityReference,
-    component_type_id: ComponentTypeId,
+    script_object_type: ScriptObjectType,
     component_index: usize,
 }
 
@@ -182,12 +182,12 @@ impl AnyComponentReference {
     /// Create a new component reference
     pub fn new(
         entity_reference: EntityReference,
-        component_type_id: ComponentTypeId,
+        script_object_type: ScriptObjectType,
         component_index: usize,
     ) -> Self {
         Self {
             entity_reference,
-            component_type_id,
+            script_object_type,
             component_index,
         }
     }
@@ -201,19 +201,19 @@ impl AnyComponentReference {
 
                 let archetype = entity_storage_reader
                     .archetypes
-                    .get_unchecked(entity_reference_inner.location.archetype.0);
+                    .get_unchecked(entity_reference_inner.location.archetype_index);
                 let archetype = NonNull::from(archetype).as_ref();
 
                 let storage = archetype
                     .component_storages
-                    .get(&self.component_type_id)
+                    .get(&self.script_object_type)
                     .unwrap();
                 let storage_reader = storage.read();
 
-                let component_ptr = NonNull::from(
-                    storage_reader
-                        .get_unchecked(entity_reference_inner.location.index, self.component_index),
-                );
+                let component_ptr = NonNull::from(storage_reader.get_unchecked(
+                    entity_reference_inner.location.entity_index,
+                    self.component_index,
+                ));
 
                 Ok(ComponentReadGuard {
                     storage_guard: storage_reader,
@@ -236,19 +236,19 @@ impl AnyComponentReference {
 
                 let archetype = entity_storage_reader
                     .archetypes
-                    .get_unchecked(entity_reference_inner.location.archetype.0);
+                    .get_unchecked(entity_reference_inner.location.archetype_index);
                 let archetype = NonNull::from(archetype).as_ref();
 
                 let storage = archetype
                     .component_storages
-                    .get(&self.component_type_id)
+                    .get(&self.script_object_type)
                     .unwrap();
                 let storage_writer = storage.write();
 
-                let component_ptr = NonNull::from(
-                    storage_writer
-                        .get_unchecked(entity_reference_inner.location.index, self.component_index),
-                );
+                let component_ptr = NonNull::from(storage_writer.get_unchecked(
+                    entity_reference_inner.location.entity_index,
+                    self.component_index,
+                ));
 
                 Ok(ComponentWriteGuard {
                     storage_guard: storage_writer,
@@ -271,19 +271,19 @@ impl AnyComponentReference {
 
                 let archetype = entity_storage_reader
                     .archetypes
-                    .get_unchecked(entity_reference_inner.location.archetype.0);
+                    .get_unchecked(entity_reference_inner.location.archetype_index);
                 let archetype = NonNull::from(archetype).as_ref();
 
                 let storage = archetype
                     .component_storages
-                    .get(&self.component_type_id)
+                    .get(&self.script_object_type)
                     .unwrap();
                 let storage_reader = storage.read();
 
-                let component_ptr = NonNull::from(
-                    storage_reader
-                        .get_unchecked(entity_reference_inner.location.index, self.component_index),
-                );
+                let component_ptr = NonNull::from(storage_reader.get_unchecked(
+                    entity_reference_inner.location.entity_index,
+                    self.component_index,
+                ));
 
                 Ok(AnyComponentReadGuard {
                     storage_guard: storage_reader,
@@ -306,19 +306,19 @@ impl AnyComponentReference {
 
                 let archetype = entity_storage_reader
                     .archetypes
-                    .get_unchecked(entity_reference_inner.location.archetype.0);
+                    .get_unchecked(entity_reference_inner.location.archetype_index);
                 let archetype = NonNull::from(archetype).as_ref();
 
                 let storage = archetype
                     .component_storages
-                    .get(&self.component_type_id)
+                    .get(&self.script_object_type)
                     .unwrap();
                 let storage_writer = storage.write();
 
-                let component_ptr = NonNull::from(
-                    storage_writer
-                        .get_unchecked(entity_reference_inner.location.index, self.component_index),
-                );
+                let component_ptr = NonNull::from(storage_writer.get_unchecked(
+                    entity_reference_inner.location.entity_index,
+                    self.component_index,
+                ));
 
                 Ok(AnyComponentWriteGuard {
                     storage_guard: storage_writer,
@@ -370,5 +370,32 @@ impl IntrospectMethods for AnyComponentReference {
 
     fn call_mut_method(&mut self, name: &str, args: Vec<ScriptValue>) -> FruityResult<ScriptValue> {
         self.write_any()?.call_mut_method(name, args)
+    }
+}
+
+impl TryIntoScriptValue for AnyComponentReference {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl TryFromScriptValue for AnyComponentReference {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        use std::ops::Deref;
+
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
     }
 }

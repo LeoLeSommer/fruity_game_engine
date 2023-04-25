@@ -1,15 +1,17 @@
 use super::{Archetype, EntityId, EntityLocation, EntityStorage};
 use crate::component::{
     AnyComponentReadGuardIterator, AnyComponentReference, AnyComponentWriteGuardIterator,
-    Component, ComponentReadGuard, ComponentReadGuardIterator, ComponentTypeId,
-    ComponentWriteGuard, ComponentWriteGuardIterator, Enabled, Name,
+    Component, ComponentReadGuard, ComponentReadGuardIterator, ComponentWriteGuard,
+    ComponentWriteGuardIterator, Enabled, Name,
 };
 use either::Either;
 use fruity_game_engine::{
     any::FruityAny,
     export, export_impl, export_struct,
+    script_value::ScriptObjectType,
     signal::{ObserverHandler, Signal},
-    Arc, FruityError, FruityResult, RwLock,
+    sync::{Arc, RwLock},
+    FruityError, FruityResult,
 };
 use std::{fmt::Debug, marker::PhantomData, ptr::NonNull};
 
@@ -20,6 +22,8 @@ pub struct EntityReader<'a> {
     pub(crate) archetype: NonNull<Archetype>,
     pub(crate) phantom: PhantomData<&'a Archetype>,
 }
+
+unsafe impl<'a> Send for EntityReader<'a> {}
 
 impl<'a> Debug for EntityReader<'a> {
     fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -82,7 +86,7 @@ impl<'a> EntityReader<'a> {
                 .archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
             {
                 let storage_reader = storage.read();
                 let slice_len = storage_reader.slice_len(self.entity_index);
@@ -108,14 +112,14 @@ impl<'a> EntityReader<'a> {
     /// Read any components with a given type
     pub fn iter_components_by_type_identifier(
         &self,
-        component_identifier: &str,
+        component_identifier: String,
     ) -> impl Iterator<Item = &dyn Component> {
         unsafe {
             if let Some(storage) = self
                 .archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::from_identifier(component_identifier))
+                .get(&ScriptObjectType::from_identifier(component_identifier))
             {
                 let storage_reader = storage.read();
                 let slice_len = storage_reader.slice_len(self.entity_index);
@@ -140,7 +144,7 @@ impl<'a> EntityReader<'a> {
             self.archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
                 .map(|storage| {
                     let storage_reader = storage.read();
                     let component_ptr = NonNull::from(
@@ -167,6 +171,8 @@ pub struct EntityWriter<'a> {
     pub(crate) archetype: NonNull<Archetype>,
     pub(crate) phantom: PhantomData<&'a Archetype>,
 }
+
+unsafe impl<'a> Send for EntityWriter<'a> {}
 
 impl<'a> Debug for EntityWriter<'a> {
     fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -239,7 +245,7 @@ impl<'a> EntityWriter<'a> {
                 .archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
             {
                 let storage_reader = storage.read();
                 let slice_len = storage_reader.slice_len(self.entity_index);
@@ -269,7 +275,7 @@ impl<'a> EntityWriter<'a> {
                 .archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
             {
                 let storage_writer = storage.write();
                 let slice_len = storage_writer.slice_len(self.entity_index);
@@ -295,14 +301,14 @@ impl<'a> EntityWriter<'a> {
     /// Read any components with a given type
     pub fn iter_components_by_type_identifier(
         &self,
-        component_identifier: &str,
+        component_identifier: String,
     ) -> impl Iterator<Item = &dyn Component> {
         unsafe {
             if let Some(storage) = self
                 .archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::from_identifier(component_identifier))
+                .get(&ScriptObjectType::from_identifier(component_identifier))
             {
                 let storage_reader = storage.read();
                 let slice_len = storage_reader.slice_len(self.entity_index);
@@ -324,14 +330,14 @@ impl<'a> EntityWriter<'a> {
     /// Write any components with a given type
     pub fn iter_components_by_type_identifier_mut(
         &mut self,
-        component_identifier: &str,
+        component_identifier: String,
     ) -> impl Iterator<Item = &mut dyn Component> {
         unsafe {
             if let Some(storage) = self
                 .archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::from_identifier(component_identifier))
+                .get(&ScriptObjectType::from_identifier(component_identifier))
             {
                 let storage_writer = storage.write();
                 let slice_len = storage_writer.slice_len(self.entity_index);
@@ -356,7 +362,7 @@ impl<'a> EntityWriter<'a> {
             self.archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
                 .map(|storage| {
                     let storage_reader = storage.read();
                     let component_ptr = NonNull::from(
@@ -383,7 +389,7 @@ impl<'a> EntityWriter<'a> {
             self.archetype
                 .as_ref()
                 .component_storages
-                .get(&ComponentTypeId::of::<T>())
+                .get(&ScriptObjectType::of::<T>())
                 .map(|storage| {
                     let storage_writer = storage.write();
                     let component_ptr = NonNull::from(
@@ -408,23 +414,30 @@ pub(crate) struct InnerShareableEntityReference {
     pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
     pub(crate) entity_id: EntityId,
     pub(crate) location: EntityLocation,
+    on_archetype_created_handler: Option<ObserverHandler<NonNull<Archetype>>>,
+    on_entity_location_moved_handler:
+        Option<ObserverHandler<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>>,
+}
+
+impl Drop for InnerShareableEntityReference {
+    fn drop(&mut self) {
+        if let Some(on_archetype_created_handler) = self.on_archetype_created_handler.take() {
+            on_archetype_created_handler.dispose();
+        }
+
+        if let Some(on_entity_location_moved_handler) = self.on_entity_location_moved_handler.take()
+        {
+            on_entity_location_moved_handler.dispose();
+        }
+    }
 }
 
 /// A reference to an entity
 /// Update its own state when an entity is moved
-#[derive(Debug, FruityAny)]
+#[derive(Debug, Clone, FruityAny)]
 #[export_struct]
 pub struct EntityReference {
     pub(crate) inner: Arc<RwLock<Option<InnerShareableEntityReference>>>,
-    on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
-    on_entity_location_moved_handler:
-        ObserverHandler<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
-}
-
-impl Drop for EntityReference {
-    fn drop(&mut self) {
-        self.on_entity_location_moved_handler.dispose_by_ref();
-    }
 }
 
 #[export_impl]
@@ -435,11 +448,30 @@ impl EntityReference {
         location: EntityLocation,
         on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
     ) -> Self {
+        let entity_storage_2 = entity_storage.clone();
         let inner = Arc::new(RwLock::new(Some(InnerShareableEntityReference {
             entity_storage,
             entity_id,
             location,
+            on_archetype_created_handler: None,
+            on_entity_location_moved_handler: None,
         })));
+
+        let inner_2 = inner.clone();
+        let on_archetype_created_handler = entity_storage_2
+            .read()
+            .on_archetype_created
+            .add_observer(move |archetype_ptr| {
+                let mut inner = inner_2.write();
+                if let Some(inner) = inner.as_mut() {
+                    let archetype = unsafe { archetype_ptr.as_ref() };
+                    if inner.location.archetype_index >= archetype.index {
+                        inner.location.archetype_index += 1;
+                    }
+                }
+
+                Ok(())
+            });
 
         let inner_2 = inner.clone();
         let on_entity_location_moved_handler =
@@ -449,17 +481,46 @@ impl EntityReference {
                     if inner.entity_id == *entity_id {
                         inner.entity_storage = entity_storage.clone();
                         inner.location = location.clone();
+
+                        // Update the on archetype created observer
+                        if let Some(on_archetype_created_handler) =
+                            inner.on_archetype_created_handler.take()
+                        {
+                            on_archetype_created_handler.dispose();
+                        }
+
+                        let inner_2 = inner_2.clone();
+                        let on_archetype_created_handler = entity_storage
+                            .read()
+                            .on_archetype_created
+                            .add_observer(move |archetype_ptr| {
+                                let mut inner = inner_2.write();
+                                if let Some(inner) = inner.as_mut() {
+                                    let archetype = unsafe { archetype_ptr.as_ref() };
+                                    if inner.location.archetype_index >= archetype.index {
+                                        inner.location.archetype_index += 1;
+                                    }
+                                }
+
+                                Ok(())
+                            });
+
+                        inner.on_archetype_created_handler = Some(on_archetype_created_handler);
                     }
                 }
 
                 Ok(())
             });
 
-        Self {
-            inner,
-            on_entity_location_moved,
-            on_entity_location_moved_handler,
+        {
+            let mut inner = inner.write();
+            if let Some(inner) = inner.as_mut() {
+                inner.on_archetype_created_handler = Some(on_archetype_created_handler);
+                inner.on_entity_location_moved_handler = Some(on_entity_location_moved_handler);
+            }
         }
+
+        Self { inner }
     }
 
     /// Get a read access to the entity
@@ -472,9 +533,9 @@ impl EntityReference {
                 archetype: NonNull::from(unsafe {
                     entity_storage
                         .archetypes
-                        .get_unchecked(inner.location.archetype.0)
+                        .get_unchecked(inner.location.archetype_index)
                 }),
-                entity_index: inner.location.index,
+                entity_index: inner.location.entity_index,
                 phantom: PhantomData,
             })
         } else {
@@ -494,9 +555,9 @@ impl EntityReference {
                 archetype: NonNull::from(unsafe {
                     entity_storage
                         .archetypes
-                        .get_unchecked(inner.location.archetype.0)
+                        .get_unchecked(inner.location.archetype_index)
                 }),
-                entity_index: inner.location.index,
+                entity_index: inner.location.entity_index,
                 phantom: PhantomData,
             })
         } else {
@@ -548,14 +609,16 @@ impl EntityReference {
             let archetype = unsafe {
                 entity_storage
                     .archetypes
-                    .get_unchecked(inner.location.archetype.0)
+                    .get_unchecked(inner.location.archetype_index)
             };
 
             Ok(archetype
                 .component_storages
                 .iter()
                 .map(|(component_type_id, component_storage)| {
-                    let slice_len = component_storage.read().slice_len(inner.location.index);
+                    let slice_len = component_storage
+                        .read()
+                        .slice_len(inner.location.entity_index);
                     (0..slice_len).map(|component_index| {
                         AnyComponentReference::new(
                             self.clone(),
@@ -574,23 +637,15 @@ impl EntityReference {
     }
 
     /// Get components with a given type
-    #[export]
-    pub fn get_components_by_type_identifier(
-        &self,
-        component_identifier: String,
-    ) -> FruityResult<Vec<AnyComponentReference>> {
-        self.get_components_by_type_id(ComponentTypeId::from_identifier(&component_identifier))
-    }
-
-    /// Get components with a given type
     pub fn get_components_by_type<T: Component>(&self) -> FruityResult<Vec<AnyComponentReference>> {
-        self.get_components_by_type_id(ComponentTypeId::of::<T>())
+        self.get_components_by_script_object_type(ScriptObjectType::of::<T>())
     }
 
     /// Get components with a given component type id
-    fn get_components_by_type_id(
+    #[export(name = "get_components_by_type")]
+    pub fn get_components_by_script_object_type(
         &self,
-        component_type_id: ComponentTypeId,
+        component_type_id: ScriptObjectType,
     ) -> FruityResult<Vec<AnyComponentReference>> {
         let inner = self.inner.read();
         if let Some(inner) = inner.as_ref() {
@@ -599,7 +654,7 @@ impl EntityReference {
             let archetype = unsafe {
                 entity_storage
                     .archetypes
-                    .get_unchecked(inner.location.archetype.0)
+                    .get_unchecked(inner.location.archetype_index)
             };
 
             let component_storage = if let Some(component_storage) =
@@ -610,7 +665,9 @@ impl EntityReference {
                 return Ok(vec![]);
             };
 
-            let slice_len = component_storage.read().slice_len(inner.location.index);
+            let slice_len = component_storage
+                .read()
+                .slice_len(inner.location.entity_index);
             Ok((0..slice_len)
                 .map(|component_index| {
                     AnyComponentReference::new(
@@ -625,16 +682,5 @@ impl EntityReference {
                 "You try to access a deleted entity".to_string(),
             ))
         }
-    }
-}
-
-impl Clone for EntityReference {
-    fn clone(&self) -> Self {
-        Self::new(
-            self.inner.read().as_ref().unwrap().entity_storage.clone(),
-            self.inner.read().as_ref().unwrap().entity_id,
-            self.inner.read().as_ref().unwrap().location.clone(),
-            self.on_entity_location_moved.clone(),
-        )
     }
 }

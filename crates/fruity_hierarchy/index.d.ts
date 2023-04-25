@@ -9,7 +9,6 @@ import {
 
 export class Parent {
   parent: SignalProperty<EntityReference | null | undefined | void>
-  nestedLevel: number
   constructor()
 }
 

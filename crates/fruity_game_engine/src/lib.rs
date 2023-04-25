@@ -15,27 +15,13 @@
 //! - Entities represent any object stored in the ecs, entities are composed of components, in a game engine, a game object for example
 //! - Components are structure where the datas are stored
 
-use crate::module::modules_service::ModulesService;
-use crate::resource::resource_container::ResourceContainer;
-pub use error::FruityError;
-pub use error::FruityResult;
-pub use fruity_game_engine_macro::export;
-pub use fruity_game_engine_macro::export_constructor;
-pub use fruity_game_engine_macro::export_enum;
-pub use fruity_game_engine_macro::export_function;
-pub use fruity_game_engine_macro::export_impl;
-pub use fruity_game_engine_macro::export_struct;
-pub use fruity_game_engine_macro::export_trait;
-pub use fruity_game_engine_macro::typescript;
-pub use fruity_game_engine_macro::typescript_import;
+pub use error::{FruityError, FruityResult};
+pub use fruity_game_engine_macro::{
+    export, export_constructor, export_enum, export_function, export_impl, export_struct,
+    export_trait, external, typescript, typescript_import,
+};
 pub use lazy_static::lazy_static;
 pub use send_wrapper;
-
-#[cfg(target_arch = "wasm32")]
-pub use sync_web::*;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use sync_native::*;
 
 #[cfg(target_arch = "wasm32")]
 use web_sys::console;
@@ -48,6 +34,9 @@ pub use wasm_bindgen;
 
 #[cfg(target_arch = "wasm32")]
 pub use web_sys;
+
+/// Synchronization tools
+pub mod sync;
 
 pub mod error;
 
@@ -89,12 +78,6 @@ pub mod world;
 
 /// A service for frame management
 pub mod frame_service;
-
-#[cfg(target_arch = "wasm32")]
-mod sync_web;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod sync_native;
 
 #[cfg(target_arch = "wasm32")]
 /// Log a message into a console

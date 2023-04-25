@@ -8,10 +8,10 @@ use crate::graphic_2d_service::Graphic2dService;
 use crate::systems::draw_camera::draw_camera;
 use crate::systems::draw_sprite::draw_sprite;
 use crate::systems::update_transform_2d::update_transform_2d;
-use fruity_ecs::serialization_service::SerializationService;
+use fruity_ecs::serialization::SerializationService;
 use fruity_ecs::system::{SystemParams, SystemService};
 use fruity_game_engine::module::Module;
-use fruity_game_engine::Arc;
+use fruity_game_engine::sync::Arc;
 use fruity_game_engine::{export_function, typescript_import};
 
 pub mod components;

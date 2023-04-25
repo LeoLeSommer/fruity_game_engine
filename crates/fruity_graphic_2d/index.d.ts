@@ -20,7 +20,7 @@ export class Camera {
   constructor()
 }
 
-export interface Graphic2dService {
+export class Graphic2dService {
 
   drawQuad(identifier: number, material: ResourceReference<MaterialResource>, params: {[key: string]: MaterialParam}, zIndex: number)
   drawLine(pos1: Vector2D, pos2: Vector2D, width: number, color: Color, zIndex: number, transform: Matrix3)

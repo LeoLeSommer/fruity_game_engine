@@ -1,27 +1,26 @@
 use crate::{
+    any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
-    javascript::napi::class_constructors::NapiClassConstructors,
+    javascript::napi_script::class_constructors::NapiClassConstructors,
     profile_scope,
-    script_value::convert::TryIntoScriptValue,
-    script_value::ScriptObject,
-    script_value::ScriptValue,
+    script_value::{ScriptObject, ScriptValue, TryFromScriptValue, TryIntoScriptValue},
     FruityError, FruityResult,
 };
 use convert_case::{Case, Casing};
-use fruity_game_engine_macro::FruityAny;
 use futures::{executor::block_on, FutureExt};
 use lazy_static::lazy_static;
-use napi::NapiValue;
 use napi::{
     bindgen_prelude::{FromNapiValue, Promise, ToNapiValue},
+    check_status,
     threadsafe_function::{ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction},
-    Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, Ref, Task, ValueType,
+    Env, JsBigInt, JsFunction, JsNumber, JsObject, JsString, JsUnknown, NapiRaw, NapiValue, Ref,
+    Task, ValueType,
 };
-use napi::{check_status, NapiRaw};
 use send_wrapper::SendWrapper;
-use std::{fmt::Debug, vec};
-use std::{future::Future, marker::PhantomData, ops::Deref, pin::Pin, thread};
-use std::{rc::Rc, sync::Arc};
+use std::{
+    fmt::Debug, future::Future, marker::PhantomData, ops::Deref, pin::Pin, rc::Rc, sync::Arc,
+    thread, vec,
+};
 use tokio::runtime::Builder;
 
 mod class_constructors;
@@ -286,6 +285,7 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                             |ctx: ThreadSafeCallContext<Vec<ScriptValue>>| Ok(ctx.value),
                         )
                         .map_err(|e| FruityError::from_napi(e))?;
+                let thread_safe_func = ThreadsafeFunctionSync(thread_safe_func);
 
                 let js_send_wrapper = SendWrapper::new((env.clone(), js_func));
                 ScriptValue::Callback(Box::new(move |args| {
@@ -312,16 +312,14 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                         let result = js_value_to_script_value(&env, result)?;
                         Ok(result)
                     } else {
-                        todo!()
-
-                        /*let result: ScriptValue = Builder::new_current_thread()
+                        let result: ScriptValue = Builder::new_current_thread()
                             .enable_all()
                             .build()
                             .unwrap()
                             .block_on(thread_safe_func.call_async(args))
                             .map_err(|e| FruityError::from_napi(e))?;
 
-                        Ok(result)*/
+                        Ok(result)
                     };
 
                     result
@@ -337,6 +335,19 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
             ValueType::Unknown => unimplemented!(),
         },
     )
+}
+
+struct ThreadsafeFunctionSync(ThreadsafeFunction<Vec<ScriptValue>, ErrorStrategy::Fatal>);
+
+unsafe impl Send for ThreadsafeFunctionSync {}
+unsafe impl Sync for ThreadsafeFunctionSync {}
+
+impl Deref for ThreadsafeFunctionSync {
+    type Target = ThreadsafeFunction<Vec<ScriptValue>, ErrorStrategy::Fatal>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 struct RefWrapper {
@@ -515,6 +526,31 @@ impl IntrospectMethods for JsIntrospectObject {
         _args: Vec<ScriptValue>,
     ) -> FruityResult<ScriptValue> {
         unreachable!()
+    }
+}
+
+impl TryIntoScriptValue for JsIntrospectObject {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl TryFromScriptValue for JsIntrospectObject {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
     }
 }
 

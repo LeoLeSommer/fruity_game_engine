@@ -1,33 +1,101 @@
-use crate::component::component_reference::AnyComponentReference;
-use crate::component::Component;
-use crate::entity::archetype::Archetype;
-use crate::entity::entity_query::script::ScriptQueryParam;
-use crate::entity::entity_query::{
-    BidirectionalIterator, InfiniteBidirectionalIterator, SingleBidirectionalIterator,
-};
-use crate::entity::entity_reference::{EntityReference, InnerShareableEntityReference};
+use crate::component::AnyComponentReference;
+use crate::component::ComponentStorage;
+use crate::component::Name;
+use crate::entity::Archetype;
+use crate::entity::ArchetypeComponentTypes;
 use crate::entity::EntityId;
+use crate::entity::EntityLocation;
+use crate::entity::EntityReference;
+use crate::entity::EntityStorage;
+use crate::entity::InnerShareableEntityReference;
+use crate::query::EntityIterator;
+use crate::query::InfiniteEntityIterator;
+use crate::query::QueryParam;
+use crate::query::SingleEntityIterator;
+use crate::query::With;
+use crate::query::WithEnabled;
+use crate::query::WithId;
+use crate::query::WithIdIterator;
 use fruity_game_engine::any::FruityAny;
-use fruity_game_engine::script_value::convert::TryIntoScriptValue;
+use fruity_game_engine::script_value::ScriptObjectType;
 use fruity_game_engine::script_value::ScriptValue;
-use fruity_game_engine::RwLock;
+use fruity_game_engine::script_value::TryIntoScriptValue;
+use fruity_game_engine::signal::Signal;
+use fruity_game_engine::sync::Arc;
+use fruity_game_engine::sync::RwLock;
+use fruity_game_engine::sync::RwLockReadGuard;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
-/// An iterator over entity references
-pub struct WithEntityIterator<'a> {
-    current_entity_index: usize,
-    end_entity_index: usize,
-    archetype: &'a Archetype,
+struct ScriptValueIterator<E, I: Iterator<Item = E> + EntityIterator> {
+    iterator: I,
+    _marker: PhantomData<E>,
 }
 
-impl<'a> Iterator for WithEntityIterator<'a> {
+impl<E, I: Iterator<Item = E> + EntityIterator> ScriptValueIterator<E, I> {
+    pub fn new(iterator: I) -> Self {
+        Self {
+            iterator,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<E: TryIntoScriptValue, I: Iterator<Item = E> + EntityIterator> Iterator
+    for ScriptValueIterator<E, I>
+{
     type Item = ScriptValue;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_entity_index < self.end_entity_index {
-            let result = self.current();
+        self.iterator
+            .next()
+            .map(|item| item.into_script_value().unwrap())
+    }
+}
+
+impl<E: TryIntoScriptValue, I: Iterator<Item = E> + EntityIterator> EntityIterator
+    for ScriptValueIterator<E, I>
+{
+    fn current(&mut self) -> Self::Item {
+        self.iterator.current().into_script_value().unwrap()
+    }
+
+    fn has_reach_entity_end(&self) -> bool {
+        self.iterator.has_reach_entity_end()
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.iterator.reset_current_entity()
+    }
+}
+
+use super::ScriptQueryParam;
+
+/// An iterator over entity references
+pub struct WithEntityReferenceIterator<'a> {
+    id_iterator: WithIdIterator<'a>,
+    entity_storage: Arc<RwLock<EntityStorage>>,
+    archetype_index: usize,
+    current_entity_index: usize,
+    on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+}
+
+impl<'a> Iterator for WithEntityReferenceIterator<'a> {
+    type Item = EntityReference;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(entity_id) = self.id_iterator.next() {
+            let result = EntityReference::new(
+                self.entity_storage.clone(),
+                entity_id,
+                EntityLocation {
+                    archetype_index: self.archetype_index,
+                    entity_index: self.current_entity_index,
+                },
+                self.on_entity_location_moved.clone(),
+            );
+
             self.current_entity_index += 1;
 
             Some(result)
@@ -37,344 +105,244 @@ impl<'a> Iterator for WithEntityIterator<'a> {
     }
 }
 
-impl<'a> BidirectionalIterator for WithEntityIterator<'a> {
+impl<'a> EntityIterator for WithEntityReferenceIterator<'a> {
     fn current(&mut self) -> Self::Item {
         let entity_index = self.current_entity_index;
-        self.archetype
-            .get_entity_reference(entity_index)
-            .into_script_value()
-            .unwrap()
+        let entity_id = self.id_iterator.current();
+
+        EntityReference::new(
+            self.entity_storage.clone(),
+            entity_id,
+            EntityLocation {
+                archetype_index: self.archetype_index,
+                entity_index,
+            },
+            self.on_entity_location_moved.clone(),
+        )
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current_entity_index -= count;
+    fn has_reach_entity_end(&self) -> bool {
+        true
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_entity_index -= 1;
     }
 }
 
 #[derive(FruityAny, Clone)]
-pub struct WithEntity {}
+pub(crate) struct ScriptWithEntityReference {
+    pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
+    pub(crate) on_entity_location_moved:
+        Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+}
 
-impl ScriptQueryParam for WithEntity {
-    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
-        Box::new(self.clone())
-    }
-
-    fn filter_archetype(&self, _archetype: &Archetype) -> bool {
+impl ScriptQueryParam for ScriptWithEntityReference {
+    fn filter_archetype(&self, _component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn items_per_entity(&self, _archetype: &Archetype) -> usize {
-        1
     }
 
     fn iter<'a>(
         &self,
         archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        Box::new(WithEntityIterator {
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        let begin = archetype.entity_ids.as_ptr() as *mut EntityId;
+
+        Box::new(ScriptValueIterator::new(WithEntityReferenceIterator {
+            id_iterator: WithIdIterator {
+                current: unsafe { NonNull::new_unchecked(begin) },
+                end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
+                _marker: Default::default(),
+            },
+            entity_storage: self.entity_storage.clone(),
+            archetype_index: archetype.index,
             current_entity_index: 0,
-            end_entity_index: archetype.len(),
-            archetype,
-        })
+            on_entity_location_moved: self.on_entity_location_moved.clone(),
+        }))
     }
 
     fn from_entity_reference<'a>(
         &self,
         entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        Box::new(SingleBidirectionalIterator::new(
-            entity_reference.clone().into_script_value().unwrap(),
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(SingleEntityIterator::new(
+            entity_reference.clone(),
+        )))
+    }
+
+    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
+        Box::new(self.clone())
+    }
+}
+
+/// The entity id
+#[derive(FruityAny, Clone)]
+pub struct ScriptWithId;
+
+impl ScriptQueryParam for ScriptWithId {
+    fn filter_archetype(&self, component_types: &ArchetypeComponentTypes) -> bool {
+        WithId::filter_archetype(component_types)
+    }
+
+    fn iter<'a>(
+        &self,
+        archetype: &'a Archetype,
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(WithId::iter(archetype)))
+    }
+
+    fn from_entity_reference<'a>(
+        &self,
+        entity_reference: &'a EntityReference,
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(WithId::from_entity_reference(
+            entity_reference,
+        )))
+    }
+
+    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
+        Box::new(self.clone())
+    }
+}
+
+pub(crate) struct ScriptWithNameIterator<'a, T: Iterator<Item = &'a Name> + EntityIterator> {
+    pub(crate) with_iterator: T,
+}
+
+impl<'a, T: Iterator<Item = &'a Name> + EntityIterator> Iterator for ScriptWithNameIterator<'a, T> {
+    type Item = String;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iterator.next().map(|name| name.0.clone())
+    }
+}
+
+impl<'a, T: Iterator<Item = &'a Name> + EntityIterator> EntityIterator
+    for ScriptWithNameIterator<'a, T>
+{
+    fn current(&mut self) -> Self::Item {
+        self.with_iterator.current().0.clone()
+    }
+
+    fn has_reach_entity_end(&self) -> bool {
+        self.with_iterator.has_reach_entity_end()
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.with_iterator.reset_current_entity()
+    }
+}
+
+/// The entity name
+#[derive(FruityAny, Clone)]
+pub struct ScriptWithName;
+
+impl ScriptQueryParam for ScriptWithName {
+    fn filter_archetype(&self, component_types: &ArchetypeComponentTypes) -> bool {
+        WithId::filter_archetype(component_types)
+    }
+
+    fn iter<'a>(
+        &self,
+        archetype: &'a Archetype,
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(ScriptWithNameIterator {
+            with_iterator: With::iter(archetype),
+        }))
+    }
+
+    fn from_entity_reference<'a>(
+        &self,
+        entity_reference: &'a EntityReference,
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(ScriptWithNameIterator {
+            with_iterator: With::from_entity_reference(entity_reference),
+        }))
+    }
+
+    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
+        Box::new(self.clone())
+    }
+}
+
+/// The entity enabled
+#[derive(FruityAny, Clone)]
+pub(crate) struct ScriptWithEnabled;
+
+impl ScriptQueryParam for ScriptWithEnabled {
+    fn filter_archetype(&self, component_types: &ArchetypeComponentTypes) -> bool {
+        WithId::filter_archetype(component_types)
+    }
+
+    fn iter<'a>(
+        &self,
+        archetype: &'a Archetype,
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(WithEnabled::iter(archetype)))
+    }
+
+    fn from_entity_reference<'a>(
+        &self,
+        entity_reference: &'a EntityReference,
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(
+            WithEnabled::from_entity_reference(entity_reference),
         ))
     }
-}
 
-/// An iterator over entity ids
-pub struct WithIdIterator<'a> {
-    current: NonNull<EntityId>,
-    end: NonNull<EntityId>,
-    _marker: PhantomData<&'a EntityId>,
-}
-
-impl<'a> Iterator for WithIdIterator<'a> {
-    type Item = ScriptValue;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> BidirectionalIterator for WithIdIterator<'a> {
-    fn current(&mut self) -> Self::Item {
-        (*unsafe { self.current.as_ref() })
-            .into_script_value()
-            .unwrap()
-    }
-
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
-    }
-}
-
-#[derive(FruityAny, Clone)]
-pub struct WithId {}
-
-impl ScriptQueryParam for WithId {
     fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
         Box::new(self.clone())
-    }
-
-    fn filter_archetype(&self, _archetype: &Archetype) -> bool {
-        true
-    }
-
-    fn items_per_entity(&self, _archetype: &Archetype) -> usize {
-        1
-    }
-
-    fn iter<'a>(
-        &self,
-        archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        let begin = &archetype.entity_id_array[0] as *const EntityId as *mut EntityId;
-        Box::new(WithIdIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
-        })
-    }
-
-    fn from_entity_reference<'a>(
-        &self,
-        entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
-        {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-
-            Box::new(SingleBidirectionalIterator::new(
-                archetype.entity_id_array[*entity_index]
-                    .into_script_value()
-                    .unwrap(),
-            ))
-        } else {
-            unreachable!()
-        }
-    }
-}
-
-/// An iterator over entity names
-pub struct WithNameIterator<'a> {
-    current: NonNull<String>,
-    end: NonNull<String>,
-    _marker: PhantomData<&'a String>,
-}
-
-impl<'a> Iterator for WithNameIterator<'a> {
-    type Item = ScriptValue;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> BidirectionalIterator for WithNameIterator<'a> {
-    fn current(&mut self) -> Self::Item {
-        unsafe { self.current.as_ref() }
-            .clone()
-            .into_script_value()
-            .unwrap()
-    }
-
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
-    }
-}
-
-#[derive(FruityAny, Clone)]
-pub struct WithName {}
-
-impl ScriptQueryParam for WithName {
-    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
-        Box::new(self.clone())
-    }
-
-    fn filter_archetype(&self, _archetype: &Archetype) -> bool {
-        true
-    }
-
-    fn items_per_entity(&self, _archetype: &Archetype) -> usize {
-        1
-    }
-
-    fn iter<'a>(
-        &self,
-        archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        let begin = &archetype.name_array[0] as *const String as *mut String;
-        Box::new(WithNameIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
-        })
-    }
-
-    fn from_entity_reference<'a>(
-        &self,
-        entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
-        {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-
-            Box::new(SingleBidirectionalIterator::new(
-                archetype.name_array[*entity_index]
-                    .clone()
-                    .into_script_value()
-                    .unwrap(),
-            ))
-        } else {
-            unreachable!()
-        }
-    }
-}
-
-/// An iterator over entity enabled state
-pub struct WithEnabledIterator<'a> {
-    current: NonNull<bool>,
-    end: NonNull<bool>,
-    _marker: PhantomData<&'a bool>,
-}
-
-impl<'a> Iterator for WithEnabledIterator<'a> {
-    type Item = ScriptValue;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.end {
-            let result = self.current();
-            self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
-
-            Some(result)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> BidirectionalIterator for WithEnabledIterator<'a> {
-    fn current(&mut self) -> Self::Item {
-        (*unsafe { self.current.as_ref() })
-            .into_script_value()
-            .unwrap()
-    }
-
-    fn go_back(&mut self, count: usize) {
-        self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().sub(count)) };
-    }
-}
-
-#[derive(FruityAny, Clone)]
-pub struct WithEnabled {}
-
-impl ScriptQueryParam for WithEnabled {
-    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
-        Box::new(self.clone())
-    }
-
-    fn filter_archetype(&self, _archetype: &Archetype) -> bool {
-        true
-    }
-
-    fn items_per_entity(&self, _archetype: &Archetype) -> usize {
-        1
-    }
-
-    fn iter<'a>(
-        &self,
-        archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        let begin = &archetype.enabled_array[0] as *const bool as *mut bool;
-        Box::new(WithEnabledIterator {
-            current: unsafe { NonNull::new_unchecked(begin) },
-            end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
-            _marker: Default::default(),
-        })
-    }
-
-    fn from_entity_reference<'a>(
-        &self,
-        entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
-        {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-
-            Box::new(SingleBidirectionalIterator::new(
-                archetype.enabled_array[*entity_index]
-                    .into_script_value()
-                    .unwrap(),
-            ))
-        } else {
-            unreachable!()
-        }
     }
 }
 
 /// An iterator over entity components with a given type
-pub struct WithIterator<'a> {
-    archetype: &'a Archetype,
-    current_entity_lock: NonNull<RwLock<()>>,
-    current_component: NonNull<dyn Component>,
-    component_size: usize,
-    component_index: usize,
-    items_per_entity: usize,
-    end: NonNull<RwLock<()>>,
+pub struct ScriptWithIterator<'a> {
+    _component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+    current_entity_length: NonNull<usize>,
+    end_entity_length: NonNull<usize>,
+    current_component_index: usize,
+    entity_reference_iterator: WithEntityReferenceIterator<'a>,
+    script_object_type: ScriptObjectType,
 }
 
-impl<'a> Iterator for WithIterator<'a> {
-    type Item = ScriptValue;
+impl<'a> ScriptWithIterator<'a> {
+    fn new(
+        component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
+        entity_reference_iterator: WithEntityReferenceIterator<'a>,
+        script_object_type: ScriptObjectType,
+    ) -> Self {
+        let begin_entity_length = component_storage_lock.as_slice_lengths_ptr();
+        let entity_count = component_storage_lock.slice_count();
+
+        ScriptWithIterator {
+            _component_storage_lock: component_storage_lock,
+            current_entity_length: unsafe { NonNull::new_unchecked(begin_entity_length) },
+            end_entity_length: unsafe {
+                NonNull::new_unchecked(begin_entity_length.add(entity_count))
+            },
+            current_component_index: 0,
+            entity_reference_iterator,
+            script_object_type,
+        }
+    }
+}
+
+impl<'a> Iterator for ScriptWithIterator<'a> {
+    type Item = AnyComponentReference;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_entity_lock < self.end {
+        if self.current_entity_length < self.end_entity_length {
             let result = self.current();
-            self.current_component = unsafe {
-                NonNull::new_unchecked(
-                    self.current_component
-                        .as_ptr()
-                        .byte_add(self.component_size),
-                )
-            };
-            self.component_index += 1;
+            self.current_entity_length =
+                unsafe { NonNull::new_unchecked(self.current_entity_length.as_ptr().add(1)) };
 
-            if self.component_index == self.items_per_entity {
-                self.component_index = 0;
-                self.current_entity_lock =
-                    unsafe { NonNull::new_unchecked(self.current_entity_lock.as_ptr().add(1)) };
+            if self.current_component_index == *unsafe { self.current_entity_length.as_ref() } {
+                self.entity_reference_iterator.next();
+                self.current_entity_length =
+                    unsafe { NonNull::new_unchecked(self.current_entity_length.as_ptr().add(1)) };
+                self.current_component_index = 0;
+            } else {
+                self.current_component_index += 1;
             }
 
             Some(result)
@@ -384,252 +352,280 @@ impl<'a> Iterator for WithIterator<'a> {
     }
 }
 
-impl<'a> BidirectionalIterator for WithIterator<'a> {
+impl<'a> EntityIterator for ScriptWithIterator<'a> {
     fn current(&mut self) -> Self::Item {
         AnyComponentReference::new(
-            &self.archetype.on_entity_lock_address_moved,
-            &self.archetype.on_component_address_moved,
-            self.current_entity_lock.as_ptr(),
-            Some(self.current_component),
+            self.entity_reference_iterator.current(),
+            self.script_object_type.clone(),
+            self.current_component_index,
         )
-        .into_script_value()
-        .unwrap()
     }
 
-    fn go_back(&mut self, count: usize) {
-        self.current_component = unsafe {
-            NonNull::new_unchecked(
-                self.current_component
-                    .as_ptr()
-                    .byte_sub(count * self.component_size),
-            )
-        };
+    fn has_reach_entity_end(&self) -> bool {
+        self.current_component_index + 1 == *unsafe { self.current_entity_length.as_ref() }
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_component_index = 0;
+    }
+}
+
+/// An iterator over entity components with a given type
+pub struct ScriptFromEntityWithIterator {
+    entity_reference: EntityReference,
+    current_component_index: usize,
+    end_component_index: usize,
+    script_object_type: ScriptObjectType,
+}
+
+impl ScriptFromEntityWithIterator {
+    fn new(
+        entity_reference: EntityReference,
+        component_count: usize,
+        script_object_type: ScriptObjectType,
+    ) -> Self {
+        ScriptFromEntityWithIterator {
+            entity_reference,
+            current_component_index: 0,
+            end_component_index: component_count,
+            script_object_type,
+        }
+    }
+}
+
+impl Iterator for ScriptFromEntityWithIterator {
+    type Item = AnyComponentReference;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_component_index < self.end_component_index {
+            let result = self.current();
+            self.current_component_index += 1;
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
+impl EntityIterator for ScriptFromEntityWithIterator {
+    fn current(&mut self) -> Self::Item {
+        AnyComponentReference::new(
+            self.entity_reference.clone(),
+            self.script_object_type.clone(),
+            self.current_component_index,
+        )
+    }
+
+    fn has_reach_entity_end(&self) -> bool {
+        self.current_component_index + 1 == self.end_component_index
+    }
+
+    fn reset_current_entity(&mut self) {
+        self.current_component_index = 0;
     }
 }
 
 #[derive(FruityAny, Clone)]
-pub struct With {
-    pub identifier: String,
+pub(crate) struct ScriptWith {
+    pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
+    pub(crate) on_entity_location_moved:
+        Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    pub(crate) script_object_type: ScriptObjectType,
 }
 
-impl ScriptQueryParam for With {
-    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
-        Box::new(self.clone())
-    }
-
-    fn filter_archetype(&self, archetype: &Archetype) -> bool {
-        archetype.identifier.contains(&self.identifier)
-    }
-
-    fn items_per_entity(&self, archetype: &Archetype) -> usize {
-        archetype.component_storages[&self.identifier].components_per_entity
+impl ScriptQueryParam for ScriptWith {
+    fn filter_archetype(&self, component_types: &ArchetypeComponentTypes) -> bool {
+        component_types.contains(&self.script_object_type)
     }
 
     fn iter<'a>(
         &self,
         archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        let component_storage = &archetype.component_storages[&self.identifier].component_storage;
-        let begin_entity_lock = &archetype.lock_array[0] as *const RwLock<()> as *mut RwLock<()>;
-        let begin_component = unsafe {
-            NonNull::new_unchecked(
-                component_storage.get(0) as *const dyn Component as *mut dyn Component
-            )
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        let begin = archetype.entity_ids.as_ptr() as *mut EntityId;
+        let entity_reference_iterator = WithEntityReferenceIterator {
+            id_iterator: WithIdIterator {
+                current: unsafe { NonNull::new_unchecked(begin) },
+                end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
+                _marker: Default::default(),
+            },
+            entity_storage: self.entity_storage.clone(),
+            archetype_index: archetype.index,
+            current_entity_index: 0,
+            on_entity_location_moved: self.on_entity_location_moved.clone(),
         };
 
-        Box::new(WithIterator {
-            archetype,
-            current_entity_lock: unsafe { NonNull::new_unchecked(begin_entity_lock) },
-            current_component: begin_component,
-            component_size: component_storage.item_size(),
-            component_index: 0,
-            items_per_entity: self.items_per_entity(archetype),
-            end: unsafe { NonNull::new_unchecked(begin_entity_lock.add(archetype.len())) },
-        })
+        Box::new(ScriptValueIterator::new(ScriptWithIterator::new(
+            archetype.component_storages[&self.script_object_type].read(),
+            entity_reference_iterator,
+            self.script_object_type.clone(),
+        )))
     }
 
     fn from_entity_reference<'a>(
         &self,
         entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-            let component_storage = &archetype.component_storages[&self.identifier];
-
-            let begin_entity_lock =
-                &archetype.lock_array[*entity_index] as *const RwLock<()> as *mut RwLock<()>;
-            let begin_component = unsafe {
-                NonNull::new_unchecked(
-                    component_storage
-                        .component_storage
-                        .get(entity_index * component_storage.components_per_entity)
-                        as *const dyn Component as *mut dyn Component,
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
                 )
+                .unwrap()
             };
 
-            Box::new(WithIterator {
-                archetype,
-                current_entity_lock: unsafe { NonNull::new_unchecked(begin_entity_lock) },
-                current_component: begin_component,
-                component_size: component_storage.component_storage.item_size(),
-                component_index: 0,
-                items_per_entity: self.items_per_entity(archetype),
-                end: unsafe {
-                    NonNull::new_unchecked(
-                        begin_entity_lock.add(component_storage.components_per_entity),
-                    )
-                },
-            })
+            let component_storage_lock =
+                archetype.component_storages[&self.script_object_type].read();
+
+            Box::new(ScriptValueIterator::new(ScriptFromEntityWithIterator::new(
+                entity_reference.clone(),
+                component_storage_lock.slice_len(location.entity_index),
+                self.script_object_type.clone(),
+            )))
         } else {
             unreachable!()
         }
     }
-}
 
-#[derive(FruityAny, Clone)]
-pub struct WithOptional {
-    pub identifier: String,
-}
-
-impl ScriptQueryParam for WithOptional {
     fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
         Box::new(self.clone())
     }
+}
 
-    fn filter_archetype(&self, _archetype: &Archetype) -> bool {
+#[derive(FruityAny, Clone)]
+pub(crate) struct ScriptWithOptional {
+    pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
+    pub(crate) on_entity_location_moved:
+        Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    pub(crate) script_object_type: ScriptObjectType,
+}
+
+impl ScriptQueryParam for ScriptWithOptional {
+    fn filter_archetype(&self, _component_types: &ArchetypeComponentTypes) -> bool {
         true
-    }
-
-    fn items_per_entity(&self, archetype: &Archetype) -> usize {
-        archetype
-            .component_storages
-            .get(&self.identifier)
-            .map(|storage| storage.components_per_entity)
-            .unwrap_or(1)
     }
 
     fn iter<'a>(
         &self,
         archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        if let Some(component_storage) = archetype.component_storages.get(&self.identifier) {
-            let begin_entity_lock =
-                &archetype.lock_array[0] as *const RwLock<()> as *mut RwLock<()>;
-            let begin_component = unsafe {
-                NonNull::new_unchecked(component_storage.component_storage.get(0)
-                    as *const dyn Component
-                    as *mut dyn Component)
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        if let Some(component_storage) = archetype.component_storages.get(&self.script_object_type)
+        {
+            let begin = archetype.entity_ids.as_ptr() as *mut EntityId;
+            let entity_reference_iterator = WithEntityReferenceIterator {
+                id_iterator: WithIdIterator {
+                    current: unsafe { NonNull::new_unchecked(begin) },
+                    end: unsafe { NonNull::new_unchecked(begin.add(archetype.len())) },
+                    _marker: Default::default(),
+                },
+                entity_storage: self.entity_storage.clone(),
+                archetype_index: archetype.index,
+                current_entity_index: 0,
+                on_entity_location_moved: self.on_entity_location_moved.clone(),
             };
 
-            Box::new(WithIterator {
-                archetype,
-                current_entity_lock: unsafe { NonNull::new_unchecked(begin_entity_lock) },
-                current_component: begin_component,
-                component_size: component_storage.component_storage.item_size(),
-                component_index: 0,
-                items_per_entity: self.items_per_entity(archetype),
-                end: unsafe { NonNull::new_unchecked(begin_entity_lock.add(archetype.len())) },
-            })
+            Box::new(ScriptValueIterator::new(ScriptWithIterator::new(
+                component_storage.read(),
+                entity_reference_iterator,
+                self.script_object_type.clone(),
+            )))
         } else {
-            Box::new(InfiniteBidirectionalIterator::new(ScriptValue::Null))
+            Box::new(ScriptValueIterator::new(
+                InfiniteEntityIterator::<Option<()>>::new(None),
+            ))
         }
     }
 
     fn from_entity_reference<'a>(
         &self,
         entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
         let inner_entity_reference = entity_reference.inner.read();
-        if let InnerShareableEntityReference::Archetype {
-            entity_index,
-            archetype_ptr,
-        } = inner_entity_reference.deref()
+        if let Some(InnerShareableEntityReference {
+            entity_storage,
+            location,
+            ..
+        }) = inner_entity_reference.deref()
         {
-            let archetype = unsafe { archetype_ptr.as_ref() }.unwrap();
-            if let Some(component_storage) = archetype.component_storages.get(&self.identifier) {
-                let begin_entity_lock =
-                    &archetype.lock_array[*entity_index] as *const RwLock<()> as *mut RwLock<()>;
-                let begin_component = unsafe {
-                    NonNull::new_unchecked(
-                        component_storage
-                            .component_storage
-                            .get(*entity_index * component_storage.components_per_entity)
-                            as *const dyn Component as *mut dyn Component,
-                    )
-                };
+            // TODO: Find a way to remove it
+            let archetype = unsafe {
+                <*const Archetype>::as_ref(
+                    &entity_storage.read().archetypes[location.archetype_index] as *const Archetype,
+                )
+                .unwrap()
+            };
 
-                Box::new(WithIterator {
-                    archetype,
-                    current_entity_lock: unsafe { NonNull::new_unchecked(begin_entity_lock) },
-                    current_component: begin_component,
-                    component_size: component_storage.component_storage.item_size(),
-                    component_index: 0,
-                    items_per_entity: self.items_per_entity(archetype),
-                    end: unsafe {
-                        NonNull::new_unchecked(
-                            begin_entity_lock.add(component_storage.components_per_entity),
-                        )
-                    },
-                })
+            if let Some(component_storage) =
+                archetype.component_storages.get(&self.script_object_type)
+            {
+                let component_storage_lock = component_storage.read();
+                Box::new(ScriptValueIterator::new(ScriptFromEntityWithIterator::new(
+                    entity_reference.clone(),
+                    component_storage_lock.slice_len(location.entity_index),
+                    self.script_object_type.clone(),
+                )))
             } else {
-                Box::new(SingleBidirectionalIterator::new(ScriptValue::Null))
+                Box::new(ScriptValueIterator::new(
+                    SingleEntityIterator::<Option<()>>::new(None),
+                ))
             }
         } else {
             unreachable!()
         }
     }
-}
 
-#[derive(FruityAny, Clone)]
-pub struct Without {
-    pub identifier: String,
-}
-
-impl ScriptQueryParam for Without {
     fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
         Box::new(self.clone())
     }
+}
 
-    fn filter_archetype(&self, archetype: &Archetype) -> bool {
-        !archetype.identifier.contains(&self.identifier)
-    }
+#[derive(FruityAny, Clone)]
+pub(crate) struct ScriptWithout {
+    pub(crate) script_object_type: ScriptObjectType,
+}
 
-    fn items_per_entity(&self, _archetype: &Archetype) -> usize {
-        1
+impl ScriptQueryParam for ScriptWithout {
+    fn filter_archetype(&self, component_types: &ArchetypeComponentTypes) -> bool {
+        !component_types.contains(&self.script_object_type)
     }
 
     fn iter<'a>(
         &self,
         _archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        Box::new(InfiniteBidirectionalIterator::new(ScriptValue::Null))
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(SingleEntityIterator::new(
+            Option::<()>::None,
+        )))
     }
 
     fn from_entity_reference<'a>(
         &self,
         _entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        Box::new(SingleBidirectionalIterator::new(ScriptValue::Null))
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptValueIterator::new(SingleEntityIterator::new(
+            Option::<()>::None,
+        )))
+    }
+
+    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
+        Box::new(self.clone())
     }
 }
 
-struct TupleIteratorElem<'a> {
-    iterator: Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a>,
-    local_id: usize,
-    items_per_entity: usize,
-}
-
 /// An iterator over entity enabled state
-pub struct TupleIterator<'a> {
-    iterators: Vec<TupleIteratorElem<'a>>,
+pub struct ScriptTupleIterator<'a> {
+    iterators: Vec<Box<dyn EntityIterator<Item = ScriptValue> + 'a>>,
 }
 
-impl<'a> Iterator for TupleIterator<'a> {
+impl<'a> Iterator for ScriptTupleIterator<'a> {
     type Item = ScriptValue;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -638,16 +634,12 @@ impl<'a> Iterator for TupleIterator<'a> {
         if self
             .iterators
             .iter()
-            .all(|iterator| iterator.local_id + 1 == iterator.items_per_entity)
+            .all(|iterator| iterator.has_reach_entity_end())
         {
-            self.iterators
-                .iter_mut()
-                .for_each(|iterator| iterator.local_id = 0);
-
             return Some(ScriptValue::Array(
                 self.iterators
                     .iter_mut()
-                    .map(|iterator| iterator.iterator.next())
+                    .map(|iterator| iterator.next())
                     .try_collect()?,
             ));
         }
@@ -657,22 +649,20 @@ impl<'a> Iterator for TupleIterator<'a> {
             .iterators
             .iter_mut()
             .enumerate()
-            .find(|(_index, iterator)| iterator.local_id + 1 < iterator.items_per_entity)
+            .find(|(_index, iterator)| iterator.has_reach_entity_end())
         {
-            sub_iterator.iterator.next();
-            sub_iterator.local_id += 1;
+            sub_iterator.next();
 
             // Reinitialize the left iterators
             self.iterators.iter_mut().take(index).for_each(|iterator| {
-                iterator.iterator.go_back(iterator.items_per_entity - 1);
-                iterator.local_id += 0;
+                iterator.reset_current_entity();
             });
 
             // Returns the current result
             Some(ScriptValue::Array(
                 self.iterators
                     .iter_mut()
-                    .map(|iterator| iterator.iterator.current())
+                    .map(|iterator| iterator.current())
                     .collect(),
             ))
         } else {
@@ -681,59 +671,50 @@ impl<'a> Iterator for TupleIterator<'a> {
     }
 }
 
-impl<'a> BidirectionalIterator for TupleIterator<'a> {
+impl<'a> EntityIterator for ScriptTupleIterator<'a> {
     fn current(&mut self) -> Self::Item {
         ScriptValue::Array(
             self.iterators
                 .iter_mut()
-                .map(|iterator| iterator.iterator.current())
+                .map(|iterator| iterator.current())
                 .collect(),
         )
     }
 
-    fn go_back(&mut self, count: usize) {
+    fn has_reach_entity_end(&self) -> bool {
+        self.iterators
+            .iter()
+            .all(|iterator| iterator.has_reach_entity_end())
+    }
+
+    fn reset_current_entity(&mut self) {
         self.iterators
             .iter_mut()
-            .for_each(|iterator| iterator.iterator.go_back(count))
+            .for_each(|iterator| iterator.reset_current_entity());
     }
 }
 
 #[derive(FruityAny)]
-pub struct Tuple {
-    pub params: Vec<Box<dyn ScriptQueryParam>>,
+pub(crate) struct ScriptTuple {
+    pub(crate) params: Vec<Box<dyn ScriptQueryParam>>,
 }
 
-impl ScriptQueryParam for Tuple {
-    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
-        Box::new(self.clone())
-    }
-
-    fn filter_archetype(&self, archetype: &Archetype) -> bool {
+impl ScriptQueryParam for ScriptTuple {
+    fn filter_archetype(&self, component_types: &ArchetypeComponentTypes) -> bool {
         self.params
             .iter()
-            .all(|param| param.filter_archetype(archetype))
-    }
-
-    fn items_per_entity(&self, archetype: &Archetype) -> usize {
-        self.params
-            .iter()
-            .map(|param| param.items_per_entity(archetype))
-            .fold(0, |acc, x| acc * x)
+            .all(|param| param.filter_archetype(component_types))
     }
 
     fn iter<'a>(
         &self,
         archetype: &'a Archetype,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        Box::new(TupleIterator {
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptTupleIterator {
             iterators: self
                 .params
                 .iter()
-                .map(|param| TupleIteratorElem {
-                    iterator: param.iter(archetype),
-                    local_id: 0,
-                    items_per_entity: param.items_per_entity(archetype),
-                })
+                .map(|param| param.iter(archetype))
                 .collect(),
         })
     }
@@ -741,38 +722,19 @@ impl ScriptQueryParam for Tuple {
     fn from_entity_reference<'a>(
         &self,
         entity_reference: &'a EntityReference,
-    ) -> Box<dyn BidirectionalIterator<Item = ScriptValue> + 'a> {
-        Box::new(TupleIterator {
+    ) -> Box<dyn EntityIterator<Item = ScriptValue> + 'a> {
+        Box::new(ScriptTupleIterator {
             iterators: self
                 .params
                 .iter()
-                .map(|param| {
-                    let archetype = {
-                        let inner_entity_reference = entity_reference.inner.read();
-                        if let InnerShareableEntityReference::Archetype { archetype_ptr, .. } =
-                            inner_entity_reference.deref()
-                        {
-                            unsafe { archetype_ptr.as_ref().unwrap() }
-                        } else {
-                            unreachable!()
-                        }
-                    };
-
-                    TupleIteratorElem {
-                        iterator: param.from_entity_reference(entity_reference),
-                        local_id: 0,
-                        items_per_entity: param.items_per_entity(archetype),
-                    }
-                })
+                .map(|param| param.from_entity_reference(entity_reference))
                 .collect(),
         })
     }
-}
 
-impl Clone for Tuple {
-    fn clone(&self) -> Self {
-        Self {
+    fn duplicate(&self) -> Box<dyn ScriptQueryParam> {
+        Box::new(Self {
             params: self.params.iter().map(|param| param.duplicate()).collect(),
-        }
+        })
     }
 }

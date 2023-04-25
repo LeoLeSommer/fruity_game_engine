@@ -7,8 +7,7 @@ use crate::{
 use convert_case::{Case, Casing};
 use futures::FutureExt;
 use send_wrapper::SendWrapper;
-use std::{fmt::Debug, future::Future, ops::Deref};
-use std::{pin::Pin, rc::Rc, sync::Arc};
+use std::{fmt::Debug, future::Future, ops::Deref, pin::Pin, rc::Rc, sync::Arc};
 use wasm_bindgen::{JsCast, JsError, JsValue};
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
 
@@ -489,6 +488,33 @@ impl IntrospectMethods for JsIntrospectObject {
         // Return the result
         let result = js_value_to_script_value(result)?;
         Ok(result)
+    }
+}
+
+impl TryIntoScriptValue for JsIntrospectObject {
+    fn into_script_value(self) -> FruityResult<ScriptValue> {
+        Ok(ScriptValue::Object(Box::new(self)))
+    }
+}
+
+impl TryFromScriptValue for JsIntrospectObject {
+    fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
+        use std::ops::Deref;
+
+        match value {
+            ScriptValue::Object(value) => match value.downcast::<Self>() {
+                Ok(value) => Ok(*value),
+                Err(value) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't convert a {} to {}",
+                    value.deref().get_type_name(),
+                    std::any::type_name::<Self>()
+                ))),
+            },
+            value => Err(FruityError::InvalidArg(format!(
+                "Couldn't convert {:?} to native object",
+                value
+            ))),
+        }
     }
 }
 

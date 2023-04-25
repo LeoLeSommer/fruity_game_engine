@@ -1,14 +1,14 @@
 use super::EntityId;
 use crate::component::{Component, ComponentStorage, ComponentTypeId, ExtensionComponentService};
-use fruity_game_engine::{FruityResult, RwLock, RwLockReadGuard};
+use fruity_game_engine::{
+    script_value::ScriptObjectType,
+    sync::{RwLock, RwLockReadGuard},
+    FruityResult,
+};
 use std::{
     collections::{BTreeMap, HashMap},
     ops::DerefMut,
 };
-
-/// An archetype id
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ArchetypeId(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArchetypeComponentTypes(Vec<ComponentTypeId>);
@@ -26,14 +26,20 @@ impl ArchetypeComponentTypes {
     }
 
     /// Returns true if the given component type id is in the archetype
-    pub fn contains(&self, component_type_id: ComponentTypeId) -> bool {
-        self.0.contains(&component_type_id)
+    pub fn contains(&self, script_object_type: &ScriptObjectType) -> bool {
+        self.0.iter().any(|ty| match ty {
+            ComponentTypeId::Normal(ty) => ty == script_object_type,
+            ComponentTypeId::OrderedRust(ty, _) => ty == script_object_type,
+        })
     }
 }
 
 /// An archetype is a collection of components that are stored contiguously in memory
 #[derive(Debug)]
 pub struct Archetype {
+    /// The archetype index in the array
+    pub(crate) index: usize,
+
     /// The component types
     component_types: ArchetypeComponentTypes,
 
@@ -41,12 +47,13 @@ pub struct Archetype {
     pub(crate) entity_ids: Vec<EntityId>,
 
     /// The component storages
-    pub(crate) component_storages: BTreeMap<ComponentTypeId, RwLock<Box<dyn ComponentStorage>>>,
+    pub(crate) component_storages: BTreeMap<ScriptObjectType, RwLock<Box<dyn ComponentStorage>>>,
 }
 
 impl Archetype {
     /// Create a new archetype
     pub fn new(
+        index: usize,
         entity_id: EntityId,
         mut components: Vec<Box<dyn Component>>,
         extension_component_service: Option<&ExtensionComponentService>,
@@ -57,8 +64,13 @@ impl Archetype {
         // Add extension components
         if let Some(extension_component_service) = extension_component_service {
             for component_type_id in component_types.0.iter() {
+                let script_object_type = match component_type_id {
+                    ComponentTypeId::Normal(ty) => ty,
+                    ComponentTypeId::OrderedRust(ty, _) => ty,
+                };
+
                 let mut extension_component = extension_component_service
-                    .instantiate_component_extension(component_type_id)?;
+                    .instantiate_component_extension(script_object_type)?;
                 components.append(&mut extension_component);
             }
         }
@@ -80,6 +92,7 @@ impl Archetype {
         }
 
         Ok(Self {
+            index,
             component_types,
             entity_ids: vec![entity_id],
             component_storages,
@@ -147,8 +160,13 @@ impl Archetype {
         // Add extension components
         if let Some(extension_component_service) = extension_component_service {
             for component_type_id in self.component_types.0.iter() {
+                let script_object_type = match component_type_id {
+                    ComponentTypeId::Normal(ty) => ty,
+                    ComponentTypeId::OrderedRust(ty, _) => ty,
+                };
+
                 let mut extension_component = extension_component_service
-                    .instantiate_component_extension(component_type_id)?;
+                    .instantiate_component_extension(script_object_type)?;
                 components.append(&mut extension_component);
             }
         }
@@ -200,12 +218,17 @@ impl Archetype {
 
     fn group_components_by_type(
         components: Vec<Box<dyn Component>>,
-    ) -> HashMap<ComponentTypeId, Vec<Box<dyn Component>>> {
+    ) -> HashMap<ScriptObjectType, Vec<Box<dyn Component>>> {
         use itertools::Itertools;
 
         components
             .into_iter()
-            .group_by(|component| component.get_component_type_id().unwrap())
+            .group_by(
+                |component| match component.get_component_type_id().unwrap() {
+                    ComponentTypeId::Normal(component_type_id) => component_type_id,
+                    ComponentTypeId::OrderedRust(component_type_id, _) => component_type_id,
+                },
+            )
             .into_iter()
             .map(|(class_name, component)| (class_name, component.collect::<Vec<_>>()))
             .collect::<HashMap<_, _>>()

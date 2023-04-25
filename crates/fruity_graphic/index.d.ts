@@ -26,7 +26,7 @@ export class Color {
   constructor(r: number, g: number, b: number, a: number)
 }
 
-export interface GraphicService {
+export class GraphicService {
 
   startDraw(): void
   endDraw()
@@ -43,11 +43,11 @@ export interface GraphicService {
   setViewportSize(x: number, y: number)
 }
 
-export interface MaterialResource {
+export class MaterialResource {
 
 }
 
-export interface Matrix3 {
+export class Matrix3 {
   0: number[][]
   translation(): Vector2D
   rotation(): number
@@ -55,16 +55,16 @@ export interface Matrix3 {
   invert(): Matrix3
 }
 
-export interface Matrix4 {
+export class Matrix4 {
   0: number[][]
   invert(): Matrix4
 }
 
-export interface MeshResource {
+export class MeshResource {
 
 }
 
-export interface MeshResourceSettings {
+export class MeshResourceSettings {
   vertices: Vertex[]
   indices: number[]
 }
@@ -83,7 +83,7 @@ export interface ShaderInstanceAttribute {
   ty: ShaderInstanceAttributeType
 }
 
-export interface ShaderResource {
+export class ShaderResource {
 
 }
 
@@ -92,7 +92,7 @@ export interface ShaderResourceSettings {
   instanceAttributes: ShaderInstanceAttribute[]
 }
 
-export interface TextureResource {
+export class TextureResource {
 
   getSize(): [number, number]
 }
@@ -138,7 +138,7 @@ export class Vector3D {
   div(rhs: number): Vector3D
 }
 
-export interface Vertex {
+export class Vertex {
   position: Vector3D
   texCoords: Vector2D
   normal: Vector3D

@@ -1,14 +1,16 @@
 use crate::{
     introspect::{IntrospectFields, IntrospectMethods},
-    Arc,
+    sync::Arc,
 };
 use std::any::Any;
 
 /// A reference over a resource that is supposed to be used by components
-pub mod resource_reference;
+mod resource_reference;
+pub use resource_reference::*;
 
 /// The resource manager
-pub mod resource_container;
+mod resource_container;
+pub use resource_container::*;
 
 /// A resource that can be stored in the resource container
 pub trait Resource: IntrospectFields + IntrospectMethods + Send + Sync + 'static {

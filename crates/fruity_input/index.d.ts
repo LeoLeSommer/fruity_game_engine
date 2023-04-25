@@ -3,11 +3,11 @@ import {
   Module,
 } from "fruity_game_engine"
 
-export interface DragService {
+export class DragService {
 
 }
 
-export interface InputService {
+export class InputService {
   inputMap: {[key: string]: string}
   pressedInputs: string[]
   pressedSources: string[]
@@ -31,7 +31,7 @@ export interface InputService {
   handleFrameEnd()
 }
 
-export interface Modifiers {
+export class Modifiers {
   0: number
   hasShift(): boolean
   hasCtrl(): boolean

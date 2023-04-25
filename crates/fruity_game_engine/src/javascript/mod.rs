@@ -4,16 +4,16 @@ use fruity_game_engine_macro::typescript;
 
 #[typescript("type JsIntrospectObject = { [key: string]: any }")]
 #[allow(dead_code)]
-type JsIntrospectObjectTypescriptDecl = JsIntrospectObject;
+type JsIntrospectObjectTypescriptDecl = usize;
 
 #[cfg(target_arch = "wasm32")]
-pub mod wasm;
+mod wasm;
 
 #[cfg(target_arch = "wasm32")]
-pub use crate::javascript::wasm::*;
+pub use wasm::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod napi;
+mod napi_script;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use crate::javascript::napi::*;
+pub use napi_script::*;

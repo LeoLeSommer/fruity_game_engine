@@ -12,7 +12,7 @@ export class Enabled {
   constructor(enabled: boolean)
 }
 
-export interface EntityReference {
+export class EntityReference {
 
   getEntityId(): EntityId
   getName(): string
@@ -20,13 +20,14 @@ export interface EntityReference {
   isEnabled(): boolean
   setEnabled(enabled: boolean): void
   getAllComponents(): AnyComponentReference[]
-  getComponentsByTypeIdentifier(componentIdentifier: string): AnyComponentReference[]
+  getComponentsByType(componentTypeId: ScriptObjectType): AnyComponentReference[]
 }
 
-export interface EntityService {
+export class EntityService {
   onCreated: Signal<EntityReference>
   onDeleted: Signal<EntityId>
   getEntityReference(entityId: EntityId): EntityReference | null
+  query(): ScriptQueryBuilder
   createEntity(name: string, enabled: boolean, components: Component[]): EntityId
   removeEntity(entityId: EntityId): Component[]
   addComponents(entityId: EntityId, newComponents: Component[]): void
@@ -36,7 +37,7 @@ export interface EntityService {
   restore(clearBefore: boolean, snapshot: EntityServiceSnapshot): void
 }
 
-export interface ExtensionComponentService {
+export class ExtensionComponentService {
 
 }
 
@@ -45,7 +46,25 @@ export class Name {
   constructor(string: string)
 }
 
-export interface SerializationService {
+export class ScriptQuery<Args extends any[] = []> {
+  forEach(callback: (args: Args) => void);
+  onCreated(callback: (args: Args) => undefined | (() => void)): ObserverHandler;
+}
+export class ScriptQueryBuilder<Args extends any[] = []> {
+  withEntity(): ScriptQueryBuilder<[...Args, EntityReference]>;
+  withId(): ScriptQueryBuilder<[...Args, EntityId]>;
+  withName(): ScriptQueryBuilder<[...Args, string]>;
+  withEnabled(): ScriptQueryBuilder<[...Args, boolean]>;
+  with<T>(scriptObjectType: ScriptObjectType): ScriptQueryBuilder<[...Args, T]>;
+  withOptional<T>(
+    scriptObjectType: ScriptObjectType
+  ): ScriptQueryBuilder<[...Args, T | null]>;
+  without(
+    scriptObjectType: ScriptObjectType
+  ): ScriptQueryBuilder<[...Args, null]>;
+  build(): ScriptQuery<[...Args]>
+}
+export class SerializationService {
 
 }
 
@@ -60,7 +79,7 @@ export interface SystemParams {
   executeInMainThread?: boolean | null | undefined | void
 }
 
-export interface SystemService {
+export class SystemService {
 
   addSystem(identifier: string, callback: (() => void), params?: SystemParams | null | undefined | void)
   addStartupSystem(identifier: string, callback: (() => (() => void) | null | undefined | void), params?: StartupSystemParams | null | undefined | void)

@@ -3,8 +3,8 @@ use fruity_ecs::{
     serialization::{Deserialize, Serialize},
 };
 use fruity_game_engine::{
-    any::FruityAny, export_constructor, export_impl, export_struct, signal::SignalProperty,
-    FruityResult,
+    any::FruityAny, export_constructor, export_impl, export_struct, script_value::ScriptObjectType,
+    signal::SignalProperty, FruityResult,
 };
 use std::ops::Deref;
 
@@ -28,11 +28,10 @@ impl fruity_ecs::component::Component for Parent {
                 let parent_reader = parent_entity_reader.get_component_by_type::<Parent>();
                 match parent_reader.as_deref() {
                     Some(parent_reader) => match parent_reader.get_component_type_id()? {
-                        fruity_ecs::component::ComponentTypeId::Rust(_) => Ok(1),
+                        fruity_ecs::component::ComponentTypeId::Normal(_) => Ok(1),
                         fruity_ecs::component::ComponentTypeId::OrderedRust(_, count) => {
                             Ok(count + 1)
                         }
-                        fruity_ecs::component::ComponentTypeId::Script(_) => Ok(1),
                     },
                     None => Ok(1),
                 }
@@ -41,7 +40,7 @@ impl fruity_ecs::component::Component for Parent {
         }?;
 
         Ok(fruity_ecs::component::ComponentTypeId::OrderedRust(
-            std::any::TypeId::of::<Self>(),
+            ScriptObjectType::Rust(std::any::TypeId::of::<Self>()),
             order,
         ))
     }

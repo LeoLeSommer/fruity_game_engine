@@ -1,5 +1,8 @@
 use super::{Component, ComponentStorage};
-use fruity_game_engine::{FruityError, RwLockReadGuard, RwLockWriteGuard};
+use fruity_game_engine::{
+    sync::{RwLockReadGuard, RwLockWriteGuard},
+    FruityError,
+};
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},

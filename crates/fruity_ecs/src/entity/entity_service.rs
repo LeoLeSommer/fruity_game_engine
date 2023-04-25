@@ -1,17 +1,19 @@
 use super::{EntityId, EntityLocation, EntityStorage, SerializedEntity};
 use crate::{
-    component::{Component, ComponentTypeId, Enabled, ExtensionComponentService, Name},
+    component::{Component, Enabled, ExtensionComponentService, Name},
     entity::EntityReference,
-    query::{Query, QueryParam},
+    query::{Query, QueryParam, ScriptQueryBuilder},
     serialization::{Deserialize, Serialize},
 };
 use fruity_game_engine::{
     any::FruityAny,
     export, export_impl, export_struct, profile_scope,
-    resource::{resource_container::ResourceContainer, resource_reference::ResourceReference},
+    resource::{ResourceContainer, ResourceReference},
+    script_value::ScriptObjectType,
     settings::Settings,
     signal::Signal,
-    typescript, Arc, FruityError, FruityResult, Mutex, RwLock,
+    sync::{Arc, Mutex, RwLock},
+    typescript, FruityError, FruityResult,
 };
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
@@ -91,11 +93,16 @@ impl EntityService {
         Query::<T>::new(self)
     }
 
-    /*/// Create a query over entities
+    /// Create a query over entities
     #[export(name = "query")]
     pub fn script_query(&self) -> ScriptQueryBuilder {
-        ScriptQueryBuilder::new(self.resource_container.require())
-    }*/
+        ScriptQueryBuilder::new(
+            self.entity_storage.clone(),
+            self.on_entity_location_moved.clone(),
+            self.on_created.clone(),
+            self.on_deleted.clone(),
+        )
+    }
 
     /// Add a new entity in the storage
     /// Create the archetype if it don't exists
@@ -248,8 +255,11 @@ impl EntityService {
 
                 let serialized_components = components
                     .filter(|component| {
-                        if component.get_component_type_id().unwrap()
-                            == ComponentTypeId::of::<Name>()
+                        if component
+                            .get_component_type_id()
+                            .unwrap()
+                            .get_script_object_type()
+                            == ScriptObjectType::of::<Name>()
                         {
                             name = component
                                 .as_any_ref()
@@ -259,8 +269,11 @@ impl EntityService {
                                 .clone();
 
                             false
-                        } else if component.get_component_type_id().unwrap()
-                            == ComponentTypeId::of::<Enabled>()
+                        } else if component
+                            .get_component_type_id()
+                            .unwrap()
+                            .get_script_object_type()
+                            == ScriptObjectType::of::<Enabled>()
                         {
                             enabled = component
                                 .as_any_ref()

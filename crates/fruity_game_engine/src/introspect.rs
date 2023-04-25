@@ -5,14 +5,16 @@
 //! Implements traits and macros to make a structure abe to list it's field and to get/set it with any
 //!
 
-use crate::any::FruityAny;
-use crate::script_value::ScriptValue;
-use crate::Arc;
-use crate::FruityResult;
-use crate::RwLock;
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::ops::DerefMut;
+use crate::{
+    any::FruityAny,
+    script_value::ScriptValue,
+    sync::{Arc, RwLock},
+    FruityResult,
+};
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 /// Trait to implement fields introspection to a struct
 pub trait IntrospectFields: Debug + FruityAny {
