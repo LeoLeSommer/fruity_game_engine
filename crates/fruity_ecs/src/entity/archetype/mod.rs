@@ -27,10 +27,37 @@ impl ArchetypeComponentTypes {
 
     /// Returns true if the given component type id is in the archetype
     pub fn contains(&self, script_object_type: &ScriptObjectType) -> bool {
-        self.0.iter().any(|ty| match ty {
-            ComponentTypeId::Normal(ty) => ty == script_object_type,
-            ComponentTypeId::OrderedRust(ty, _) => ty == script_object_type,
-        })
+        self.0
+            .iter()
+            .any(|component_type_id| match component_type_id {
+                ComponentTypeId::Normal(ty) => ty == script_object_type,
+                ComponentTypeId::OrderedRust(ty, _) => ty == script_object_type,
+            })
+    }
+
+    /// Returns the given component type id associated with a script object id
+    pub fn get_component_type_id(
+        &self,
+        script_object_type: &ScriptObjectType,
+    ) -> Option<ComponentTypeId> {
+        self.0
+            .iter()
+            .find_map(|component_type_id| match component_type_id {
+                ComponentTypeId::Normal(ty) => {
+                    if ty == script_object_type {
+                        Some(component_type_id.clone())
+                    } else {
+                        None
+                    }
+                }
+                ComponentTypeId::OrderedRust(ty, _) => {
+                    if ty == script_object_type {
+                        Some(component_type_id.clone())
+                    } else {
+                        None
+                    }
+                }
+            })
     }
 }
 

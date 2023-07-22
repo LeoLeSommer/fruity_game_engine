@@ -55,13 +55,9 @@ export class ScriptQueryBuilder<Args extends any[] = []> {
   withId(): ScriptQueryBuilder<[...Args, EntityId]>;
   withName(): ScriptQueryBuilder<[...Args, string]>;
   withEnabled(): ScriptQueryBuilder<[...Args, boolean]>;
-  with<T>(scriptObjectType: ScriptObjectType): ScriptQueryBuilder<[...Args, T]>;
-  withOptional<T>(
-    scriptObjectType: ScriptObjectType
-  ): ScriptQueryBuilder<[...Args, T | null]>;
-  without(
-    scriptObjectType: ScriptObjectType
-  ): ScriptQueryBuilder<[...Args, null]>;
+  with<T>(constructor: new (...args) => T): ScriptQueryBuilder<[...Args, T]>;
+  withOptional<T>(constructor: new (...args) => T): ScriptQueryBuilder<[...Args, T | null]>;
+  without(constructor: new (...args) => T): ScriptQueryBuilder<[...Args, null]>;
   build(): ScriptQuery<[...Args]>
 }
 export class SerializationService {

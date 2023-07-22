@@ -2,7 +2,9 @@ use super::{
     ScriptQuery, ScriptQueryParam, ScriptTuple, ScriptWith, ScriptWithEnabled,
     ScriptWithEntityReference, ScriptWithId, ScriptWithName, ScriptWithOptional, ScriptWithout,
 };
-use crate::entity::{EntityId, EntityLocation, EntityReference, EntityStorage};
+use crate::entity::{
+    ArchetypeComponentTypes, EntityId, EntityLocation, EntityReference, EntityStorage,
+};
 use fruity_game_engine::{
     any::FruityAny,
     export, export_impl, export_struct,
@@ -19,18 +21,19 @@ use std::fmt::Debug;
   withId(): ScriptQueryBuilder<[...Args, EntityId]>;
   withName(): ScriptQueryBuilder<[...Args, string]>;
   withEnabled(): ScriptQueryBuilder<[...Args, boolean]>;
-  with<T>(scriptObjectType: ScriptObjectType): ScriptQueryBuilder<[...Args, T]>;
-  withOptional<T>(
-    scriptObjectType: ScriptObjectType
-  ): ScriptQueryBuilder<[...Args, T | null]>;
-  without(
-    scriptObjectType: ScriptObjectType
-  ): ScriptQueryBuilder<[...Args, null]>;
+  with<T>(constructor: new (...args) => T): ScriptQueryBuilder<[...Args, T]>;
+  withOptional<T>(constructor: new (...args) => T): ScriptQueryBuilder<[...Args, T | null]>;
+  without(constructor: new (...args) => T): ScriptQueryBuilder<[...Args, null]>;
   build(): ScriptQuery<[...Args]>
 }")]
 pub struct ScriptQueryBuilder {
     entity_storage: Arc<RwLock<EntityStorage>>,
-    on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    on_entity_location_moved: Signal<(
+        EntityId,
+        Arc<RwLock<EntityStorage>>,
+        EntityLocation,
+        ArchetypeComponentTypes,
+    )>,
     on_created: Signal<EntityReference>,
     on_deleted: Signal<EntityId>,
     params: Vec<Box<dyn ScriptQueryParam>>,
@@ -41,7 +44,12 @@ impl ScriptQueryBuilder {
     /// Create the entity query
     pub fn new(
         entity_storage: Arc<RwLock<EntityStorage>>,
-        on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+        on_entity_location_moved: Signal<(
+            EntityId,
+            Arc<RwLock<EntityStorage>>,
+            EntityLocation,
+            ArchetypeComponentTypes,
+        )>,
         on_created: Signal<EntityReference>,
         on_deleted: Signal<EntityId>,
     ) -> Self {

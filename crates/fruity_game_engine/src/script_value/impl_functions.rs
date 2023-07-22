@@ -8,30 +8,36 @@ macro_rules! impl_try_into_script_value_for_fn {
         #[allow(non_snake_case)]
         impl<R: TryIntoScriptValue + Send + 'static> TryIntoScriptValue for &'static (dyn Send + Sync + Fn() -> R) {
             fn into_script_value(self) -> FruityResult<ScriptValue> {
-                Ok(ScriptValue::Callback(Box::new(move |_args: Vec<ScriptValue>| {
+                Ok(ScriptValue::Callback {
+                    identifier: None,
+                    callback: Box::new(move |_args: Vec<ScriptValue>| {
                     let result = self();
                     result.into_script_value()
-                })))
+                })})
             }
         }
 
         #[allow(non_snake_case)]
         impl<R: TryIntoScriptValue + Send + 'static> TryIntoScriptValue for Box<dyn Send + Sync + Fn() -> R> {
             fn into_script_value(self) -> FruityResult<ScriptValue> {
-                Ok(ScriptValue::Callback(Box::new(move |_args: Vec<ScriptValue>| {
+                Ok(ScriptValue::Callback {
+                    identifier: None,
+                    callback: Box::new(move |_args: Vec<ScriptValue>| {
                     let result = self();
                     result.into_script_value()
-                })))
+                })})
             }
         }
 
         #[allow(non_snake_case)]
         impl<R: TryIntoScriptValue + Send + 'static> TryIntoScriptValue for Arc<dyn Send + Sync + Fn() -> R> {
             fn into_script_value(self) -> FruityResult<ScriptValue> {
-                Ok(ScriptValue::Callback(Box::new(move |_args: Vec<ScriptValue>| {
+                Ok(ScriptValue::Callback {
+                    identifier: None,
+                    callback: Box::new(move |_args: Vec<ScriptValue>| {
                     let result = self();
                     result.into_script_value()
-                })))
+                })})
             }
         }
     };
@@ -39,7 +45,9 @@ macro_rules! impl_try_into_script_value_for_fn {
         #[allow(non_snake_case)]
         impl<$($arg: TryFromScriptValue + 'static,)* R: TryIntoScriptValue + Send + 'static> TryIntoScriptValue for &'static (dyn Send + Sync + Fn($($arg),*) -> R) {
             fn into_script_value(self) -> FruityResult<ScriptValue> {
-                Ok(ScriptValue::Callback(Box::new(move |args: Vec<ScriptValue>| {
+                Ok(ScriptValue::Callback {
+                    identifier: None,
+                    callback: Box::new(move |args: Vec<ScriptValue>| {
                     let mut caster = ArgumentCaster::new(args);
                     $(
                         let $arg = caster.cast_next::<$arg>()?;
@@ -48,14 +56,16 @@ macro_rules! impl_try_into_script_value_for_fn {
                     let result = self($($arg),*);
 
                     result.into_script_value()
-                })))
+                })})
             }
         }
 
         #[allow(non_snake_case)]
         impl<$($arg: TryFromScriptValue + 'static,)* R: TryIntoScriptValue + Send + 'static> TryIntoScriptValue for Box<dyn Send + Sync + Fn($($arg),*) -> R> {
             fn into_script_value(self) -> FruityResult<ScriptValue> {
-                Ok(ScriptValue::Callback(Box::new(move |args: Vec<ScriptValue>| {
+                Ok(ScriptValue::Callback {
+                    identifier: None,
+                    callback: Box::new(move |args: Vec<ScriptValue>| {
                     let mut caster = ArgumentCaster::new(args);
                     $(
                         let $arg = caster.cast_next::<$arg>()?;
@@ -64,14 +74,16 @@ macro_rules! impl_try_into_script_value_for_fn {
                     let result = self($($arg),*);
 
                     result.into_script_value()
-                })))
+                })})
             }
         }
 
         #[allow(non_snake_case)]
         impl<$($arg: TryFromScriptValue + 'static,)* R: TryIntoScriptValue + Send + 'static> TryIntoScriptValue for Arc<dyn Send + Sync + Fn($($arg),*) -> R> {
             fn into_script_value(self) -> FruityResult<ScriptValue> {
-                Ok(ScriptValue::Callback(Box::new(move |args: Vec<ScriptValue>| {
+                Ok(ScriptValue::Callback {
+                    identifier: None,
+                    callback: Box::new(move |args: Vec<ScriptValue>| {
                     let mut caster = ArgumentCaster::new(args);
                     $(
                         let $arg = caster.cast_next::<$arg>()?;
@@ -80,7 +92,7 @@ macro_rules! impl_try_into_script_value_for_fn {
                     let result = self($($arg),*);
 
                     result.into_script_value()
-                })))
+                })})
             }
         }
     };
@@ -92,9 +104,9 @@ macro_rules! impl_try_from_script_value_for_fn {
         impl<$($arg: TryIntoScriptValue + 'static,)* R: TryFromScriptValue + Send + 'static> TryFromScriptValue for Box<dyn Send + Fn($($arg),*) -> FruityResult<R>> {
             fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
                 match value {
-                    ScriptValue::Callback(value) => Ok(Box::new(move |$($arg),*| {
+                    ScriptValue::Callback{callback, ..} => Ok(Box::new(move |$($arg),*| {
                         let args: Vec<ScriptValue> = vec![$($arg.into_script_value()?,)*];
-                        let result = value(args)?;
+                        let result = callback(args)?;
 
                         <R>::from_script_value(result)
                     })),
@@ -110,9 +122,9 @@ macro_rules! impl_try_from_script_value_for_fn {
         impl<$($arg: TryIntoScriptValue + 'static,)* R: TryFromScriptValue + Send + 'static> TryFromScriptValue for Box<dyn Send + Sync + Fn($($arg),*) -> FruityResult<R>> {
             fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
                 match value {
-                    ScriptValue::Callback(value) => Ok(Box::new(move |$($arg),*| {
+                    ScriptValue::Callback{callback, ..} => Ok(Box::new(move |$($arg),*| {
                         let args: Vec<ScriptValue> = vec![$($arg.into_script_value()?,)*];
-                        let result = value(args)?;
+                        let result = callback(args)?;
 
                         <R>::from_script_value(result)
                     })),
@@ -128,9 +140,9 @@ macro_rules! impl_try_from_script_value_for_fn {
         impl<$($arg: TryIntoScriptValue + 'static,)* R: TryFromScriptValue + Send + 'static> TryFromScriptValue for Arc<dyn Send + Sync + Fn($($arg),*) -> FruityResult<R>> {
             fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
                 match value {
-                    ScriptValue::Callback(value) => Ok(Arc::new(move |$($arg: $arg),*| {
+                    ScriptValue::Callback{callback, ..} => Ok(Arc::new(move |$($arg: $arg),*| {
                         let args: Vec<ScriptValue> = vec![$($arg.into_script_value()?,)*];
-                        let result = value(args)?;
+                        let result = callback(args)?;
 
                         <R>::from_script_value(result)
                     })),
@@ -151,8 +163,8 @@ macro_rules! impl_try_from_script_value_for_fn {
         {
             fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
                 match value {
-                    ScriptValue::Callback(value) => {
-                        let shared_callback = Arc::new(value);
+                    ScriptValue::Callback{callback, ..} => {
+                        let shared_callback = Arc::new(callback);
 
                         Ok(Box::new(move |$($arg: $arg),*| {
                             let shared_callback = shared_callback.clone();
@@ -183,8 +195,8 @@ macro_rules! impl_try_from_script_value_for_fn {
         {
             fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
                 match value {
-                    ScriptValue::Callback(value) => {
-                        let shared_callback = Arc::new(value);
+                    ScriptValue::Callback{callback, ..} => {
+                        let shared_callback = Arc::new(callback);
 
                         Ok(Box::new(move |$($arg: $arg),*| {
                             let shared_callback = shared_callback.clone();
@@ -215,8 +227,8 @@ macro_rules! impl_try_from_script_value_for_fn {
         {
             fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
                 match value {
-                    ScriptValue::Callback(value) => {
-                        let shared_callback = Arc::new(value);
+                    ScriptValue::Callback{callback, ..} => {
+                        let shared_callback = Arc::new(callback);
 
                         Ok(Arc::new(move |$($arg: $arg),*| {
                             let shared_callback = shared_callback.clone();
@@ -244,10 +256,10 @@ macro_rules! impl_try_from_script_value_for_fn {
         {
             fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
                 match value {
-                    ScriptValue::Callback(value) => {
+                    ScriptValue::Callback{callback, ..} => {
                         Ok(Box::new(move |$($arg: $arg),*| {
                             let args: Vec<ScriptValue> = vec![$($arg.into_script_value()?,)*];
-                            let result = value(args)?;
+                            let result = callback(args)?;
 
                             <R>::from_script_value(result)
                         }))

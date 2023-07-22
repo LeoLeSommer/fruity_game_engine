@@ -1,4 +1,4 @@
-use super::{EntityId, EntityLocation, EntityStorage, SerializedEntity};
+use super::{ArchetypeComponentTypes, EntityId, EntityLocation, EntityStorage, SerializedEntity};
 use crate::{
     component::{Component, Enabled, ExtensionComponentService, Name},
     entity::EntityReference,
@@ -39,8 +39,12 @@ pub struct EntityService {
     pub on_deleted: Signal<EntityId>,
 
     /// Signal notified when an entity archetype or index in archetype is moved
-    pub(crate) on_entity_location_moved:
-        Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    pub(crate) on_entity_location_moved: Signal<(
+        EntityId,
+        Arc<RwLock<EntityStorage>>,
+        EntityLocation,
+        ArchetypeComponentTypes,
+    )>,
 }
 
 #[export_impl]
@@ -67,15 +71,27 @@ impl EntityService {
     ///
     #[export]
     pub fn get_entity_reference(&self, entity_id: EntityId) -> Option<EntityReference> {
-        let (entity_storage, location) =
+        let (entity_storage, location, archetype_types) =
             if let Some(location) = self.entity_storage.read().get_entity_location(entity_id) {
-                (self.entity_storage.clone(), location)
+                (
+                    self.entity_storage.clone(),
+                    location.clone(),
+                    self.entity_storage.read().archetypes[location.archetype_index]
+                        .get_component_types()
+                        .clone(),
+                )
             } else if let Some(location) = self
                 .pending_entity_storage
                 .read()
                 .get_entity_location(entity_id)
             {
-                (self.pending_entity_storage.clone(), location)
+                (
+                    self.pending_entity_storage.clone(),
+                    location.clone(),
+                    self.pending_entity_storage.read().archetypes[location.archetype_index]
+                        .get_component_types()
+                        .clone(),
+                )
             } else {
                 return None;
             };
@@ -84,6 +100,7 @@ impl EntityService {
             entity_storage,
             entity_id,
             location,
+            archetype_types,
             self.on_entity_location_moved.clone(),
         ))
     }
@@ -134,14 +151,16 @@ impl EntityService {
         ];
 
         // Add the entity to the pending entity storage
-        let extension_component_service_reader = self.extension_component_service.read();
-        let mut pending_entity_storage_writer = self.pending_entity_storage.write();
-        pending_entity_storage_writer.create_entity(
-            entity_id,
-            components,
-            Some(extension_component_service_reader.deref()),
-            Some(default_components),
-        )?;
+        {
+            let extension_component_service_reader = self.extension_component_service.read();
+            let mut pending_entity_storage_writer = self.pending_entity_storage.write();
+            pending_entity_storage_writer.create_entity(
+                entity_id,
+                components,
+                Some(extension_component_service_reader.deref()),
+                Some(default_components),
+            )?;
+        }
 
         // Notify that the entity has been created
         let entity_reference = self.get_entity_reference(entity_id).unwrap();
@@ -181,7 +200,7 @@ impl EntityService {
 
         components.append(&mut new_components);
 
-        let location = self
+        let (location, archetype_types) = self
             .pending_entity_storage
             .write()
             .create_entity(entity_id, components, None, None)?;
@@ -190,6 +209,7 @@ impl EntityService {
             entity_id,
             self.pending_entity_storage.clone(),
             location,
+            archetype_types,
         ))
     }
 
@@ -210,7 +230,7 @@ impl EntityService {
             .map(|(_, component)| component)
             .collect::<Vec<_>>();
 
-        let location = self.pending_entity_storage.write().create_entity(
+        let (location, archetype_types) = self.pending_entity_storage.write().create_entity(
             entity_id,
             new_components,
             None,
@@ -221,6 +241,7 @@ impl EntityService {
             entity_id,
             self.pending_entity_storage.clone(),
             location,
+            archetype_types,
         ))
     }
 
@@ -295,7 +316,7 @@ impl EntityService {
                     })
                     .try_collect::<Vec<_>>()?;
 
-                Ok(SerializedEntity {
+                FruityResult::Ok(SerializedEntity {
                     local_id: entity_id.0,
                     name,
                     enabled,
@@ -359,20 +380,31 @@ impl EntityService {
     pub unsafe fn apply_pending_mutations(&self) -> FruityResult<()> {
         profile_scope!("apply_pending_mutations");
 
-        let new_locations = self
+        let new_ids = self
             .entity_storage
             .write()
             .append(&mut self.pending_entity_storage.write())?;
 
-        new_locations
-            .into_iter()
-            .try_for_each(|(entity_id, location)| {
-                self.on_entity_location_moved.send((
-                    entity_id,
-                    self.entity_storage.clone(),
-                    location,
-                ))
-            })?;
+        new_ids.into_iter().try_for_each(|entity_id| {
+            let location = self
+                .entity_storage
+                .read()
+                .get_entity_location(entity_id)
+                .unwrap();
+
+            let archetype_types = self
+                .entity_storage
+                .read()
+                .get_archetype_types(location.archetype_index)
+                .unwrap();
+
+            self.on_entity_location_moved.send((
+                entity_id,
+                self.entity_storage.clone(),
+                location,
+                archetype_types,
+            ))
+        })?;
 
         self.pending_entity_to_remove
             .write()
@@ -381,7 +413,7 @@ impl EntityService {
                 self.entity_storage.write().remove_entity(entity_id)?;
                 self.on_deleted.send(entity_id)?;
 
-                Ok(())
+                FruityResult::Ok(())
             })?;
 
         Ok(())

@@ -79,7 +79,9 @@ impl<T: Serialize> Serialize for HashMap<String, T> {
     fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings> {
         Ok(Settings::Object(
             self.into_iter()
-                .map(|(key, value)| Ok((key.clone(), value.serialize(resource_container)?)))
+                .map(|(key, value)| {
+                    FruityResult::Ok((key.clone(), value.serialize(resource_container)?))
+                })
                 .try_collect::<HashMap<_, _>>()?,
         ))
     }
@@ -99,7 +101,7 @@ impl<T: Deserialize> Deserialize for HashMap<String, T> {
             Ok(serialized
                 .into_iter()
                 .map(|(key, value)| {
-                    Ok((
+                    FruityResult::Ok((
                         key.clone(),
                         T::deserialize(value, resource_container, local_id_to_entity_id)?,
                     ))

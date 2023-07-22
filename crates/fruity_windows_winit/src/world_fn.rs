@@ -1,8 +1,8 @@
 use crate::window_service::WinitWindowService;
 use fruity_game_engine::{
     frame_service::FrameService,
-    profile::{profile_new_frame, profile_start},
-    profile_scope,
+    profile::profile_new_frame,
+    profile_scope, profile_start,
     settings::Settings,
     world::{RunWorldMiddlewareNext, SetupWorldMiddlewareNext, World},
     FruityResult,
@@ -110,7 +110,7 @@ pub fn run_world_middleware(
     let frame_service = resource_container.require::<FrameService>();
     let window_service = resource_container.require::<dyn WindowService>();
 
-    profile_start();
+    profile_start!();
 
     let loop_closure = move |event: Event<'_, ()>,
                              _: &EventLoopWindowTarget<()>,

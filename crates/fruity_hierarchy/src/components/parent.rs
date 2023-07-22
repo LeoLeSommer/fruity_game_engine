@@ -24,15 +24,15 @@ impl fruity_ecs::component::Component for Parent {
     fn get_component_type_id(&self) -> FruityResult<fruity_ecs::component::ComponentTypeId> {
         let order = match self.parent.deref() {
             Some(parent_entity) => {
-                let parent_entity_reader = parent_entity.read()?;
-                let parent_reader = parent_entity_reader.get_component_by_type::<Parent>();
-                match parent_reader.as_deref() {
-                    Some(parent_reader) => match parent_reader.get_component_type_id()? {
-                        fruity_ecs::component::ComponentTypeId::Normal(_) => Ok(1),
-                        fruity_ecs::component::ComponentTypeId::OrderedRust(_, count) => {
-                            Ok(count + 1)
-                        }
-                    },
+                let parent_archetype_component_types = parent_entity
+                    .get_archetype_component_types()
+                    .get_component_type_id(&ScriptObjectType::Rust(std::any::TypeId::of::<Self>()));
+
+                match parent_archetype_component_types {
+                    Some(fruity_ecs::component::ComponentTypeId::OrderedRust(_, count)) => {
+                        FruityResult::Ok(count + 1)
+                    }
+                    Some(fruity_ecs::component::ComponentTypeId::Normal(_)) => unreachable!(),
                     None => Ok(1),
                 }
             }

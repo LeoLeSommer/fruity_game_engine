@@ -1,4 +1,4 @@
-use super::{Archetype, EntityId, EntityLocation, EntityStorage};
+use super::{Archetype, ArchetypeComponentTypes, EntityId, EntityLocation, EntityStorage};
 use crate::component::{
     AnyComponentReadGuardIterator, AnyComponentReference, AnyComponentWriteGuardIterator,
     Component, ComponentReadGuard, ComponentReadGuardIterator, ComponentWriteGuard,
@@ -414,9 +414,16 @@ pub(crate) struct InnerShareableEntityReference {
     pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
     pub(crate) entity_id: EntityId,
     pub(crate) location: EntityLocation,
+    pub(crate) archetype_types: ArchetypeComponentTypes,
     on_archetype_created_handler: Option<ObserverHandler<NonNull<Archetype>>>,
-    on_entity_location_moved_handler:
-        Option<ObserverHandler<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>>,
+    on_entity_location_moved_handler: Option<
+        ObserverHandler<(
+            EntityId,
+            Arc<RwLock<EntityStorage>>,
+            EntityLocation,
+            ArchetypeComponentTypes,
+        )>,
+    >,
 }
 
 impl Drop for InnerShareableEntityReference {
@@ -446,13 +453,24 @@ impl EntityReference {
         entity_storage: Arc<RwLock<EntityStorage>>,
         entity_id: EntityId,
         location: EntityLocation,
-        on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+        archetype_types: ArchetypeComponentTypes,
+        on_entity_location_moved: Signal<(
+            EntityId,
+            Arc<RwLock<EntityStorage>>,
+            EntityLocation,
+            ArchetypeComponentTypes,
+        )>,
     ) -> Self {
+        if location.archetype_index == 0 && location.entity_index == 1 {
+            println!("EntityReference::new: entity_index cannot be 0");
+        }
+
         let entity_storage_2 = entity_storage.clone();
         let inner = Arc::new(RwLock::new(Some(InnerShareableEntityReference {
             entity_storage,
             entity_id,
             location,
+            archetype_types,
             on_archetype_created_handler: None,
             on_entity_location_moved_handler: None,
         })));
@@ -474,13 +492,14 @@ impl EntityReference {
             });
 
         let inner_2 = inner.clone();
-        let on_entity_location_moved_handler =
-            on_entity_location_moved.add_observer(move |(entity_id, entity_storage, location)| {
+        let on_entity_location_moved_handler = on_entity_location_moved.add_observer(
+            move |(entity_id, entity_storage, location, archetype_types)| {
                 let mut inner = inner_2.write();
                 if let Some(inner) = inner.as_mut() {
                     if inner.entity_id == *entity_id {
                         inner.entity_storage = entity_storage.clone();
                         inner.location = location.clone();
+                        inner.archetype_types = archetype_types.clone();
 
                         // Update the on archetype created observer
                         if let Some(on_archetype_created_handler) =
@@ -510,7 +529,8 @@ impl EntityReference {
                 }
 
                 Ok(())
-            });
+            },
+        );
 
         {
             let mut inner = inner.write();
@@ -521,6 +541,16 @@ impl EntityReference {
         }
 
         Self { inner }
+    }
+
+    /// Get the archetype types
+    pub fn get_archetype_component_types(&self) -> ArchetypeComponentTypes {
+        let inner = self.inner.read();
+        if let Some(inner) = inner.as_ref() {
+            inner.archetype_types.clone()
+        } else {
+            panic!("You try to access a deleted entity");
+        }
     }
 
     /// Get a read access to the entity

@@ -9,7 +9,6 @@
 use crate::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
-    javascript::JsIntrospectObject,
     typescript, FruityError, FruityResult,
 };
 use lazy_static::__Deref;
@@ -93,7 +92,12 @@ pub enum ScriptValue {
     Future(Pin<Box<dyn Send + Future<Output = FruityResult<ScriptValue>>>>),
 
     /// A callback
-    Callback(Box<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>),
+    Callback {
+        /// The type of the object that will be passed as `this` to the callback
+        identifier: Option<ScriptObjectType>,
+        /// The callback
+        callback: Box<dyn Send + Sync + Fn(Vec<ScriptValue>) -> FruityResult<ScriptValue>>,
+    },
 
     /// An object created by rust
     Object(Box<dyn ScriptObject>),
@@ -167,7 +171,7 @@ impl Debug for ScriptValue {
             ScriptValue::Null => formatter.write_str("null"),
             ScriptValue::Undefined => formatter.write_str("undefined"),
             ScriptValue::Future(_) => formatter.write_str("future"),
-            ScriptValue::Callback(_) => formatter.write_str("function"),
+            ScriptValue::Callback { .. } => formatter.write_str("function"),
             ScriptValue::Object(value) => value.fmt(formatter),
         }
     }
@@ -184,9 +188,20 @@ pub enum ScriptObjectType {
 }
 
 impl ScriptObjectType {
-    /// Create a new component type id from a rust type
+    /// Create a new component type id from a javascript type identifier
     pub fn from_identifier(string: String) -> Self {
         Self::Script(string)
+    }
+
+    /// Create a new component type id from a rust type
+    pub fn from_type_id_value(value: u64) -> Self {
+        let transmuted_type_id = unsafe {
+            std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
+                t: value as u64,
+            })
+        };
+
+        ScriptObjectType::Rust(transmuted_type_id)
     }
 
     /// Create a new component type id from a rust type
@@ -217,114 +232,22 @@ impl TryFromScriptValue for ScriptObjectType {
     fn from_script_value(value: ScriptValue) -> FruityResult<Self> {
         match value {
             ScriptValue::String(value) => Ok(ScriptObjectType::Script(value)),
-            ScriptValue::U8(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::U16(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::U32(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::U64(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::USize(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::I8(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::I16(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::I32(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::I64(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::ISize(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::F32(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
-            ScriptValue::F64(value) => {
-                let transmuted_type_id = unsafe {
-                    std::mem::transmute::<TransmutedTypeId, std::any::TypeId>(TransmutedTypeId {
-                        t: value as u64,
-                    })
-                };
-
-                Ok(ScriptObjectType::Rust(transmuted_type_id))
-            }
+            ScriptValue::U8(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::U16(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::U32(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::U64(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::USize(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::I8(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::I16(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::I32(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::I64(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::ISize(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::F32(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::F64(value) => Ok(Self::from_type_id_value(value as u64)),
+            ScriptValue::Callback {
+                identifier: Some(identifier),
+                ..
+            } => Ok(identifier),
             _ => Err(FruityError::InvalidArg(format!(
                 "Couldn't convert {:?} to ScriptObjectType",
                 value

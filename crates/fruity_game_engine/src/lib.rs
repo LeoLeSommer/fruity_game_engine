@@ -112,3 +112,11 @@ macro_rules! profile_scope {
         let _scope = $crate::profile::intern_profile_scope($arg);
     };
 }
+
+/// Profile a scope
+#[macro_export]
+macro_rules! profile_start {
+    () => {
+        let _server = $crate::profile::intern_profile_start();
+    };
+}

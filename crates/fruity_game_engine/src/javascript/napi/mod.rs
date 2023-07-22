@@ -1,9 +1,11 @@
 use crate::{
     any::FruityAny,
     introspect::{IntrospectFields, IntrospectMethods},
-    javascript::napi_script::class_constructors::NapiClassConstructors,
+    javascript::napi::class_constructors::NapiClassConstructors,
     profile_scope,
-    script_value::{ScriptObject, ScriptValue, TryFromScriptValue, TryIntoScriptValue},
+    script_value::{
+        ScriptObject, ScriptObjectType, ScriptValue, TryFromScriptValue, TryIntoScriptValue,
+    },
     FruityError, FruityResult,
 };
 use convert_case::{Case, Casing};
@@ -18,20 +20,24 @@ use napi::{
 };
 use send_wrapper::SendWrapper;
 use std::{
-    fmt::Debug, future::Future, marker::PhantomData, ops::Deref, pin::Pin, rc::Rc, sync::Arc,
-    thread, vec,
+    cell::RefCell, fmt::Debug, future::Future, marker::PhantomData, ops::Deref, path::Component,
+    pin::Pin, rc::Rc, sync::Arc, thread, vec,
 };
 use tokio::runtime::Builder;
 
 mod class_constructors;
 
 lazy_static! {
-    static ref NAPI_CLASS_CONSTRUCTORS: NapiClassConstructors = NapiClassConstructors::default();
+    pub static ref NAPI_CLASS_CONSTRUCTORS: NapiClassConstructors = Default::default();
+    pub static ref NAPI_ENV: SendWrapper<RefCell<Option<Env>>> =
+        SendWrapper::new(RefCell::new(Default::default()));
 }
 
 /// Create a napi js value from a script value
 pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<JsUnknown> {
     profile_scope!("script_value_to_js_value");
+
+    NAPI_ENV.borrow_mut().replace(env.clone());
 
     Ok(match value.into_script_value()? {
         ScriptValue::I8(value) => env
@@ -132,7 +138,7 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
 
             js_promise.into_unknown()
         }
-        ScriptValue::Callback(callback) => {
+        ScriptValue::Callback { callback, .. } => {
             profile_scope!("script_value_to_js_value_closure");
             env.create_function_from_closure("unknown", move |ctx| {
                 let args = ctx
@@ -172,6 +178,8 @@ pub fn script_value_to_js_value(env: &Env, value: ScriptValue) -> FruityResult<J
 /// Create a script value from a napi js value
 pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<ScriptValue> {
     profile_scope!("js_value_to_script_value");
+
+    NAPI_ENV.borrow_mut().replace(env.clone());
 
     Ok(
         match value.get_type().map_err(|e| FruityError::from_napi(e))? {
@@ -274,12 +282,55 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
             }
             ValueType::Function => {
                 profile_scope!("js_value_to_script_value_function");
-                let js_func = JsFunction::try_from(value).map_err(|e| FruityError::from_napi(e))?;
-                let js_func = JsSharedRef::new(env, js_func)?;
+                let js_func: JsFunction =
+                    JsFunction::try_from(value).map_err(|e| FruityError::from_napi(e))?;
 
+                // Get the function identifier
+                let mut type_id_ptr = std::ptr::null_mut();
+                let fruity_get_type_c_string =
+                    unsafe { std::ffi::CStr::from_bytes_with_nul_unchecked(b"fruityGetType\0") };
+
+                check_status!(unsafe {
+                    napi_sys::napi_get_named_property(
+                        env.raw(),
+                        js_func.raw(),
+                        fruity_get_type_c_string.as_ptr() as *const _,
+                        &mut type_id_ptr,
+                    )
+                })
+                .map_err(|e| FruityError::GenericFailure(e.to_string()))?;
+
+                let identifier = if let napi::ValueType::Undefined =
+                    unsafe { JsUnknown::from_raw(env.raw(), type_id_ptr) }
+                        .map_err(|e| FruityError::GenericFailure(e.to_string()))?
+                        .get_type()
+                        .map_err(|e| FruityError::GenericFailure(e.to_string()))?
+                {
+                    ScriptObjectType::Script(js_func.name().map_err(|e| FruityError::from_napi(e))?)
+                } else {
+                    let fruity_get_type_id_function =
+                        unsafe { JsFunction::from_raw(env.raw(), type_id_ptr) }
+                            .map_err(|e| FruityError::from_napi(e))?;
+
+                    let type_id_value = fruity_get_type_id_function
+                        .call_without_args(None)
+                        .map_err(|e| FruityError::GenericFailure(e.to_string()))?
+                        .coerce_to_string()
+                        .map_err(|e| FruityError::GenericFailure(e.to_string()))?
+                        .into_utf8()
+                        .map_err(|e| FruityError::GenericFailure(e.to_string()))?
+                        .as_str()
+                        .map_err(|e| FruityError::GenericFailure(e.to_string()))?
+                        .to_string()
+                        .parse::<u64>()
+                        .map_err(|e| FruityError::GenericFailure(e.to_string()))?;
+
+                    ScriptObjectType::from_type_id_value(type_id_value)
+                };
+
+                // Create a threadsafe function to call the function outside of the js thread
                 let thread_safe_func: ThreadsafeFunction<Vec<ScriptValue>, ErrorStrategy::Fatal> =
                     js_func
-                        .inner()
                         .create_threadsafe_function(
                             0,
                             |ctx: ThreadSafeCallContext<Vec<ScriptValue>>| Ok(ctx.value),
@@ -287,43 +338,48 @@ pub fn js_value_to_script_value(env: &Env, value: JsUnknown) -> FruityResult<Scr
                         .map_err(|e| FruityError::from_napi(e))?;
                 let thread_safe_func = ThreadsafeFunctionSync(thread_safe_func);
 
+                let js_func = JsSharedRef::new(env, js_func)?;
                 let js_send_wrapper = SendWrapper::new((env.clone(), js_func));
-                ScriptValue::Callback(Box::new(move |args| {
-                    // Case the js function is called in the js thread, we call it directly
-                    // Otherwise, we call the function in the js thread and wait for the result in our thread
-                    let result = if js_send_wrapper.valid() {
-                        let (env, js_func) = js_send_wrapper.deref();
 
-                        // Get the js func from the reference
-                        let js_func = js_func.inner();
+                ScriptValue::Callback {
+                    identifier: Some(identifier),
+                    callback: Box::new(move |args| {
+                        // Case the js function is called in the js thread, we call it directly
+                        // Otherwise, we call the function in the js thread and wait for the result in our thread
+                        let result = if js_send_wrapper.valid() {
+                            let (env, js_func) = js_send_wrapper.deref();
 
-                        // Convert all the others args as a JsUnknown
-                        let args = args
-                            .into_iter()
-                            .map(|elem| script_value_to_js_value(&env, elem))
-                            .try_collect::<Vec<_>>()?;
+                            // Get the js func from the reference
+                            let js_func = js_func.inner();
 
-                        // Call the function
-                        let result = js_func
-                            .call(None, &args)
-                            .map_err(|e| FruityError::from_napi(e))?;
+                            // Convert all the others args as a JsUnknown
+                            let args = args
+                                .into_iter()
+                                .map(|elem| script_value_to_js_value(&env, elem))
+                                .try_collect::<Vec<_>>()?;
 
-                        // Return the result
-                        let result = js_value_to_script_value(&env, result)?;
-                        Ok(result)
-                    } else {
-                        let result: ScriptValue = Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                            .unwrap()
-                            .block_on(thread_safe_func.call_async(args))
-                            .map_err(|e| FruityError::from_napi(e))?;
+                            // Call the function
+                            let result = js_func
+                                .call(None, &args)
+                                .map_err(|e| FruityError::from_napi(e))?;
 
-                        Ok(result)
-                    };
+                            // Return the result
+                            let result = js_value_to_script_value(&env, result)?;
+                            Ok(result)
+                        } else {
+                            let result: ScriptValue = Builder::new_current_thread()
+                                .enable_all()
+                                .build()
+                                .unwrap()
+                                .block_on(thread_safe_func.call_async(args))
+                                .map_err(|e| FruityError::from_napi(e))?;
 
-                    result
-                }))
+                            Ok(result)
+                        };
+
+                        result
+                    }),
+                }
             }
             ValueType::External => unimplemented!(),
             ValueType::BigInt => ScriptValue::I64(
@@ -420,6 +476,53 @@ where
 #[derive(FruityAny, Clone)]
 pub struct JsIntrospectObject {
     reference: SendWrapper<JsSharedRef<JsObject>>,
+}
+
+impl JsIntrospectObject {
+    pub fn new(class_name: String) -> FruityResult<Self> {
+        let env = NAPI_ENV.borrow().unwrap().clone();
+        let mut js_object = env.create_object().map_err(|e| FruityError::from_napi(e))?;
+
+        // Assign the class name to the new object
+        let mut js_constructor = env.create_object().map_err(|e| FruityError::from_napi(e))?;
+        js_constructor
+            .set_named_property(
+                "name",
+                env.create_string(&class_name)
+                    .map_err(|e| FruityError::from_napi(e))?,
+            )
+            .map_err(|e| FruityError::from_napi(e))?;
+        js_object
+            .set_named_property("constructor", js_constructor)
+            .map_err(|e| FruityError::from_napi(e))?;
+
+        // TODO: Use the js class prototype
+        /*// Assign the class name and prototype to the new object
+        let global = env.get_global().map_err(|e| FruityError::from_napi(e))?;
+        let class_constructor: Option<JsObject> = global
+            .get_named_property(&class_name)
+            .map_err(|e| FruityError::from_napi(e))?;
+
+        if let Some(class_constructor) = class_constructor {
+            let constructor_prototype: Option<JsObject> = class_constructor
+                .get_named_property("prototype")
+                .map_err(|e| FruityError::from_napi(e))?;
+
+            js_object
+                .set_named_property("constructor", class_constructor)
+                .map_err(|e| FruityError::from_napi(e))?;
+
+            if let Some(constructor_prototype) = constructor_prototype {
+                js_object
+                    .set_named_property("__proto__", constructor_prototype)
+                    .map_err(|e| FruityError::from_napi(e))?;
+            }
+        }*/
+
+        Ok(Self {
+            reference: SendWrapper::new(JsSharedRef::new(&env, js_object)?),
+        })
+    }
 }
 
 impl Debug for JsIntrospectObject {

@@ -434,7 +434,7 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
         let napi_function_exports = exported_struct.clone().constructor.map(|constructor| {
             let ident = constructor.name.get_ident().unwrap();
 
-            napi_function_export(
+            let constructor_binding = napi_function_export(
                 FruityExportFn {
                     name:
                         syn::Path {
@@ -455,7 +455,76 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
                     typescript_overwrite: constructor.typescript_overwrite,
                 },
                 None,
-            )
+            );
+
+            let constructor_get_type_ident = syn::Ident::new(
+                &format!("{}_getType", exported_struct.name.to_string()),
+                Span::call_site(),
+            );
+
+            let constructor_get_type_function = quote! {
+                pub fn #constructor_get_type_ident() -> String {
+                    struct TransmutedTypeId {
+                        t: u64,
+                    }
+
+                    let type_id_value = std::any::TypeId::of::<#struct_name>();
+                    let type_id_value = unsafe {
+                        std::mem::transmute::<
+                            std::any::TypeId,
+                            TransmutedTypeId,
+                        >(type_id_value)
+                    }
+                        .t;
+
+                    type_id_value.to_string()
+                }
+            };
+
+            let constructor_get_type_binding = napi_function_export(
+                FruityExportFn {
+                    name:
+                        syn::Path {
+                            leading_colon: None,
+                            segments: syn::punctuated::Punctuated::<
+                                syn::PathSegment,
+                                syn::token::Colon2,
+                            >::from_iter(vec![
+                                syn::PathSegment::from(constructor_get_type_ident.clone()),
+                            ]),
+                        },
+                    name_overwrite: None,
+                    attrs: vec![],
+                    args: vec![],
+                    return_ty: syn::ReturnType::Type(
+                        Default::default(),
+                        Box::new(syn::Type::Path(syn::TypePath {
+                            qself: None,
+                            path: syn::Path {
+                                leading_colon: None,
+                                segments: syn::punctuated::Punctuated::<
+                                    syn::PathSegment,
+                                    syn::token::Colon2,
+                                >::from_iter(vec![
+                                    syn::PathSegment::from(syn::Ident::new(
+                                        "String",
+                                        Span::call_site(),
+                                    )),
+                                ]),
+                            },
+                        })),
+                    ),
+                    is_async: false,
+                    typescript_overwrite: None,
+                },
+                None,
+            );
+
+            quote! {
+                #constructor_binding
+                #constructor_get_type_function
+                #constructor_get_type_binding
+            }
         });
 
         quote! {
@@ -471,7 +540,7 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
         let wasm_function_exports = exported_struct.clone().constructor.map(|constructor| {
             let ident = constructor.name.get_ident().unwrap();
 
-            wasm_function_export(
+            let constructor_binding = wasm_function_export(
                 FruityExportFn {
                     name:
                         syn::Path {
@@ -492,7 +561,76 @@ pub(crate) fn intern_export_impl(item: ItemImpl) -> TokenStream2 {
                     typescript_overwrite: constructor.typescript_overwrite,
                 },
                 None,
-            )
+            );
+
+            let constructor_get_type_ident = syn::Ident::new(
+                &format!("{}_getType", exported_struct.name.to_string()),
+                Span::call_site(),
+            );
+
+            let constructor_get_type_function = quote! {
+                pub fn #constructor_get_type_ident() -> String {
+                    struct TransmutedTypeId {
+                        t: u64,
+                    }
+
+                    let type_id_value = std::any::TypeId::of::<#struct_name>();
+                    let type_id_value = unsafe {
+                        std::mem::transmute::<
+                            std::any::TypeId,
+                            TransmutedTypeId,
+                        >(type_id_value)
+                    }
+                        .t;
+
+                    type_id_value.to_string()
+                }
+            };
+
+            let constructor_get_type_binding = wasm_function_export(
+                FruityExportFn {
+                    name:
+                        syn::Path {
+                            leading_colon: None,
+                            segments: syn::punctuated::Punctuated::<
+                                syn::PathSegment,
+                                syn::token::Colon2,
+                            >::from_iter(vec![
+                                syn::PathSegment::from(constructor_get_type_ident.clone()),
+                            ]),
+                        },
+                    name_overwrite: None,
+                    attrs: vec![],
+                    args: vec![],
+                    return_ty: syn::ReturnType::Type(
+                        Default::default(),
+                        Box::new(syn::Type::Path(syn::TypePath {
+                            qself: None,
+                            path: syn::Path {
+                                leading_colon: None,
+                                segments: syn::punctuated::Punctuated::<
+                                    syn::PathSegment,
+                                    syn::token::Colon2,
+                                >::from_iter(vec![
+                                    syn::PathSegment::from(syn::Ident::new(
+                                        "String",
+                                        Span::call_site(),
+                                    )),
+                                ]),
+                            },
+                        })),
+                    ),
+                    is_async: false,
+                    typescript_overwrite: None,
+                },
+                None,
+            );
+
+            quote! {
+                #constructor_binding
+                #constructor_get_type_function
+                #constructor_get_type_binding
+            }
         });
 
         quote! {

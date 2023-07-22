@@ -109,8 +109,11 @@
         "className": "TestVec",
         "fields": {
           "scale": {
-            "y": 0.5,
-            "x": 0.5
+            "className": "Vector2D",
+            "fields": {
+              "y": 0.5,
+              "x": 0.5
+            }
           }
         }
       },

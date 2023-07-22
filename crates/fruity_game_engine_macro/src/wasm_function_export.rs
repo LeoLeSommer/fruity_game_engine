@@ -47,18 +47,17 @@ pub(crate) fn wasm_function_export(
         }
     });
 
-    let args_converters = exported_fn.args.iter().enumerate()
-        .map(|(index, input)| {
-            let arg_name = syn::Ident::new(&format!("arg_{}", index), Span::call_site());
-            let ty = input.ty.clone();
+    let args_converters = exported_fn.args.iter().enumerate().map(|(index, input)| {
+        let arg_name = syn::Ident::new(&format!("arg_{}", index), Span::call_site());
+        let ty = input.ty.clone();
 
-            quote! {
-                let #arg_name = {
-                    let arg = #fruity_crate::javascript::wasm::js_value_to_script_value(#arg_name).unwrap();
-                    <#ty>::from_script_value(arg).unwrap()
-                };
-            }
-        });
+        quote! {
+            let #arg_name = {
+                let arg = #fruity_crate::javascript::js_value_to_script_value(#arg_name).unwrap();
+                <#ty>::from_script_value(arg).unwrap()
+            };
+        }
+    });
 
     quote! {
         #[#fruity_crate::wasm_bindgen::prelude::wasm_bindgen(js_name = #exported_name)]
@@ -77,7 +76,7 @@ pub(crate) fn wasm_function_export(
                 <#return_ty>::into_script_value(_ret).unwrap()
             };
 
-            #fruity_crate::javascript::wasm::script_value_to_js_value(_ret)
+            #fruity_crate::javascript::script_value_to_js_value(_ret)
                 .map_err(|err| #fruity_crate::wasm_bindgen::JsError::from(err))
         }
     }

@@ -13,7 +13,7 @@ mod wasm;
 pub use wasm::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-mod napi_script;
+mod napi;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use napi_script::*;
+pub use super::javascript::napi::*;

@@ -2,6 +2,7 @@
 #![feature(iterator_try_collect)]
 #![feature(drain_filter)]
 #![feature(pointer_byte_offsets)]
+#![feature(hash_drain_filter)]
 
 //! ECS
 //!

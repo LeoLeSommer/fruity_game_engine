@@ -6,22 +6,20 @@ use fruity_game_engine::{
     any::FruityAny,
     external,
     introspect::{IntrospectFields, IntrospectMethods},
+    javascript::JsIntrospectObject,
     resource::ResourceContainer,
     script_value::{ScriptObjectType, ScriptValue},
     settings::Settings,
-    typescript, FruityError, FruityResult,
+    FruityError, FruityResult,
 };
 use maplit::hashmap;
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 mod name;
 pub use name::*;
 
 mod enabled;
 pub use enabled::*;
-
-mod script_component;
-pub use script_component::*;
 
 mod extension_component_service;
 pub use extension_component_service::*;
@@ -81,7 +79,7 @@ impl Serialize for Box<dyn Component> {
     fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings> {
         Ok(Settings::Object(hashmap!(
             "class_name".to_string() => Settings::String(self.get_class_name()?),
-            "fields".to_string() =>  self.serialize(resource_container)?,
+            "fields".to_string() =>  self.deref().serialize(resource_container)?,
         )))
     }
 }
@@ -96,56 +94,77 @@ impl Deserialize for Box<dyn Component> {
         resource_container: &ResourceContainer,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
     ) -> FruityResult<Self> {
-        if let Settings::Object(serialized) = serialized {
-            let serialization_service = resource_container.require::<SerializationService>();
-            let serialization_service_reader = serialization_service.read();
+        let serialization_service = resource_container.require::<SerializationService>();
+        let serialization_service_reader = serialization_service.read();
 
-            let class_name =
-                if let Some(Settings::String(class_name)) = serialized.get("class_name") {
-                    class_name.clone()
-                } else {
-                    return Err(FruityError::InvalidArg(format!(
-                        "Couldn't deserialize {:?} to Box<dyn Component>, class_name not found",
-                        serialized
-                    )));
-                };
+        let instance =
+            serialization_service_reader.instantiate(serialized, local_id_to_entity_id)?;
 
-            let fields = if let Some(fields) = serialized.get("fields") {
-                fields.clone()
-            } else {
-                return Err(FruityError::InvalidArg(format!(
-                    "Couldn't deserialize {:?} to Box<dyn Component>, fields not found",
-                    serialized
-                )));
-            };
-
-            let instance = serialization_service_reader.instantiate(
-                &fields,
-                class_name.clone(),
-                local_id_to_entity_id,
-            )?;
-
-            let instance = if let Some(ScriptValue::Object(instance)) = instance {
-                // Component can be instantiated as a native component
-                Ok(instance)
-            } else {
-                Err(FruityError::InvalidArg(format!(
-                    "Couldn't deserialize {:?} to Box<dyn Component>",
-                    serialized
-                )))
-            }?;
-
-            match instance.downcast::<Box<dyn Component>>() {
-                Ok(instance) => Ok(<Box<dyn Component>>::from(*instance)),
-                Err(instance) => Ok(<Box<dyn Component>>::from(Box::new(ScriptComponent::from(
-                    instance,
-                )))),
-            }
+        let instance = if let ScriptValue::Object(instance) = instance {
+            // Component can be instantiated as a native component
+            Ok(instance)
         } else {
             Err(FruityError::InvalidArg(format!(
                 "Couldn't deserialize {:?} to Box<dyn Component>",
                 serialized
             )))
+        }?;
+
+        match instance.downcast::<Box<dyn Component>>() {
+            Ok(instance) => Ok(<Box<dyn Component>>::from(*instance)),
+            Err(instance) => match instance.downcast::<JsIntrospectObject>() {
+                Ok(instance) => Ok(<Box<dyn Component>>::from(instance)),
+                Err(_) => Err(FruityError::InvalidArg(format!(
+                    "Couldn't deserialize {:?} to Box<dyn Component>",
+                    serialized
+                ))),
+            },
         }
+    }
+}
+
+impl Component for JsIntrospectObject {
+    fn duplicate(&self) -> Box<dyn Component> {
+        Box::new(self.clone())
+    }
+
+    fn get_component_type_id(&self) -> FruityResult<ComponentTypeId> {
+        Ok(ComponentTypeId::Normal(ScriptObjectType::from_identifier(
+            self.get_class_name()?,
+        )))
+    }
+
+    fn get_storage(&self) -> Box<dyn ComponentStorage> {
+        Box::new(VecComponentStorage::<Self>::new())
+    }
+}
+
+impl Serialize for JsIntrospectObject {
+    fn serialize(&self, resource_container: &ResourceContainer) -> FruityResult<Settings> {
+        Ok(Settings::Object(
+            (self as &dyn IntrospectFields)
+                .get_field_values()?
+                .into_iter()
+                .map(|(key, value)| {
+                    value
+                        .serialize(resource_container)
+                        .map(|serialized| (key, serialized))
+                })
+                .try_collect()?,
+        ))
+    }
+}
+
+impl Deserialize for JsIntrospectObject {
+    fn get_identifier() -> String {
+        "JsIntrospectObject".to_string()
+    }
+
+    fn deserialize(
+        _serialized: &Settings,
+        _resource_container: &ResourceContainer,
+        _local_id_to_entity_id: &HashMap<u64, EntityId>,
+    ) -> FruityResult<Self> {
+        todo!()
     }
 }

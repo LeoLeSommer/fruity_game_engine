@@ -484,13 +484,25 @@ impl StartupDisposeSystemPool {
 
     /// Run all the systems in the system pool
     pub fn run_systems(&mut self) -> FruityResult<()> {
-        let (main_thread_systems, parallel_systems): (Vec<_>, Vec<_>) = self
-            .systems
-            .drain(..)
-            .partition(|system| system.execute_in_main_thread);
+        #[cfg(target_arch = "wasm32")]
+        {
+            profile_scope!("main_thread_systems");
+
+            self.systems
+                .drain(..)
+                .into_iter()
+                .try_for_each(|system| Self::execute_system(system))?;
+
+            Ok(())
+        }
 
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let (main_thread_systems, parallel_systems): (Vec<_>, Vec<_>) = self
+                .systems
+                .drain(..)
+                .partition(|system| system.execute_in_main_thread);
+
             profile_scope!("parallel_systems");
 
             thread::scope(|s| {

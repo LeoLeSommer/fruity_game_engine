@@ -59,6 +59,13 @@ impl EntityStorage {
         self.entity_locations.get(&entity_id).cloned()
     }
 
+    /// Get the archetype component types
+    pub fn get_archetype_types(&self, archetype_index: usize) -> Option<ArchetypeComponentTypes> {
+        self.archetypes
+            .get(archetype_index)
+            .map(|archetype| archetype.get_component_types().clone())
+    }
+
     /// Add an entity to the storage
     pub fn create_entity(
         &mut self,
@@ -66,7 +73,7 @@ impl EntityStorage {
         components: Vec<Box<dyn Component>>,
         extension_component_service: Option<&ExtensionComponentService>,
         default_components: Option<Vec<Box<dyn Component>>>,
-    ) -> FruityResult<EntityLocation> {
+    ) -> FruityResult<(EntityLocation, ArchetypeComponentTypes)> {
         if self.entity_locations.contains_key(&entity_id) {
             return Err(FruityError::GenericFailure(
                 format!("Entity with id {:?} already exists", entity_id).into(),
@@ -77,7 +84,7 @@ impl EntityStorage {
         let component_types = ArchetypeComponentTypes::from_boxed_components(&components)?;
 
         // Insert the entity into the archetype, create the archetype if needed
-        let entity_location = match self.archetype_types.get(&component_types) {
+        let (entity_location, archetype_types) = match self.archetype_types.get(&component_types) {
             Some(archetype_index) => {
                 // Safe cause Archetype::component_types never change
                 let archetype =
@@ -90,10 +97,13 @@ impl EntityStorage {
                     default_components,
                 )?;
 
-                EntityLocation {
-                    archetype_index: *archetype_index,
-                    entity_index,
-                }
+                (
+                    EntityLocation {
+                        archetype_index: *archetype_index,
+                        entity_index,
+                    },
+                    archetype.get_component_types().clone(),
+                )
             }
             None => {
                 let archetype = Archetype::new(
@@ -132,11 +142,6 @@ impl EntityStorage {
                     });
 
                 // Notify memory moves
-                let archetype = &self.archetypes[archetype_index];
-                self.on_archetype_created.send(unsafe {
-                    NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
-                })?;
-
                 if is_archetypes_about_to_reallocate {
                     let archetypes_new_ptr = self.archetypes.as_ptr();
                     let addr_diff =
@@ -145,17 +150,26 @@ impl EntityStorage {
                     self.on_archetypes_reallocated.send(addr_diff)?;
                 }
 
-                EntityLocation {
-                    archetype_index,
-                    entity_index: 0,
-                }
+                let archetype = &self.archetypes[archetype_index];
+
+                self.on_archetype_created.send(unsafe {
+                    NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
+                })?;
+
+                (
+                    EntityLocation {
+                        archetype_index,
+                        entity_index: 0,
+                    },
+                    archetype.get_component_types().clone(),
+                )
             }
         };
 
         self.entity_locations
             .insert(entity_id, entity_location.clone());
 
-        Ok(entity_location)
+        Ok((entity_location, archetype_types))
     }
 
     /// Remove an entity from the storage
@@ -211,53 +225,81 @@ impl EntityStorage {
     }
 
     /// Append the entities of another storage to this one
-    pub fn append(&mut self, other: &mut Self) -> FruityResult<Vec<(EntityId, EntityLocation)>> {
-        let mut entity_locations = Vec::with_capacity(other.entity_locations.len());
+    pub fn append(&mut self, other: &mut Self) -> FruityResult<Vec<EntityId>> {
         other.archetypes.drain(..).try_for_each(|mut archetype| {
             let component_types = archetype.get_component_types().clone();
 
-            let (archetype_index, begin_entity_index) =
-                match self.archetype_types.get(&component_types) {
-                    Some(archetype_index) => {
-                        let begin_entity_index = self.archetypes[*archetype_index].len();
+            let archetype = match self.archetype_types.get(&component_types) {
+                Some(archetype_index) => {
+                    // Safe cause Archetype::component_types never change
+                    let self_archetype =
+                        unsafe { &mut self.archetypes.get_unchecked_mut_vec()[*archetype_index] };
+                    self_archetype.append(&mut archetype)?;
 
-                        // Safe cause Archetype::component_types never change
-                        let self_archetype = unsafe {
-                            &mut self.archetypes.get_unchecked_mut_vec()[*archetype_index]
-                        };
-                        self_archetype.append(&mut archetype)?;
+                    self_archetype
+                }
+                None => {
+                    // Check if a reallocation will be occurred on next archetype insert
+                    let is_archetypes_about_to_reallocate =
+                        self.archetypes.len() + 1 > self.archetypes.capacity();
+                    let archetypes_old_ptr = self.archetypes.as_ptr();
 
-                        (*archetype_index, begin_entity_index)
+                    // Insert the archetype
+                    let archetype_index = self.archetypes.insert(archetype);
+                    self.archetype_types
+                        .insert(component_types.clone(), archetype_index);
+
+                    // Notify memory moves
+                    if is_archetypes_about_to_reallocate {
+                        let archetypes_new_ptr = self.archetypes.as_ptr();
+                        let addr_diff =
+                            unsafe { archetypes_new_ptr.byte_offset_from(archetypes_old_ptr) };
+
+                        self.on_archetypes_reallocated.send(addr_diff)?;
                     }
-                    None => {
-                        let archetype_index = self.archetypes.push(archetype);
-                        self.archetype_types
-                            .insert(component_types.clone(), archetype_index);
-                        (archetype_index, 0)
-                    }
-                };
 
-            let locations = other
-                .entity_locations
-                .drain()
-                .map(|(entity_id, location)| {
-                    let entity_location = EntityLocation {
-                        archetype_index,
-                        entity_index: begin_entity_index + location.entity_index,
-                    };
+                    let archetype = &self.archetypes[archetype_index];
 
-                    self.entity_locations
-                        .insert(entity_id.clone(), entity_location.clone());
+                    self.on_archetype_created.send(unsafe {
+                        NonNull::new_unchecked(archetype as *const Archetype as *mut Archetype)
+                    })?;
 
-                    Ok((entity_id, entity_location))
-                })
-                .try_collect::<Vec<_>>()?;
+                    archetype
+                }
+            };
 
-            entity_locations.extend(locations);
+            // Insert new entity locations
+            archetype
+                .entity_ids
+                .iter()
+                .enumerate()
+                .for_each(|(index, entity_id)| {
+                    self.entity_locations.insert(
+                        *entity_id,
+                        EntityLocation {
+                            archetype_index: archetype.index,
+                            entity_index: index,
+                        },
+                    );
+                });
 
-            Ok(())
+            FruityResult::Ok(())
         })?;
 
-        Ok(entity_locations)
+        // Update the archetypes indexes
+        unsafe { self.archetypes.get_unchecked_mut_vec() }
+            .iter_mut()
+            .enumerate()
+            .for_each(|(index, archetype)| {
+                archetype.index = index;
+            });
+
+        let entity_ids = other
+            .entity_locations
+            .drain()
+            .map(|(entity_id, _location)| entity_id)
+            .collect::<Vec<_>>();
+
+        Ok(entity_ids)
     }
 }

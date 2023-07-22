@@ -671,13 +671,20 @@ pub fn parse_struct_fields(fields: &syn::Fields) -> Vec<FruityExportClassField> 
     }
 }
 
+/// Parsed attributes of an exported item
 pub struct ParseAttrsItemResult {
+    /// Attributes
     pub attrs: Vec<FruityExportAttribute>,
+    /// You can override the name with #[export_struct(name = "custom")]
     pub name_overwrite: Option<syn::Ident>,
+    /// Typescript overwrite, is used by the typescript build script
+    /// You can use it like this #[export_func(typescript = "class { index: number }")]
     pub typescript_overwrite: Option<String>,
+    /// Is the class able to be converted from a raw js object
     pub from_raw_js_object: bool,
 }
 
+/// Parse the attributes of an exported item
 pub fn parse_attrs_items(items: &Vec<syn::Attribute>) -> ParseAttrsItemResult {
     // Parse attributes
     let attrs = items

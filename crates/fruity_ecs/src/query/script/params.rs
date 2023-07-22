@@ -78,30 +78,24 @@ pub struct WithEntityReferenceIterator<'a> {
     entity_storage: Arc<RwLock<EntityStorage>>,
     archetype_index: usize,
     current_entity_index: usize,
-    on_entity_location_moved: Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    on_entity_location_moved: Signal<(
+        EntityId,
+        Arc<RwLock<EntityStorage>>,
+        EntityLocation,
+        ArchetypeComponentTypes,
+    )>,
 }
 
 impl<'a> Iterator for WithEntityReferenceIterator<'a> {
     type Item = EntityReference;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(entity_id) = self.id_iterator.next() {
-            let result = EntityReference::new(
-                self.entity_storage.clone(),
-                entity_id,
-                EntityLocation {
-                    archetype_index: self.archetype_index,
-                    entity_index: self.current_entity_index,
-                },
-                self.on_entity_location_moved.clone(),
-            );
+        let result = self.current();
 
-            self.current_entity_index += 1;
+        self.id_iterator.next()?;
+        self.current_entity_index += 1;
 
-            Some(result)
-        } else {
-            None
-        }
+        Some(result)
     }
 }
 
@@ -117,6 +111,9 @@ impl<'a> EntityIterator for WithEntityReferenceIterator<'a> {
                 archetype_index: self.archetype_index,
                 entity_index,
             },
+            self.entity_storage.read().archetypes[self.archetype_index]
+                .get_component_types()
+                .clone(),
             self.on_entity_location_moved.clone(),
         )
     }
@@ -127,14 +124,19 @@ impl<'a> EntityIterator for WithEntityReferenceIterator<'a> {
 
     fn reset_current_entity(&mut self) {
         self.current_entity_index -= 1;
+        self.id_iterator.reset_current_entity();
     }
 }
 
 #[derive(FruityAny, Clone)]
 pub(crate) struct ScriptWithEntityReference {
     pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
-    pub(crate) on_entity_location_moved:
-        Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    pub(crate) on_entity_location_moved: Signal<(
+        EntityId,
+        Arc<RwLock<EntityStorage>>,
+        EntityLocation,
+        ArchetypeComponentTypes,
+    )>,
 }
 
 impl ScriptQueryParam for ScriptWithEntityReference {
@@ -297,7 +299,6 @@ impl ScriptQueryParam for ScriptWithEnabled {
 
 /// An iterator over entity components with a given type
 pub struct ScriptWithIterator<'a> {
-    _component_storage_lock: RwLockReadGuard<'a, Box<dyn ComponentStorage>>,
     current_entity_length: NonNull<usize>,
     end_entity_length: NonNull<usize>,
     current_component_index: usize,
@@ -315,7 +316,6 @@ impl<'a> ScriptWithIterator<'a> {
         let entity_count = component_storage_lock.slice_count();
 
         ScriptWithIterator {
-            _component_storage_lock: component_storage_lock,
             current_entity_length: unsafe { NonNull::new_unchecked(begin_entity_length) },
             end_entity_length: unsafe {
                 NonNull::new_unchecked(begin_entity_length.add(entity_count))
@@ -333,10 +333,8 @@ impl<'a> Iterator for ScriptWithIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_entity_length < self.end_entity_length {
             let result = self.current();
-            self.current_entity_length =
-                unsafe { NonNull::new_unchecked(self.current_entity_length.as_ptr().add(1)) };
 
-            if self.current_component_index == *unsafe { self.current_entity_length.as_ref() } {
+            if self.current_component_index + 1 == *unsafe { self.current_entity_length.as_ref() } {
                 self.entity_reference_iterator.next();
                 self.current_entity_length =
                     unsafe { NonNull::new_unchecked(self.current_entity_length.as_ptr().add(1)) };
@@ -429,8 +427,12 @@ impl EntityIterator for ScriptFromEntityWithIterator {
 #[derive(FruityAny, Clone)]
 pub(crate) struct ScriptWith {
     pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
-    pub(crate) on_entity_location_moved:
-        Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    pub(crate) on_entity_location_moved: Signal<(
+        EntityId,
+        Arc<RwLock<EntityStorage>>,
+        EntityLocation,
+        ArchetypeComponentTypes,
+    )>,
     pub(crate) script_object_type: ScriptObjectType,
 }
 
@@ -503,8 +505,12 @@ impl ScriptQueryParam for ScriptWith {
 #[derive(FruityAny, Clone)]
 pub(crate) struct ScriptWithOptional {
     pub(crate) entity_storage: Arc<RwLock<EntityStorage>>,
-    pub(crate) on_entity_location_moved:
-        Signal<(EntityId, Arc<RwLock<EntityStorage>>, EntityLocation)>,
+    pub(crate) on_entity_location_moved: Signal<(
+        EntityId,
+        Arc<RwLock<EntityStorage>>,
+        EntityLocation,
+        ArchetypeComponentTypes,
+    )>,
     pub(crate) script_object_type: ScriptObjectType,
 }
 
@@ -649,9 +655,9 @@ impl<'a> Iterator for ScriptTupleIterator<'a> {
             .iterators
             .iter_mut()
             .enumerate()
-            .find(|(_index, iterator)| iterator.has_reach_entity_end())
+            .find(|(_index, iterator)| !iterator.has_reach_entity_end())
         {
-            sub_iterator.next();
+            sub_iterator.next()?;
 
             // Reinitialize the left iterators
             self.iterators.iter_mut().take(index).for_each(|iterator| {

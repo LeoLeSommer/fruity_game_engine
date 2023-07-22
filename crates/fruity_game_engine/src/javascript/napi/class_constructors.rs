@@ -1,6 +1,6 @@
 use crate::{
     javascript::{js_value_to_script_value, script_value_to_js_value},
-    script_value::{ScriptObject, ScriptObjectType, TryIntoScriptValue},
+    script_value::ScriptObject,
 };
 use convert_case::{Case, Casing};
 use napi::{check_status, Env, JsError, JsUnknown, NapiRaw, NapiValue, PropertyAttributes};
@@ -625,59 +625,6 @@ unsafe extern "C" fn generic_mut_method(
             .map_err(|e| e.into_napi())?;
 
         // Returns the result
-        let result = script_value_to_js_value(&env, result).map_err(|e| e.into_napi())?;
-        Ok(result.raw())
-    }
-
-    generic_mut_method(raw_env, callback_info).unwrap_or_else(|e| {
-        unsafe { JsError::from(e).throw_into(raw_env) };
-        std::ptr::null_mut()
-    })
-}
-
-unsafe extern "C" fn generic_get_type_method(
-    raw_env: napi_sys::napi_env,
-    callback_info: napi_sys::napi_callback_info,
-) -> napi_sys::napi_value {
-    unsafe fn generic_mut_method(
-        raw_env: napi_sys::napi_env,
-        callback_info: napi_sys::napi_callback_info,
-    ) -> napi::Result<napi_sys::napi_value> {
-        // Get the callback infos
-        let mut this = std::ptr::null_mut();
-        let mut args = [std::ptr::null_mut(); 6];
-        let mut argc = 6;
-        let mut data_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
-
-        check_status!(napi_sys::napi_get_cb_info(
-            raw_env,
-            callback_info,
-            &mut argc,
-            args.as_mut_ptr(),
-            &mut this,
-            &mut data_ptr,
-        ))?;
-
-        let data_ptr = std::ffi::CStr::from_ptr(data_ptr as *mut std::ffi::c_char);
-        let method_name = data_ptr.to_str().unwrap().to_string();
-
-        // Initialize javascript utils
-        let env = Env::from_raw(raw_env);
-
-        // Get the wrapped object
-        let mut wrapped = std::ptr::null_mut();
-        check_status!(
-            unsafe { napi_sys::napi_unwrap(raw_env, this, &mut wrapped) },
-            "Unwrap value [{}] from class failed",
-            std::any::type_name::<Box<dyn ScriptObject>>(),
-        )?;
-        let wrapped = wrapped as *mut Box<dyn ScriptObject>;
-        let wrapped = wrapped.as_mut().unwrap();
-
-        // Returns the result
-        let result = ScriptObjectType::Rust(wrapped.as_any_ref().type_id())
-            .into_script_value()
-            .map_err(|e| e.into_napi())?;
         let result = script_value_to_js_value(&env, result).map_err(|e| e.into_napi())?;
         Ok(result.raw())
     }

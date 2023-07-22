@@ -3,10 +3,12 @@ use crate::{component::Component, entity::EntityId};
 use fruity_game_engine::{
     any::FruityAny,
     export_impl, export_struct,
+    introspect::IntrospectFields,
+    javascript::JsIntrospectObject,
     resource::ResourceContainer,
     script_value::{ScriptValue, TryIntoScriptValue},
     settings::Settings,
-    FruityResult,
+    FruityError, FruityResult,
 };
 use std::collections::HashMap;
 
@@ -115,17 +117,57 @@ impl SerializationService {
     ///
     pub fn instantiate(
         &self,
-        value: &Settings,
-        object_type: String,
+        serialized: &Settings,
         local_id_to_entity_id: &HashMap<u64, EntityId>,
-    ) -> FruityResult<Option<ScriptValue>> {
-        Ok(match self.factories.get(&object_type) {
-            Some(factory) => Some(factory(
-                value,
-                &self.resource_container,
-                local_id_to_entity_id,
-            )?),
-            None => None,
+    ) -> FruityResult<ScriptValue> {
+        Ok(match serialized.clone() {
+            Settings::F64(value) => ScriptValue::F64(value),
+            Settings::Bool(value) => ScriptValue::Bool(value),
+            Settings::String(value) => ScriptValue::String(value),
+            Settings::Array(value) => ScriptValue::Array(
+                value
+                    .iter()
+                    .map(|item| self.instantiate(item, local_id_to_entity_id))
+                    .try_collect::<Vec<ScriptValue>>()?,
+            ),
+            Settings::Object(value) => {
+                let class_name = value.get("class_name").ok_or_else(|| {
+                    FruityError::GenericFailure("Missing class_name in object".to_string())
+                })?;
+
+                let class_name = if let Settings::String(class_name) = class_name {
+                    Ok(class_name.clone())
+                } else {
+                    Err(FruityError::GenericFailure(
+                        "class_name must be a string".to_string(),
+                    ))
+                }?;
+
+                let fields = value.get("fields").ok_or(FruityError::GenericFailure(
+                    "Missing fields in object".to_string(),
+                ))?;
+
+                if let Some(factory) = self.factories.get(&class_name) {
+                    factory(&fields, &self.resource_container, local_id_to_entity_id)?
+                } else {
+                    let fields = if let Settings::Object(fields) = fields {
+                        Ok(fields.clone())
+                    } else {
+                        Err(FruityError::GenericFailure(
+                            "fields must be an object".to_string(),
+                        ))
+                    }?;
+
+                    let mut result = JsIntrospectObject::new(class_name)?;
+
+                    fields.iter().try_for_each(|(key, value)| {
+                        result.set_field_value(key, self.instantiate(value, local_id_to_entity_id)?)
+                    })?;
+
+                    ScriptValue::Object(Box::new(result))
+                }
+            }
+            Settings::Null => ScriptValue::Null,
         })
     }
 }

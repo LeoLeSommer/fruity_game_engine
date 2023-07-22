@@ -13,14 +13,6 @@ use send_wrapper::SendWrapper;
 /// referred to as "inner value") is also dropped.
 pub type Arc<T> = std::sync::Arc<T>;
 
-impl<T: ?Sized> Deref for Arc<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
-    }
-}
-
 /// A reader-writer lock
 ///
 /// This type of lock allows a number of readers or at most one writer at any

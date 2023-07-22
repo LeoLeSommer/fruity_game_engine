@@ -118,7 +118,9 @@ pub(crate) fn napi_function_export(
                     &mut fn_ptr,
                 );
                 match c {
-                    #fruity_crate::napi::sys::Status::napi_ok => Ok(()),
+                    #fruity_crate::napi::sys::Status::napi_ok => {
+                        Ok(())
+                    },
                     _ => Err(#fruity_crate::napi::Error::new(
                         #fruity_crate::napi::Status::from(c),
                         format!("Failed to register function `{}`", #exported_name),

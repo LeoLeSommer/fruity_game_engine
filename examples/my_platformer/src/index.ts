@@ -1,6 +1,7 @@
 import initFruityBundle, {
   createFruityNativeBundleModule,
 } from "fruity_native_bundle";
+import * as fruity_native_bundle from "fruity_native_bundle";
 import { FrameService, Settings, World } from "fruity_game_engine";
 import {
   createFruityEcsModule,
@@ -33,6 +34,12 @@ import settings from "./assets/settings.json" assert { type: "json" };
 import scene from "./assets/scene.json" assert { type: "json" };
 
 initFruityBundle();
+
+console.log("Vector2D", (Vector2D as any).fruityGetType());
+console.log("Rotate2D", (Rotate2D as any).fruityGetType());
+console.log("Sprite", (Sprite as any).fruityGetType());
+console.log("Transform2D", (Transform2D as any).fruityGetType());
+console.log("Translate2D", (Translate2D as any).fruityGetType());
 
 class Move {
   constructor(args: Partial<Move>) {
@@ -126,8 +133,8 @@ world.registerModule({
     /*const testStartup2Query = entityService
       .query()
       .withName()
-      .with(Translate2D.getType())
-      .with(Velocity.getType())
+      .with(Translate2D)
+      .with(Velocity)
       .build();
 
     systemService.addStartupSystem("test startup 2", () => {
@@ -144,7 +151,7 @@ world.registerModule({
       };
     });*/
 
-    systemService.addStartupSystem("test startup 3", () => {
+    /*systemService.addStartupSystem("test startup 3", () => {
       let createdEntityId: number | null = null;
       const materialResource = resourceContainer.get<MaterialResource>(
         "./src/assets/material.material"
@@ -192,8 +199,8 @@ world.registerModule({
 
     let test1Query = entityService
       .query()
-      .with<Translate2D>(Translate2D.getType())
-      .with<Velocity>("Velocity")
+      .with(Translate2D)
+      .with(Velocity)
       .build();
 
     systemService.addSystem("test 1", () => {
@@ -203,17 +210,16 @@ world.registerModule({
           beforeTranslate.mul(velocity.velocity * frameService.getDelta())
         );
       });
-    });
+    });*/
 
     const test2Query = entityService
       .query()
-      .withEntity()
-      .with<Translate2D>(Translate2D.getType())
-      .with<Move>("Move")
+      .with(Translate2D)
+      .with(Move)
       .build();
 
     systemService.addSystem("test 2", () => {
-      test2Query.forEach(([entity, translate, move]) => {
+      test2Query.forEach(([translate, move]) => {
         let vel = new Vector2D(0, 0);
         if (inputService.isPressed("Run Left")) {
           vel.x -= move.velocity;
@@ -235,19 +241,15 @@ world.registerModule({
       });
     });
 
-    const test3Query = entityService
-      .query()
-      .with<Rotate2D>(Rotate2D.getType())
-      .with<Move>("Move")
-      .build();
+    const test3Query = entityService.query().with(Rotate2D).with(Move).build();
 
-    systemService.addSystem("test 3", () => {
+    /*systemService.addSystem("test 3", () => {
       test3Query.forEach(([rotate, move]) => {
         if (inputService.isPressed("Rotate")) {
           rotate.angle += move.velocity * frameService.getDelta();
         }
       });
-    });
+    });*/
   },
   loadResourcesAsync: async (world: World, settings: Settings) => {
     console.log("loadResources");

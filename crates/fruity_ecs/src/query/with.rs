@@ -410,7 +410,7 @@ impl<'a, T: Component + 'static> Iterator for WithIterator<'a, T> {
             let result = self.current();
             self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
 
-            if self.current_entity_index == *unsafe { self.current_entity_length.as_ref() } {
+            if self.current_entity_index + 1 == *unsafe { self.current_entity_length.as_ref() } {
                 self.current_entity_length =
                     unsafe { NonNull::new_unchecked(self.current_entity_length.as_ptr().add(1)) };
                 self.current_entity_index = 0;
@@ -589,7 +589,7 @@ impl<'a, T: Component + 'static> Iterator for WithMutIterator<'a, T> {
             let result = unsafe { self.current.as_mut() };
             self.current = unsafe { NonNull::new_unchecked(self.current.as_ptr().add(1)) };
 
-            if self.current_entity_index == *unsafe { self.current_entity_length.as_ref() } {
+            if self.current_entity_index + 1 == *unsafe { self.current_entity_length.as_ref() } {
                 self.current_entity_length =
                     unsafe { NonNull::new_unchecked(self.current_entity_length.as_ptr().add(1)) };
                 self.current_entity_index = 0;

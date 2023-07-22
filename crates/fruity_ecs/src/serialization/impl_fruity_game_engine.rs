@@ -42,7 +42,7 @@ impl Serialize for ScriptValue {
             ScriptValue::Null => Settings::Null,
             ScriptValue::Undefined => Settings::Null,
             ScriptValue::Future(_) => unimplemented!(),
-            ScriptValue::Callback(_) => unimplemented!(),
+            ScriptValue::Callback { .. } => unimplemented!(),
             ScriptValue::Object(value) => Settings::Object(
                 value
                     .get_field_values()?

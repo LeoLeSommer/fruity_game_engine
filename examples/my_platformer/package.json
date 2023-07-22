@@ -5,11 +5,11 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "build": "cd fruity_native_bundle && npm install && npm run napi-build && npm run wasm-build && cd ../ && tsc",
-    "napi-build": "cd fruity_native_bundle && npm install && npm run napi-build:debug && cd ../ && tsc",
-    "wasm-build": "cd fruity_native_bundle && npm install && npm run wasm-build && cd ../ && tsc",
-    "start": "cd fruity_native_bundle && npm install && npm run napi-build:debug && cd ../ && tsc && node dist/src/index.js",
-    "serve": "cd fruity_native_bundle && npm install && npm run wasm-build && cd ../ && tsc && webpack serve"
+    "build": "cd fruity_native_bundle && npm run napi-build && npm run wasm-build && cd ../ && tsc",
+    "napi-build": "cd fruity_native_bundle && npm run napi-build:debug && cd ../ && tsc",
+    "wasm-build": "cd fruity_native_bundle && npm run wasm-build && cd ../ && tsc",
+    "start": "cd fruity_native_bundle && npm run napi-build:debug && cd ../ && tsc && node dist/src/index.js",
+    "serve": "cd fruity_native_bundle && npm run wasm-build && cd ../ && tsc && webpack serve"
   },
   "keywords": [],
   "author": "",
